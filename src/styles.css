@@ -1,0 +1,128 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --font-display: "Fredoka", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Nunito", ui-sans-serif, system-ui, sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+}
+
+:root {
+  --radius: 1rem;
+  /* Deep indigo night */
+  --background: oklch(0.22 0.09 285);
+  --foreground: oklch(0.98 0.01 90);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.22 0.09 285);
+  --popover: oklch(0.22 0.09 285);
+  --popover-foreground: oklch(0.98 0.01 90);
+  /* Coral primary */
+  --primary: oklch(0.72 0.19 25);
+  --primary-foreground: oklch(0.98 0.01 90);
+  --secondary: oklch(0.3 0.08 285);
+  --secondary-foreground: oklch(0.98 0.01 90);
+  --muted: oklch(0.3 0.08 285);
+  --muted-foreground: oklch(0.78 0.03 85);
+  /* Amber accent */
+  --accent: oklch(0.82 0.17 75);
+  --accent-foreground: oklch(0.22 0.09 285);
+  --destructive: oklch(0.62 0.24 27);
+  --destructive-foreground: oklch(0.98 0.01 90);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.82 0.17 75);
+}
+
+.dark {
+  --background: oklch(0.22 0.09 285);
+  --foreground: oklch(0.98 0.01 90);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  body {
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    background-color: #191341;
+    background-image:
+      radial-gradient(
+        ellipse 80% 55% at 50% 115%,
+        oklch(0.82 0.17 75 / 0.55),
+        transparent 60%
+      ),
+      radial-gradient(
+        ellipse 60% 40% at 50% 100%,
+        oklch(0.72 0.19 25 / 0.55),
+        transparent 65%
+      );
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+  }
+
+  h1,
+  h2,
+  h3,
+  .font-display {
+    font-family: var(--font-display);
+  }
+}
+
+/* Print: show only the Future ID Card */
+@media print {
+  body {
+    background: white !important;
+  }
+  body * {
+    visibility: hidden !important;
+  }
+  .print-card,
+  .print-card * {
+    visibility: visible !important;
+  }
+  .print-card {
+    position: absolute !important;
+    left: 50% !important;
+    top: 20mm !important;
+    transform: translateX(-50%) !important;
+    box-shadow: none !important;
+    max-width: 90mm !important;
+  }
+}
