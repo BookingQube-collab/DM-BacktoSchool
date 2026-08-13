@@ -14,17 +14,17 @@ import { transformPhoto } from "@/lib/transform";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Future Me — E3 Career Photo Booth" },
+      { title: "Smart Start — Doha Mall Back to School" },
       {
         name: "description",
         content:
-          "Pick a dream job, take a selfie, and meet your grown-up self as a pilot, doctor, astronaut and more. A playful career photo booth by E3.",
+          "Pick a dream job, take a selfie, and meet your grown-up self as a pilot, doctor, astronaut and more. Smart Start career photo booth at Doha Mall.",
       },
-      { property: "og:title", content: "Future Me — E3 Career Photo Booth" },
+      { property: "og:title", content: "Smart Start — Doha Mall Back to School" },
       {
         property: "og:description",
         content:
-          "Pick a dream job, take a selfie, and meet your grown-up self as a pilot, doctor, astronaut and more. A playful career photo booth by E3.",
+          "Pick a dream job, take a selfie, and meet your grown-up self as a pilot, doctor, astronaut and more. Smart Start career photo booth at Doha Mall.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -53,7 +53,10 @@ function FutureMeKiosk() {
         title: profession.title,
         promptPreview: prompt.slice(0, 120) + "…",
       });
-      const { imageUrl } = await transformPhoto(photo, prompt);
+      const { imageUrl } = await transformPhoto(photo, prompt, {
+        id: profession.id,
+        title: profession.title,
+      });
       setStage({ kind: "result", profession, imageUrl });
     } catch (e) {
       setStage({

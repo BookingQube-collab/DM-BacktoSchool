@@ -4,13 +4,14 @@ export function JobGrid({ onPick }: { onPick: (p: Profession) => void }) {
   return (
     <div className="min-h-screen w-full px-6 py-10 md:px-12 md:py-16">
       <div className="mx-auto max-w-6xl text-center">
-        <p className="font-display text-sm uppercase tracking-[0.3em] text-accent">
-          E3 · Future Me
-        </p>
-        <h1 className="mt-3 font-display text-4xl font-bold text-foreground md:text-6xl">
-          What will you be when you grow up?
+        <h1 className="mx-auto flex max-w-md justify-center bg-transparent md:max-w-lg">
+          <img
+            src="/smart-start-logo.png"
+            alt="Smart Start"
+            className="h-auto w-full max-w-[280px] bg-transparent drop-shadow-lg md:max-w-[360px]"
+          />
         </h1>
-        <p className="mt-4 text-lg text-foreground/80 md:text-xl">
+        <p className="mt-5 text-lg text-foreground/80 md:text-xl">
           Pick a job. Take a photo. Meet your future self.
         </p>
 

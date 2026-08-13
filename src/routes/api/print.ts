@@ -1,0 +1,71 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { json } from "@/lib/admin-auth.server";
+import {
+  fetchPrintableImageBytes,
+  printPostcardImageBytes,
+  printPostcardPng,
+  resolvePrinterName,
+} from "@/lib/print.server";
+
+export const Route = createFileRoute("/api/print")({
+  server: {
+    handlers: {
+      POST: async ({ request }) => {
+        try {
+          const body = (await request.json()) as {
+            imageDataUrl?: string;
+            imageUrl?: string;
+            printer_name?: string;
+          };
+
+          const imageUrl =
+            typeof body?.imageUrl === "string" ? body.imageUrl.trim() : "";
+          const imageDataUrl =
+            typeof body?.imageDataUrl === "string"
+              ? body.imageDataUrl.trim()
+              : "";
+
+          if (!imageUrl && !imageDataUrl) {
+            return json(
+              { error: "imageUrl or imageDataUrl is required" },
+              400,
+            );
+          }
+
+          const requested = await resolvePrinterName(
+            typeof body.printer_name === "string"
+              ? body.printer_name
+              : undefined,
+          );
+
+          // Prefer the transformed photo URL (booth Print). Data URL kept for
+          // legacy clients; both paths composite the Admin mall logo server-side.
+          const result = imageUrl
+            ? await printPostcardImageBytes(
+                await fetchPrintableImageBytes(imageUrl),
+                requested,
+              )
+            : await printPostcardPng(imageDataUrl, requested);
+
+          return json({
+            ok: true,
+            printer_name: result.printer_name,
+            requested_printer_name: requested,
+            spool: result.spool ?? null,
+            method: result.method ?? null,
+          });
+        } catch (e) {
+          const message = e instanceof Error ? e.message : String(e);
+          // 503 = printer/server path unavailable (not a bad client payload)
+          const status =
+            /not found|offline|work offline|paused|requires the app server|win32|no printers detected|0 bytes|empty page|bounds are empty|photo not ready|not ready|not accepted|ipp|wsd|soft.?driver|timed out|waiting for printer|could not download/i.test(
+              message,
+            )
+              ? 503
+              : 500;
+          return json({ error: message }, status);
+        }
+      },
+    },
+  },
+});

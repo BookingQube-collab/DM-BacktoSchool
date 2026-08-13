@@ -10,11 +10,98 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as LeaderboardRouteImport } from './routes/leaderboard'
+import { Route as RegisterRouteImport } from './routes/register'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AdminCompaniesRouteImport } from './routes/admin/companies'
+import { Route as AdminLoginRouteImport } from './routes/admin/login'
+import { Route as AdminPhotosRouteImport } from './routes/admin/photos'
+import { Route as AdminRegistrationsRouteImport } from './routes/admin/registrations'
+import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
+import { Route as ApiBrandingRouteImport } from './routes/api/branding'
+import { Route as ApiLeaderboardRouteImport } from './routes/api/leaderboard'
+import { Route as ApiPrintRouteImport } from './routes/api/print'
+import { Route as ApiRegisterRouteImport } from './routes/api/register'
 import { Route as ApiTransformRouteImport } from './routes/api/transform'
+import { Route as ApiAdminAuthRouteImport } from './routes/api/admin/auth'
+import { Route as ApiAdminCompaniesRouteImport } from './routes/api/admin/companies'
+import { Route as ApiAdminPhotosRouteImport } from './routes/api/admin/photos'
+import { Route as ApiAdminPrintersRouteImport } from './routes/api/admin/printers'
+import { Route as ApiAdminPurgeRouteImport } from './routes/api/admin/purge'
+import { Route as ApiAdminRegistrationsRouteImport } from './routes/api/admin/registrations'
+import { Route as ApiAdminReprintRouteImport } from './routes/api/admin/reprint'
+import { Route as ApiAdminSettingsRouteImport } from './routes/api/admin/settings'
+import { Route as ApiAdminStatsRouteImport } from './routes/api/admin/stats'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LeaderboardRoute = LeaderboardRouteImport.update({
+  id: '/leaderboard',
+  path: '/leaderboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminCompaniesRoute = AdminCompaniesRouteImport.update({
+  id: '/companies',
+  path: '/companies',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminLoginRoute = AdminLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminPhotosRoute = AdminPhotosRouteImport.update({
+  id: '/photos',
+  path: '/photos',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminRegistrationsRoute = AdminRegistrationsRouteImport.update({
+  id: '/registrations',
+  path: '/registrations',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AdminRoute,
+} as any)
+const ApiBrandingRoute = ApiBrandingRouteImport.update({
+  id: '/api/branding',
+  path: '/api/branding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiLeaderboardRoute = ApiLeaderboardRouteImport.update({
+  id: '/api/leaderboard',
+  path: '/api/leaderboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPrintRoute = ApiPrintRouteImport.update({
+  id: '/api/print',
+  path: '/api/print',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiRegisterRoute = ApiRegisterRouteImport.update({
+  id: '/api/register',
+  path: '/api/register',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiTransformRoute = ApiTransformRouteImport.update({
@@ -22,31 +109,229 @@ const ApiTransformRoute = ApiTransformRouteImport.update({
   path: '/api/transform',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminAuthRoute = ApiAdminAuthRouteImport.update({
+  id: '/api/admin/auth',
+  path: '/api/admin/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminCompaniesRoute = ApiAdminCompaniesRouteImport.update({
+  id: '/api/admin/companies',
+  path: '/api/admin/companies',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminPhotosRoute = ApiAdminPhotosRouteImport.update({
+  id: '/api/admin/photos',
+  path: '/api/admin/photos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminPrintersRoute = ApiAdminPrintersRouteImport.update({
+  id: '/api/admin/printers',
+  path: '/api/admin/printers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminPurgeRoute = ApiAdminPurgeRouteImport.update({
+  id: '/api/admin/purge',
+  path: '/api/admin/purge',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminRegistrationsRoute = ApiAdminRegistrationsRouteImport.update({
+  id: '/api/admin/registrations',
+  path: '/api/admin/registrations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminReprintRoute = ApiAdminReprintRouteImport.update({
+  id: '/api/admin/reprint',
+  path: '/api/admin/reprint',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminSettingsRoute = ApiAdminSettingsRouteImport.update({
+  id: '/api/admin/settings',
+  path: '/api/admin/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminStatsRoute = ApiAdminStatsRouteImport.update({
+  id: '/api/admin/stats',
+  path: '/api/admin/stats',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/leaderboard': typeof LeaderboardRoute
+  '/register': typeof RegisterRoute
+  '/admin/companies': typeof AdminCompaniesRoute
+  '/admin/login': typeof AdminLoginRoute
+  '/admin/photos': typeof AdminPhotosRoute
+  '/admin/registrations': typeof AdminRegistrationsRoute
+  '/admin/settings': typeof AdminSettingsRoute
+  '/api/branding': typeof ApiBrandingRoute
+  '/api/leaderboard': typeof ApiLeaderboardRoute
+  '/api/print': typeof ApiPrintRoute
+  '/api/register': typeof ApiRegisterRoute
   '/api/transform': typeof ApiTransformRoute
+  '/admin/': typeof AdminIndexRoute
+  '/api/admin/auth': typeof ApiAdminAuthRoute
+  '/api/admin/companies': typeof ApiAdminCompaniesRoute
+  '/api/admin/photos': typeof ApiAdminPhotosRoute
+  '/api/admin/printers': typeof ApiAdminPrintersRoute
+  '/api/admin/purge': typeof ApiAdminPurgeRoute
+  '/api/admin/registrations': typeof ApiAdminRegistrationsRoute
+  '/api/admin/reprint': typeof ApiAdminReprintRoute
+  '/api/admin/settings': typeof ApiAdminSettingsRoute
+  '/api/admin/stats': typeof ApiAdminStatsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/leaderboard': typeof LeaderboardRoute
+  '/register': typeof RegisterRoute
+  '/admin/companies': typeof AdminCompaniesRoute
+  '/admin/login': typeof AdminLoginRoute
+  '/admin/photos': typeof AdminPhotosRoute
+  '/admin/registrations': typeof AdminRegistrationsRoute
+  '/admin/settings': typeof AdminSettingsRoute
+  '/api/branding': typeof ApiBrandingRoute
+  '/api/leaderboard': typeof ApiLeaderboardRoute
+  '/api/print': typeof ApiPrintRoute
+  '/api/register': typeof ApiRegisterRoute
   '/api/transform': typeof ApiTransformRoute
+  '/admin': typeof AdminIndexRoute
+  '/api/admin/auth': typeof ApiAdminAuthRoute
+  '/api/admin/companies': typeof ApiAdminCompaniesRoute
+  '/api/admin/photos': typeof ApiAdminPhotosRoute
+  '/api/admin/printers': typeof ApiAdminPrintersRoute
+  '/api/admin/purge': typeof ApiAdminPurgeRoute
+  '/api/admin/registrations': typeof ApiAdminRegistrationsRoute
+  '/api/admin/reprint': typeof ApiAdminReprintRoute
+  '/api/admin/settings': typeof ApiAdminSettingsRoute
+  '/api/admin/stats': typeof ApiAdminStatsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/leaderboard': typeof LeaderboardRoute
+  '/register': typeof RegisterRoute
+  '/admin/companies': typeof AdminCompaniesRoute
+  '/admin/login': typeof AdminLoginRoute
+  '/admin/photos': typeof AdminPhotosRoute
+  '/admin/registrations': typeof AdminRegistrationsRoute
+  '/admin/settings': typeof AdminSettingsRoute
+  '/api/branding': typeof ApiBrandingRoute
+  '/api/leaderboard': typeof ApiLeaderboardRoute
+  '/api/print': typeof ApiPrintRoute
+  '/api/register': typeof ApiRegisterRoute
   '/api/transform': typeof ApiTransformRoute
+  '/admin/': typeof AdminIndexRoute
+  '/api/admin/auth': typeof ApiAdminAuthRoute
+  '/api/admin/companies': typeof ApiAdminCompaniesRoute
+  '/api/admin/photos': typeof ApiAdminPhotosRoute
+  '/api/admin/printers': typeof ApiAdminPrintersRoute
+  '/api/admin/purge': typeof ApiAdminPurgeRoute
+  '/api/admin/registrations': typeof ApiAdminRegistrationsRoute
+  '/api/admin/reprint': typeof ApiAdminReprintRoute
+  '/api/admin/settings': typeof ApiAdminSettingsRoute
+  '/api/admin/stats': typeof ApiAdminStatsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/transform'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/leaderboard'
+    | '/register'
+    | '/admin/companies'
+    | '/admin/login'
+    | '/admin/photos'
+    | '/admin/registrations'
+    | '/admin/settings'
+    | '/api/branding'
+    | '/api/leaderboard'
+    | '/api/print'
+    | '/api/register'
+    | '/api/transform'
+    | '/admin/'
+    | '/api/admin/auth'
+    | '/api/admin/companies'
+    | '/api/admin/photos'
+    | '/api/admin/printers'
+    | '/api/admin/purge'
+    | '/api/admin/registrations'
+    | '/api/admin/reprint'
+    | '/api/admin/settings'
+    | '/api/admin/stats'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/transform'
-  id: '__root__' | '/' | '/api/transform'
+  to:
+    | '/'
+    | '/leaderboard'
+    | '/register'
+    | '/admin/companies'
+    | '/admin/login'
+    | '/admin/photos'
+    | '/admin/registrations'
+    | '/admin/settings'
+    | '/api/branding'
+    | '/api/leaderboard'
+    | '/api/print'
+    | '/api/register'
+    | '/api/transform'
+    | '/admin'
+    | '/api/admin/auth'
+    | '/api/admin/companies'
+    | '/api/admin/photos'
+    | '/api/admin/printers'
+    | '/api/admin/purge'
+    | '/api/admin/registrations'
+    | '/api/admin/reprint'
+    | '/api/admin/settings'
+    | '/api/admin/stats'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/leaderboard'
+    | '/register'
+    | '/admin/companies'
+    | '/admin/login'
+    | '/admin/photos'
+    | '/admin/registrations'
+    | '/admin/settings'
+    | '/api/branding'
+    | '/api/leaderboard'
+    | '/api/print'
+    | '/api/register'
+    | '/api/transform'
+    | '/admin/'
+    | '/api/admin/auth'
+    | '/api/admin/companies'
+    | '/api/admin/photos'
+    | '/api/admin/printers'
+    | '/api/admin/purge'
+    | '/api/admin/registrations'
+    | '/api/admin/reprint'
+    | '/api/admin/settings'
+    | '/api/admin/stats'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRouteWithChildren
+  LeaderboardRoute: typeof LeaderboardRoute
+  RegisterRoute: typeof RegisterRoute
+  ApiBrandingRoute: typeof ApiBrandingRoute
+  ApiLeaderboardRoute: typeof ApiLeaderboardRoute
+  ApiPrintRoute: typeof ApiPrintRoute
+  ApiRegisterRoute: typeof ApiRegisterRoute
   ApiTransformRoute: typeof ApiTransformRoute
+  ApiAdminAuthRoute: typeof ApiAdminAuthRoute
+  ApiAdminCompaniesRoute: typeof ApiAdminCompaniesRoute
+  ApiAdminPhotosRoute: typeof ApiAdminPhotosRoute
+  ApiAdminPrintersRoute: typeof ApiAdminPrintersRoute
+  ApiAdminPurgeRoute: typeof ApiAdminPurgeRoute
+  ApiAdminRegistrationsRoute: typeof ApiAdminRegistrationsRoute
+  ApiAdminReprintRoute: typeof ApiAdminReprintRoute
+  ApiAdminSettingsRoute: typeof ApiAdminSettingsRoute
+  ApiAdminStatsRoute: typeof ApiAdminStatsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -58,6 +343,97 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/leaderboard': {
+      id: '/leaderboard'
+      path: '/leaderboard'
+      fullPath: '/leaderboard'
+      preLoaderRoute: typeof LeaderboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/companies': {
+      id: '/admin/companies'
+      path: '/companies'
+      fullPath: '/admin/companies'
+      preLoaderRoute: typeof AdminCompaniesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/login': {
+      id: '/admin/login'
+      path: '/login'
+      fullPath: '/admin/login'
+      preLoaderRoute: typeof AdminLoginRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/photos': {
+      id: '/admin/photos'
+      path: '/photos'
+      fullPath: '/admin/photos'
+      preLoaderRoute: typeof AdminPhotosRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/registrations': {
+      id: '/admin/registrations'
+      path: '/registrations'
+      fullPath: '/admin/registrations'
+      preLoaderRoute: typeof AdminRegistrationsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/settings': {
+      id: '/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/api/branding': {
+      id: '/api/branding'
+      path: '/api/branding'
+      fullPath: '/api/branding'
+      preLoaderRoute: typeof ApiBrandingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/leaderboard': {
+      id: '/api/leaderboard'
+      path: '/api/leaderboard'
+      fullPath: '/api/leaderboard'
+      preLoaderRoute: typeof ApiLeaderboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/print': {
+      id: '/api/print'
+      path: '/api/print'
+      fullPath: '/api/print'
+      preLoaderRoute: typeof ApiPrintRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/register': {
+      id: '/api/register'
+      path: '/api/register'
+      fullPath: '/api/register'
+      preLoaderRoute: typeof ApiRegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/transform': {
       id: '/api/transform'
       path: '/api/transform'
@@ -65,13 +441,122 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiTransformRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/auth': {
+      id: '/api/admin/auth'
+      path: '/api/admin/auth'
+      fullPath: '/api/admin/auth'
+      preLoaderRoute: typeof ApiAdminAuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/companies': {
+      id: '/api/admin/companies'
+      path: '/api/admin/companies'
+      fullPath: '/api/admin/companies'
+      preLoaderRoute: typeof ApiAdminCompaniesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/photos': {
+      id: '/api/admin/photos'
+      path: '/api/admin/photos'
+      fullPath: '/api/admin/photos'
+      preLoaderRoute: typeof ApiAdminPhotosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/printers': {
+      id: '/api/admin/printers'
+      path: '/api/admin/printers'
+      fullPath: '/api/admin/printers'
+      preLoaderRoute: typeof ApiAdminPrintersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/purge': {
+      id: '/api/admin/purge'
+      path: '/api/admin/purge'
+      fullPath: '/api/admin/purge'
+      preLoaderRoute: typeof ApiAdminPurgeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/registrations': {
+      id: '/api/admin/registrations'
+      path: '/api/admin/registrations'
+      fullPath: '/api/admin/registrations'
+      preLoaderRoute: typeof ApiAdminRegistrationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/reprint': {
+      id: '/api/admin/reprint'
+      path: '/api/admin/reprint'
+      fullPath: '/api/admin/reprint'
+      preLoaderRoute: typeof ApiAdminReprintRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/settings': {
+      id: '/api/admin/settings'
+      path: '/api/admin/settings'
+      fullPath: '/api/admin/settings'
+      preLoaderRoute: typeof ApiAdminSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/stats': {
+      id: '/api/admin/stats'
+      path: '/api/admin/stats'
+      fullPath: '/api/admin/stats'
+      preLoaderRoute: typeof ApiAdminStatsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
+interface AdminRouteChildren {
+  AdminCompaniesRoute: typeof AdminCompaniesRoute
+  AdminLoginRoute: typeof AdminLoginRoute
+  AdminPhotosRoute: typeof AdminPhotosRoute
+  AdminRegistrationsRoute: typeof AdminRegistrationsRoute
+  AdminSettingsRoute: typeof AdminSettingsRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminCompaniesRoute: AdminCompaniesRoute,
+  AdminLoginRoute: AdminLoginRoute,
+  AdminPhotosRoute: AdminPhotosRoute,
+  AdminRegistrationsRoute: AdminRegistrationsRoute,
+  AdminSettingsRoute: AdminSettingsRoute,
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRouteWithChildren,
+  LeaderboardRoute: LeaderboardRoute,
+  RegisterRoute: RegisterRoute,
+  ApiBrandingRoute: ApiBrandingRoute,
+  ApiLeaderboardRoute: ApiLeaderboardRoute,
+  ApiPrintRoute: ApiPrintRoute,
+  ApiRegisterRoute: ApiRegisterRoute,
   ApiTransformRoute: ApiTransformRoute,
+  ApiAdminAuthRoute: ApiAdminAuthRoute,
+  ApiAdminCompaniesRoute: ApiAdminCompaniesRoute,
+  ApiAdminPhotosRoute: ApiAdminPhotosRoute,
+  ApiAdminPrintersRoute: ApiAdminPrintersRoute,
+  ApiAdminPurgeRoute: ApiAdminPurgeRoute,
+  ApiAdminRegistrationsRoute: ApiAdminRegistrationsRoute,
+  ApiAdminReprintRoute: ApiAdminReprintRoute,
+  ApiAdminSettingsRoute: ApiAdminSettingsRoute,
+  ApiAdminStatsRoute: ApiAdminStatsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

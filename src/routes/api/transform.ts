@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 const FREEPIK_BASE =
-  "https://api.freepik.com/v1/ai/gemini-2-5-flash-image-preview";
+  "https://api.magnific.com/v1/ai/gemini-2-5-flash-image-preview";
 
 type StartResponse = {
   data?: { task_id?: string; status?: string; generated?: string[] };
@@ -19,14 +19,23 @@ export const Route = createFileRoute("/api/transform")({
     handlers: {
       POST: async ({ request }) => {
         try {
-          const key = process.env.FREEPIK_API_KEY;
+          const { getFreepikApiKey } = await import("@/lib/settings.server");
+          const key = await getFreepikApiKey();
           if (!key) {
-            return json({ error: "FREEPIK_API_KEY not configured" }, 500);
+            return json(
+              {
+                error:
+                  "FREEPIK_API_KEY not configured. Add it in Admin → Settings.",
+              },
+              500,
+            );
           }
 
           const body = (await request.json()) as {
             imageBase64?: string;
             prompt?: string;
+            professionId?: string;
+            professionTitle?: string;
           };
           if (!body?.imageBase64 || !body?.prompt) {
             return json({ error: "imageBase64 and prompt are required" }, 400);
@@ -37,13 +46,17 @@ export const Route = createFileRoute("/api/transform")({
             "",
           );
 
+          // Magnific (formerly Freepik) accepts either header; prefer the current one.
+          const authHeaders = {
+            "Content-Type": "application/json",
+            "x-magnific-api-key": key,
+            "x-freepik-api-key": key,
+          };
+
           // 1. Kick off the task
           const startRes = await fetch(FREEPIK_BASE, {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-freepik-api-key": key,
-            },
+            headers: authHeaders,
             body: JSON.stringify({
               prompt: body.prompt,
               reference_images: [cleanBase64],
@@ -69,7 +82,10 @@ export const Route = createFileRoute("/api/transform")({
           while (Date.now() < deadline) {
             await sleep(2500);
             const pollRes = await fetch(`${FREEPIK_BASE}/${taskId}`, {
-              headers: { "x-freepik-api-key": key },
+              headers: {
+                "x-magnific-api-key": key,
+                "x-freepik-api-key": key,
+              },
             });
             if (!pollRes.ok) continue;
             const pollData = (await pollRes.json()) as PollResponse;
@@ -130,7 +146,29 @@ export const Route = createFileRoute("/api/transform")({
             );
           }
 
-          return json({ imageUrl: signed.signedUrl });
+          const imageUrl = signed.signedUrl;
+
+          // Persist for profession leaderboard (best-effort — don't fail the photo).
+          const professionId = body.professionId?.trim();
+          const professionTitle = body.professionTitle?.trim();
+          if (professionId && professionTitle) {
+            const { error: sessionErr } = await supabaseAdmin
+              .from("photo_sessions")
+              .insert({
+                profession_id: professionId,
+                profession_title: professionTitle,
+                image_path: filename,
+                image_url: imageUrl,
+              });
+            if (sessionErr) {
+              console.error(
+                "[transform] photo_sessions insert failed:",
+                sessionErr.message,
+              );
+            }
+          }
+
+          return json({ imageUrl });
         } catch (e) {
           const message = e instanceof Error ? e.message : String(e);
           return json({ error: message }, 500);

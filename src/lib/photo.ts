@@ -49,3 +49,70 @@ export function fileToDownscaledDataUrl(file: File): Promise<string> {
     img.src = url;
   });
 }
+
+const LOGO_MAX_EDGE = 1600;
+const LOGO_PASSTHROUGH_BYTES = 2 * 1024 * 1024;
+
+function isAlphaFriendlyLogo(file: File) {
+  return (
+    file.type === "image/png" ||
+    file.type === "image/webp" ||
+    /\.(png|webp)$/i.test(file.name)
+  );
+}
+
+/**
+ * Read a branding/logo file as a data URL while preserving PNG/WebP alpha.
+ * Do not use fileToDownscaledDataUrl for logos — JPEG flattens transparency to black.
+ */
+export function fileToLogoDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const finishOk = (dataUrl: string) => {
+        URL.revokeObjectURL(objectUrl);
+        resolve(dataUrl);
+      };
+      const finishErr = (err: unknown) => {
+        URL.revokeObjectURL(objectUrl);
+        reject(err instanceof Error ? err : new Error(String(err)));
+      };
+
+      try {
+        const maxDim = Math.max(img.naturalWidth, img.naturalHeight);
+        if (
+          isAlphaFriendlyLogo(file) &&
+          maxDim <= LOGO_MAX_EDGE &&
+          file.size <= LOGO_PASSTHROUGH_BYTES
+        ) {
+          const reader = new FileReader();
+          reader.onload = () => finishOk(String(reader.result));
+          reader.onerror = () => finishErr(new Error("Could not read logo image"));
+          reader.readAsDataURL(file);
+          return;
+        }
+
+        const ratio = Math.min(1, LOGO_MAX_EDGE / Math.max(1, maxDim));
+        const w = Math.max(1, Math.round(img.naturalWidth * ratio));
+        const h = Math.max(1, Math.round(img.naturalHeight * ratio));
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d", { alpha: true });
+        if (!ctx) throw new Error("Canvas not supported");
+        ctx.clearRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        // Always PNG so any remaining transparency survives upload.
+        finishOk(canvas.toDataURL("image/png"));
+      } catch (e) {
+        finishErr(e);
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Could not read logo image"));
+    };
+    img.src = objectUrl;
+  });
+}

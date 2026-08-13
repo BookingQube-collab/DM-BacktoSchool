@@ -10,6 +10,7 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
+import { Toaster } from "@/components/ui/sonner";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
 function NotFoundComponent() {
@@ -77,38 +78,28 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Future Me — E3 Career Photo Booth" },
+      { title: "Smart Start — Doha Mall Back to School" },
       {
         name: "description",
         content:
-          "Pick a dream job, take a selfie, and meet your grown-up self as a pilot, doctor, astronaut and more. A playful career photo booth by E3.",
+          "Pick a dream job, take a selfie, and meet your grown-up self as a pilot, doctor, astronaut and more. Smart Start career photo booth at Doha Mall.",
       },
-      { property: "og:title", content: "Future Me — E3 Career Photo Booth" },
+      { property: "og:title", content: "Smart Start — Doha Mall Back to School" },
       {
         property: "og:description",
         content:
-          "Pick a dream job, take a selfie, and meet your grown-up self as a pilot, doctor, astronaut and more. A playful career photo booth by E3.",
+          "Pick a dream job, take a selfie, and meet your grown-up self as a pilot, doctor, astronaut and more. Smart Start career photo booth at Doha Mall.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Future Me — E3 Career Photo Booth" },
-      { name: "twitter:description", content: "Pick a dream job, take a selfie, and meet your grown-up self as a pilot, doctor, astronaut and more. A playful career photo booth by E3." },
+      { name: "twitter:title", content: "Smart Start — Doha Mall Back to School" },
+      { name: "twitter:description", content: "Pick a dream job, take a selfie, and meet your grown-up self as a pilot, doctor, astronaut and more. Smart Start career photo booth at Doha Mall." },
       { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/1cdcdfc4-f813-4058-b9f3-1ed9ad86469f/id-preview-80d78bc0--68d0e541-2501-4dec-8141-556c215413e1.lovable.app-1784765288357.png" },
       { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/1cdcdfc4-f813-4058-b9f3-1ed9ad86469f/id-preview-80d78bc0--68d0e541-2501-4dec-8141-556c215413e1.lovable.app-1784765288357.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      {
-        rel: "preconnect",
-        href: "https://fonts.gstatic.com",
-        crossOrigin: "anonymous",
-      },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700;800&family=Nunito:wght@400;600;700&display=swap",
-      },
     ],
   }),
   shellComponent: RootShell,
@@ -138,6 +129,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
+      <Toaster />
     </QueryClientProvider>
   );
 }
