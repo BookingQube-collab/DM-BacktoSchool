@@ -13,6 +13,8 @@ const SELPHY_PRINTER_HINT = "Canon SELPHY CP1500";
 const SILENT_PRINT_TIMEOUT_MS = 60_000;
 /** Kids wait for physical SELPHY output after the job is accepted */
 const DESKTOP_PRINT_COUNTDOWN_SEC = 45;
+/** Brief pause before opening the Android/system print sheet (fallback). */
+const BROWSER_PRINT_LEAD_IN_MS = 1_200;
 
 type Props = {
   profession: Profession;
@@ -27,17 +29,19 @@ type Branding = {
 
 type PrintStatus = "idle" | "printing" | "done" | "error";
 
+function isBoothNetworkPrintError(raw: string): boolean {
+  return /booth computer network|requires the app server|is the booth server running|win32/i.test(
+    raw,
+  );
+}
+
 function guestPrintError(raw: string): string {
   const m = raw.toLowerCase();
   // Ambiguous client wait — do not claim the printer rejected the job.
   if (/taking longer than expected|may still be printing/i.test(m)) {
     return raw.length > 140 ? `${raw.slice(0, 137)}…` : raw;
   }
-  if (
-    /booth computer network|requires the app server|is the booth server running|win32/i.test(
-      m,
-    )
-  ) {
+  if (isBoothNetworkPrintError(m)) {
     return "Open this app from the booth computer network.";
   }
   if (/not found|admin → settings|pick a detected printer/i.test(m)) {
@@ -118,12 +122,110 @@ async function silentPrintApi(
   }
 }
 
+/**
+ * Full-bleed postcard print via the browser (Android Default Print Service → SELPHY).
+ * Used when Vercel/cloud cannot reach the LAN printer.
+ */
+function browserPrintPhoto(imageUrl: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const iframe = document.createElement("iframe");
+    iframe.setAttribute("aria-hidden", "true");
+    iframe.style.cssText =
+      "position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0;pointer-events:none;";
+    document.body.appendChild(iframe);
+
+    const win = iframe.contentWindow;
+    const doc = iframe.contentDocument;
+    if (!win || !doc) {
+      iframe.remove();
+      reject(new Error("Could not open print preview."));
+      return;
+    }
+
+    const esc = imageUrl
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/</g, "&lt;");
+
+    doc.open();
+    doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"/>
+<title>Print</title>
+<style>
+  @page { size: 148mm 100mm; margin: 0; }
+  html, body {
+    margin: 0; padding: 0; width: 148mm; height: 100mm;
+    background: #fff; overflow: hidden;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  img {
+    display: block; width: 148mm; height: 100mm;
+    object-fit: cover; object-position: center;
+  }
+</style></head><body>
+<img src="${esc}" alt="Future photo" />
+</body></html>`);
+    doc.close();
+
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(safetyTimer);
+      window.removeEventListener("focus", onFocus);
+      win.removeEventListener("afterprint", onAfterPrint);
+      try {
+        iframe.remove();
+      } catch {
+        /* ignore */
+      }
+      resolve();
+    };
+
+    const onAfterPrint = () => finish();
+    const onFocus = () => {
+      // Android Chrome often fires afterprint immediately; focus returns when the sheet closes.
+      window.setTimeout(finish, 400);
+    };
+
+    // Safety: never hang the booth UI if focus/afterprint never fire.
+    const safetyTimer = window.setTimeout(finish, 120_000);
+
+    const triggerPrint = () => {
+      try {
+        win.addEventListener("afterprint", onAfterPrint);
+        window.addEventListener("focus", onFocus);
+        win.focus();
+        win.print();
+      } catch (e) {
+        settled = true;
+        window.clearTimeout(safetyTimer);
+        iframe.remove();
+        reject(e instanceof Error ? e : new Error(String(e)));
+      }
+    };
+
+    const img = doc.querySelector("img");
+    if (img && !img.complete) {
+      img.onload = () => window.setTimeout(triggerPrint, 50);
+      img.onerror = () => {
+        settled = true;
+        window.clearTimeout(safetyTimer);
+        iframe.remove();
+        reject(new Error("Photo not ready — wait for the transform to finish, then retry."));
+      };
+    } else {
+      window.setTimeout(triggerPrint, 50);
+    }
+  });
+}
+
 export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
   const [showBeat, setShowBeat] = useState(true);
   const [branding, setBranding] = useState<Branding>({});
   const [printStatus, setPrintStatus] = useState<PrintStatus>("idle");
   const [showPrintOverlay, setShowPrintOverlay] = useState(false);
   const [countdownSec, setCountdownSec] = useState(DESKTOP_PRINT_COUNTDOWN_SEC);
+  const [overlayMode, setOverlayMode] = useState<"booth" | "browser">("booth");
   const dismissBeat = useCallback(() => setShowBeat(false), []);
 
   const printBusyRef = useRef(false);
@@ -153,6 +255,7 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
   /** Tick 45→0; promise resolves when countdown hits 0 (or when cancelled). */
   const startPrintCountdown = useCallback(() => {
     clearCountdown();
+    setOverlayMode("booth");
     countdownRemainingRef.current = DESKTOP_PRINT_COUNTDOWN_SEC;
     setCountdownSec(DESKTOP_PRINT_COUNTDOWN_SEC);
     setShowPrintOverlay(true);
@@ -177,6 +280,13 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
     }, 1000);
 
     return done;
+  }, [clearCountdown]);
+
+  const showBrowserPrintOverlay = useCallback(() => {
+    clearCountdown();
+    setOverlayMode("browser");
+    setCountdownSec(0);
+    setShowPrintOverlay(true);
   }, [clearCountdown]);
 
   useEffect(() => {
@@ -223,6 +333,17 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
     }, ms);
   };
 
+  const finishPrintSuccess = (stillCurrent: () => boolean) => {
+    if (!stillCurrent()) return;
+    setShowPrintOverlay(false);
+    setPrintStatus("done");
+    toast.success("Sent to printer", {
+      description: "Your photo is printing.",
+    });
+    // Same path as "PICK ANOTHER DREAM JOB!" → job selection (JobGrid).
+    onRestart();
+  };
+
   const handlePrint = async () => {
     if (printBusyRef.current || printStatus === "printing" || showPrintOverlay) {
       return;
@@ -244,20 +365,38 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
     setPrintStatus("printing");
 
     try {
-      // All booth clients (Windows + tablet): silent IPP via booth server + 45s wait.
+      // 1) Silent booth IPP (works when Node runs on the Windows booth PC).
       const countdownDone = startPrintCountdown();
-      await silentPrintApi(imageUrl, printerName);
-      if (!stillCurrent()) return;
-      // Job accepted — finish the physical-print wait, then leave result screen.
-      await countdownDone;
-      if (!stillCurrent()) return;
-      setShowPrintOverlay(false);
-      setPrintStatus("done");
-      toast.success("Sent to printer", {
-        description: "Your photo is printing.",
-      });
-      // Same path as "PICK ANOTHER DREAM JOB!" → job selection (JobGrid).
-      onRestart();
+      try {
+        await silentPrintApi(imageUrl, printerName);
+        if (!stillCurrent()) return;
+        await countdownDone;
+        finishPrintSuccess(stillCurrent);
+        return;
+      } catch (silentErr) {
+        if (!stillCurrent()) return;
+        const raw =
+          silentErr instanceof Error
+            ? silentErr.message
+            : "Print failed. Try again.";
+
+        // 2) Cloud / non-Windows: fall back to system print sheet (Android → SELPHY).
+        if (isBoothNetworkPrintError(raw)) {
+          clearCountdown();
+          showBrowserPrintOverlay();
+          await new Promise<void>((r) =>
+            window.setTimeout(r, BROWSER_PRINT_LEAD_IN_MS),
+          );
+          if (!stillCurrent()) return;
+          await browserPrintPhoto(imageUrl);
+          finishPrintSuccess(stillCurrent);
+          return;
+        }
+
+        throw silentErr instanceof Error
+          ? silentErr
+          : new Error(String(silentErr));
+      }
     } catch (e) {
       console.error(e);
       // Never toast failure after success navigation / unmount.
@@ -293,6 +432,15 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
         <CareerReaction career={profession} onComplete={dismissBeat} />
       )}
 
+      {/* Screen-only Future ID; browser-print uses iframe full-bleed photo. */}
+      <img
+        src={imageUrl}
+        alt=""
+        className="print-photo pointer-events-none fixed left-[-9999px] top-0 h-px w-px opacity-0"
+        aria-hidden
+        crossOrigin="anonymous"
+      />
+
       <div className="mx-auto flex max-w-3xl flex-col items-center gap-8">
         <div className="text-center print:hidden">
           <p className="font-display text-sm uppercase tracking-[0.3em] text-accent">
@@ -303,11 +451,13 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
           </h2>
         </div>
 
-        <FutureIdCard
-          profession={profession}
-          imageUrl={imageUrl}
-          mallLogoUrl={branding.doha_mall_logo_url || null}
-        />
+        <div className="print:hidden">
+          <FutureIdCard
+            profession={profession}
+            imageUrl={imageUrl}
+            mallLogoUrl={branding.doha_mall_logo_url || null}
+          />
+        </div>
 
         <div className="flex w-full max-w-md flex-col gap-3 print:hidden">
           <button
@@ -341,17 +491,27 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
               Printing…
             </p>
             <h3 className="mt-3 font-display text-3xl font-bold text-white md:text-4xl">
-              Your photo is printing
+              {overlayMode === "browser"
+                ? "Choose your printer"
+                : "Your photo is printing"}
             </h3>
-            <p
-              className="mt-8 font-display text-[7rem] font-bold leading-none tabular-nums text-primary drop-shadow-sm md:text-[8.5rem]"
-              aria-label={`${countdownSec} seconds remaining`}
-            >
-              {countdownSec}
-            </p>
-            <p className="mt-4 font-display text-base text-white/75 md:text-lg">
-              Hang tight — almost ready!
-            </p>
+            {overlayMode === "booth" ? (
+              <>
+                <p
+                  className="mt-8 font-display text-[7rem] font-bold leading-none tabular-nums text-primary drop-shadow-sm md:text-[8.5rem]"
+                  aria-label={`${countdownSec} seconds remaining`}
+                >
+                  {countdownSec}
+                </p>
+                <p className="mt-4 font-display text-base text-white/75 md:text-lg">
+                  Hang tight — almost ready!
+                </p>
+              </>
+            ) : (
+              <p className="mt-6 font-display text-base text-white/75 md:text-lg">
+                Opening the print sheet — pick Canon SELPHY, then Print.
+              </p>
+            )}
           </div>
         </div>
       )}

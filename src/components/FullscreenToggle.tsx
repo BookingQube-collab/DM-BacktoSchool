@@ -46,6 +46,19 @@ async function enterFullscreen(): Promise<void> {
   }
 }
 
+/**
+ * Re-enter fullscreen after camera permission / system UI drops it.
+ * Safe to call anytime; no-ops if preference is off or already fullscreen.
+ */
+export async function tryRestorePreferredFullscreen(): Promise<void> {
+  if (!readPreferred() || isFullscreenActive()) return;
+  try {
+    await enterFullscreen();
+  } catch {
+    /* needs a user gesture on some browsers — FullscreenToggle hint remains */
+  }
+}
+
 async function exitFullscreen(): Promise<void> {
   const doc = document as Document & {
     webkitExitFullscreen?: () => Promise<void> | void;
@@ -146,11 +159,29 @@ export function FullscreenToggle() {
         });
     };
 
+    /** After camera Allow / print sheet, focus returns — try restore without waiting for tap. */
+    const restoreOnFocusOrVisible = () => {
+      if (document.visibilityState === "hidden") return;
+      if (!preferredRef.current || isFullscreenActive() || restoringRef.current) {
+        return;
+      }
+      restoringRef.current = true;
+      void enterFullscreen()
+        .catch(() => {
+          /* may still need a gesture */
+        })
+        .finally(() => {
+          restoringRef.current = false;
+        });
+    };
+
     document.addEventListener("fullscreenchange", sync);
     document.addEventListener("webkitfullscreenchange", sync);
     document.addEventListener("keydown", markIntentionalExit, true);
     // Capture so a job-card / Take photo tap restores FS before stage work runs.
     document.addEventListener("pointerdown", restoreOnGesture, true);
+    window.addEventListener("focus", restoreOnFocusOrVisible);
+    document.addEventListener("visibilitychange", restoreOnFocusOrVisible);
 
     return () => {
       // Listeners only — never exitFullscreen on unmount (would kill booth FS).
@@ -158,6 +189,8 @@ export function FullscreenToggle() {
       document.removeEventListener("webkitfullscreenchange", sync);
       document.removeEventListener("keydown", markIntentionalExit, true);
       document.removeEventListener("pointerdown", restoreOnGesture, true);
+      window.removeEventListener("focus", restoreOnFocusOrVisible);
+      document.removeEventListener("visibilitychange", restoreOnFocusOrVisible);
     };
   }, []);
 

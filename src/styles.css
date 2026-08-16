@@ -140,7 +140,7 @@
 }
 
 @media print {
-  /* Last-resort browser print: one full-bleed photo page (never tiny ID card). */
+  /* Browser/system print fallback: one full-bleed postcard photo (never tiny ID card). */
   @page {
     size: 148mm 100mm;
     margin: 0;
@@ -163,16 +163,20 @@
     visibility: visible !important;
     position: fixed !important;
     inset: 0 !important;
+    left: 0 !important;
+    top: 0 !important;
     width: 148mm !important;
     height: 100mm !important;
     max-width: none !important;
     max-height: none !important;
     margin: 0 !important;
+    padding: 0 !important;
+    opacity: 1 !important;
     object-fit: cover !important;
     object-position: center !important;
     border-radius: 0 !important;
     box-shadow: none !important;
-    z-index: 1 !important;
+    z-index: 9999 !important;
   }
   .print-hidden,
   .print\:hidden {

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { tryRestorePreferredFullscreen } from "@/components/FullscreenToggle";
 import { captureFromVideo } from "@/lib/photo";
 import { cn } from "@/lib/utils";
 
@@ -31,12 +32,18 @@ export function CameraCapture({
           videoRef.current.srcObject = localStream;
           await videoRef.current.play().catch(() => {});
         }
+        // Permission UI often exits fullscreen — restore when Allow returns focus.
+        void tryRestorePreferredFullscreen();
+        window.setTimeout(() => {
+          void tryRestorePreferredFullscreen();
+        }, 300);
       } catch (e) {
         setError(
           e instanceof Error
             ? e.message
             : "Could not access camera. Please allow camera access and try again.",
         );
+        void tryRestorePreferredFullscreen();
       }
     })();
     return () => {

@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { JobGrid } from "@/components/JobGrid";
 import { CameraCapture } from "@/components/CameraCapture";
+import { tryRestorePreferredFullscreen } from "@/components/FullscreenToggle";
 import { Generating } from "@/components/Generating";
 import { ResultScreen } from "@/components/ResultScreen";
 import {
@@ -71,7 +72,24 @@ function FutureMeKiosk() {
   if (stage.kind === "pick") {
     return (
       <JobGrid
-        onPick={(p) => setStage({ kind: "camera", profession: p })}
+        onPick={(p) => {
+          // Job tap is a user gesture — restore FS + warm camera permission here
+          // so the Allow dialog is less likely to strand the booth mid-camera.
+          void tryRestorePreferredFullscreen();
+          void (async () => {
+            try {
+              const warm = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: "user" },
+                audio: false,
+              });
+              warm.getTracks().forEach((t) => t.stop());
+              void tryRestorePreferredFullscreen();
+            } catch {
+              /* CameraCapture will surface the real error */
+            }
+          })();
+          setStage({ kind: "camera", profession: p });
+        }}
       />
     );
   }
