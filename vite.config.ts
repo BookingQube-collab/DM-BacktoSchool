@@ -12,4 +12,12 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  // Accept Next-style public prefixes already present on Vercel, not only VITE_*.
+  vite: {
+    envPrefix: ["VITE_", "NEXT_PUBLIC_"],
+  },
+  // Lovable defaults Nitro to cloudflare; on Vercel force the vercel preset.
+  nitro: process.env.VERCEL
+    ? { preset: "vercel" }
+    : { defaultPreset: "cloudflare-module" },
 });
