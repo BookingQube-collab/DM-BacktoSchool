@@ -8,12 +8,12 @@ import { FutureIdCard } from "./FutureIdCard";
 const SELPHY_PRINTER_HINT = "Canon SELPHY CP1500";
 /**
  * Booth `/api/print` can take ~40s on SELPHY Wi‑Fi (IPP ack while printing).
- * Queue + worker can also take a few poll cycles — keep above the 45s overlay.
+ * Queue + worker can also take a few poll cycles — keep above the 60s overlay.
  */
-const SILENT_PRINT_TIMEOUT_MS = 60_000;
+const SILENT_PRINT_TIMEOUT_MS = 75_000;
 const PRINT_STATUS_POLL_MS = 2_000;
 /** Kids wait for physical SELPHY output after the job is accepted */
-const DESKTOP_PRINT_COUNTDOWN_SEC = 45;
+const DESKTOP_PRINT_COUNTDOWN_SEC = 60;
 
 type Props = {
   profession: Profession;
@@ -240,7 +240,7 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
     setShowPrintOverlay(false);
   }, [clearCountdown]);
 
-  /** Tick 45→0; promise resolves when countdown hits 0 (or when cancelled). */
+  /** Tick 60→0; promise resolves when countdown hits 0 (or when cancelled). */
   const startPrintCountdown = useCallback(() => {
     clearCountdown();
     countdownRemainingRef.current = DESKTOP_PRINT_COUNTDOWN_SEC;
