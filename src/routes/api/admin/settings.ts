@@ -4,6 +4,7 @@ import { json, requireAdminSession } from "@/lib/admin-auth.server";
 import { parseImageDataUrl, uploadPrivateImageAtPath } from "@/lib/image-upload";
 import {
   listPublicSettings,
+  normalizeBoothPrintBaseUrl,
   setSetting,
   updateAdminPassword,
 } from "@/lib/settings.server";
@@ -70,6 +71,7 @@ export const Route = createFileRoute("/api/admin/settings")({
             admin_password?: string;
             printer_name?: string;
             printer_host?: string;
+            booth_print_base_url?: string;
             doha_mall_logo_image?: string;
             clear_doha_mall_logo?: boolean;
           };
@@ -114,6 +116,24 @@ export const Route = createFileRoute("/api/admin/settings")({
               );
             }
             await setSetting("printer_host", host);
+          }
+          if (typeof body.booth_print_base_url === "string") {
+            const raw = body.booth_print_base_url.trim();
+            if (!raw) {
+              await setSetting("booth_print_base_url", "");
+            } else {
+              const normalized = normalizeBoothPrintBaseUrl(raw);
+              if (!normalized) {
+                return json(
+                  {
+                    error:
+                      "Booth print server URL must be http(s)://host:port (e.g. http://192.168.18.87:8080)",
+                  },
+                  400,
+                );
+              }
+              await setSetting("booth_print_base_url", normalized);
+            }
           }
 
           if (body.clear_doha_mall_logo) {

@@ -10,7 +10,8 @@ export type SettingKey =
   | "doha_mall_logo_path"
   | "doha_mall_logo_url"
   | "printer_name"
-  | "printer_host";
+  | "printer_host"
+  | "booth_print_base_url";
 
 const SECRET_KEYS = new Set<SettingKey>(["freepik_api_key", "admin_password_hash"]);
 
@@ -95,16 +96,34 @@ export async function resolveDohaMallLogoUrl(): Promise<{
 
 const DEFAULT_PRINTER_NAME = "Canon SELPHY CP1500";
 
+/** Normalize booth print server base (no trailing slash). Empty = same-origin. */
+export function normalizeBoothPrintBaseUrl(raw: string): string {
+  const trimmed = raw.trim().replace(/\/+$/, "");
+  if (!trimmed) return "";
+  try {
+    const u = new URL(trimmed);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return "";
+    // Only origin + optional port/path prefix (no /api/print suffix).
+    return `${u.origin}${u.pathname === "/" ? "" : u.pathname.replace(/\/+$/, "")}`;
+  } catch {
+    return "";
+  }
+}
+
 export async function getBrandingSettings() {
   const logo = await resolveDohaMallLogoUrl();
   const printerName =
     (await getSetting("printer_name")).trim() || DEFAULT_PRINTER_NAME;
   const printerHost = (await getSetting("printer_host")).trim();
+  const boothPrintBaseUrl = normalizeBoothPrintBaseUrl(
+    await getSetting("booth_print_base_url"),
+  );
   return {
     doha_mall_logo_path: logo.path,
     doha_mall_logo_url: logo.url,
     printer_name: printerName,
     printer_host: printerHost,
+    booth_print_base_url: boothPrintBaseUrl,
   };
 }
 
@@ -140,6 +159,7 @@ export async function listPublicSettings() {
     doha_mall_logo_url: branding.doha_mall_logo_url,
     printer_name: branding.printer_name,
     printer_host: branding.printer_host,
+    booth_print_base_url: branding.booth_print_base_url,
     updated_at: {
       freepik_api_key: map.get("freepik_api_key")?.updated_at ?? null,
       event_name: map.get("event_name")?.updated_at ?? null,
@@ -147,6 +167,7 @@ export async function listPublicSettings() {
       doha_mall_logo_path: map.get("doha_mall_logo_path")?.updated_at ?? null,
       printer_name: map.get("printer_name")?.updated_at ?? null,
       printer_host: map.get("printer_host")?.updated_at ?? null,
+      booth_print_base_url: map.get("booth_print_base_url")?.updated_at ?? null,
     },
   };
 }

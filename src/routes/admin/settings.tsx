@@ -30,6 +30,7 @@ type Settings = {
   doha_mall_logo_url: string;
   printer_name: string;
   printer_host: string;
+  booth_print_base_url: string;
 };
 
 function AdminSettingsPage() {
@@ -40,6 +41,7 @@ function AdminSettingsPage() {
   const [password, setPassword] = useState("");
   const [printerName, setPrinterName] = useState("");
   const [printerHost, setPrinterHost] = useState("");
+  const [boothPrintBaseUrl, setBoothPrintBaseUrl] = useState("");
   const [detectedSelphyIp, setDetectedSelphyIp] = useState<string | null>(null);
   const [detectedPrinters, setDetectedPrinters] = useState<
     {
@@ -70,6 +72,7 @@ function AdminSettingsPage() {
     setUsername(s.admin_username);
     setPrinterName(s.printer_name || "Canon SELPHY CP1500");
     setPrinterHost(s.printer_host || "");
+    setBoothPrintBaseUrl(s.booth_print_base_url || "");
     setLogoPreview(s.doha_mall_logo_url || null);
     setPendingLogo(null);
     setClearLogo(false);
@@ -148,6 +151,7 @@ function AdminSettingsPage() {
         admin_username: username,
         printer_name: printerName,
         printer_host: printerHost.trim(),
+        booth_print_base_url: boothPrintBaseUrl.trim(),
       };
       if (freepik && !freepik.includes("•")) {
         body.freepik_api_key = freepik;
@@ -298,6 +302,25 @@ function AdminSettingsPage() {
               )}
             </p>
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="booth_print_base_url">
+              Booth print server URL
+            </Label>
+            <Input
+              id="booth_print_base_url"
+              value={boothPrintBaseUrl}
+              onChange={(e) => setBoothPrintBaseUrl(e.target.value)}
+              placeholder="http://192.168.18.87:8080"
+              inputMode="url"
+              autoComplete="off"
+            />
+            <p className="text-xs text-muted-foreground">
+              Tablet/Vercel Print sends jobs to this Windows booth PC. Run{" "}
+              <code className="rounded bg-muted px-1">npm run dev</code> (or
+              prod) there with LAN access. No Android print dialog. Example:{" "}
+              <strong>http://192.168.18.87:8080</strong>
+            </p>
+          </div>
           {detectedPrinters.length > 0 ? (
             <div className="rounded-md bg-muted/60 px-3 py-2 text-xs">
               <p className="font-medium text-foreground">
@@ -344,14 +367,19 @@ function AdminSettingsPage() {
           ) : null}
           <ol className="list-decimal space-y-1 pl-4 text-xs text-muted-foreground">
             <li>
-              Booth silent print runs on this Windows PC (POST /api/print). Open
-              the booth app URL from this PC’s LAN address — not only a cloud
-              URL. Current target: <strong>{resolvedPrinter}</strong>.
+              Set <strong>Booth print server URL</strong> to this Windows PC’s
+              LAN address (e.g. http://192.168.18.87:8080). Tablets on Vercel
+              POST to that host’s /api/print — silent print, no Android sheet.
+              Current target printer: <strong>{resolvedPrinter}</strong>.
+            </li>
+            <li>
+              On this booth PC, keep the app server running (
+              <code className="rounded bg-muted px-1">npm run dev -- --host --port 8080</code>
+              ). Same Wi‑Fi as the tablet and SELPHY.
             </li>
             <li>
               Tablets do <strong>not</strong> need an Android Canon print
-              plugin. Guests print through the booth server; Android Default
-              Print Service is unused for booth Print.
+              plugin. Guests see the in-app countdown only.
             </li>
             <li>
               USB: install the manufacturer driver (Canon SELPHY or Evolis).

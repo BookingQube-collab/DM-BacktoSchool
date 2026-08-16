@@ -7,10 +7,29 @@ import {
   resolvePrinterName,
 } from "@/lib/print.server";
 
+/** Allow tablet/Vercel origin to POST print jobs to the Windows booth PC. */
+function corsHeaders(request: Request): Record<string, string> {
+  const origin = request.headers.get("Origin")?.trim();
+  return {
+    "Access-Control-Allow-Origin": origin || "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Max-Age": "86400",
+    Vary: "Origin",
+  };
+}
+
 export const Route = createFileRoute("/api/print")({
   server: {
     handlers: {
+      OPTIONS: async ({ request }) => {
+        return new Response(null, {
+          status: 204,
+          headers: corsHeaders(request),
+        });
+      },
       POST: async ({ request }) => {
+        const cors = corsHeaders(request);
         try {
           const body = (await request.json()) as {
             imageDataUrl?: string;
@@ -29,6 +48,7 @@ export const Route = createFileRoute("/api/print")({
             return json(
               { error: "imageUrl or imageDataUrl is required" },
               400,
+              cors,
             );
           }
 
@@ -47,13 +67,17 @@ export const Route = createFileRoute("/api/print")({
               )
             : await printPostcardPng(imageDataUrl, requested);
 
-          return json({
-            ok: true,
-            printer_name: result.printer_name,
-            requested_printer_name: requested,
-            spool: result.spool ?? null,
-            method: result.method ?? null,
-          });
+          return json(
+            {
+              ok: true,
+              printer_name: result.printer_name,
+              requested_printer_name: requested,
+              spool: result.spool ?? null,
+              method: result.method ?? null,
+            },
+            200,
+            cors,
+          );
         } catch (e) {
           const message = e instanceof Error ? e.message : String(e);
           // 503 = printer/server path unavailable (not a bad client payload)
@@ -63,7 +87,7 @@ export const Route = createFileRoute("/api/print")({
             )
               ? 503
               : 500;
-          return json({ error: message }, status);
+          return json({ error: message }, status, cors);
         }
       },
     },
