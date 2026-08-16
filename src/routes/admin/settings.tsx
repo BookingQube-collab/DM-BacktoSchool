@@ -316,15 +316,13 @@ function AdminSettingsPage() {
             </li>
             <li>
               If Wi‑Fi SELPHY still fails: run Canon SELPHY Wi‑Fi setup / SELPHY
-              PRINT so a non‑WSD queue appears, or print from an Android system
-              sheet to the SELPHY. Evolis Primacy 2 stays available for CR80
-              card reprints only.
+              PRINT so a non‑WSD queue appears. Evolis Primacy 2 stays available
+              for CR80 card reprints only.
             </li>
             <li>
-              Android / phone browsers use the system print sheet (card only) —
-              not the Windows spooler. Guests can pick the Wi‑Fi SELPHY on the
-              phone. Booth kiosk Chrome should stay on desktop UA so silent
-              print is used.
+              Tablets and phones on the booth Wi‑Fi use the same silent print as
+              Windows (POST /api/print + countdown). Open the booth app URL from
+              the Windows server — do not rely on the Android system print sheet.
             </li>
             <li>Optional fullscreen booth Chrome shortcut:</li>
           </ol>

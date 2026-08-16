@@ -27,11 +27,6 @@ type Branding = {
 
 type PrintStatus = "idle" | "printing" | "done" | "error";
 
-function isMobileBrowser(): boolean {
-  if (typeof navigator === "undefined") return false;
-  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-}
-
 function guestPrintError(raw: string): string {
   const m = raw.toLowerCase();
   // Ambiguous client wait — do not claim the printer rejected the job.
@@ -56,50 +51,6 @@ function guestPrintError(raw: string): string {
   // Keep toast short; strip long “Available: …” lists
   const cut = raw.split(/\s+Available:/i)[0]?.trim() || raw;
   return cut.length > 120 ? `${cut.slice(0, 117)}…` : cut;
-}
-
-/** Card-only browser print (Android system sheet OK). Uses .print-card CSS. */
-function printCardViaBrowser(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    let settled = false;
-    const finish = () => {
-      if (settled) return;
-      settled = true;
-      window.removeEventListener("afterprint", onAfter);
-      window.clearTimeout(timer);
-      resolve();
-    };
-    const onAfter = () => finish();
-    const timer = window.setTimeout(finish, 60_000);
-    window.addEventListener("afterprint", onAfter);
-
-    try {
-      // Yield so “Printing…” paints before the system sheet.
-      window.requestAnimationFrame(() => {
-        window.requestAnimationFrame(() => {
-          try {
-            window.print();
-            // Some Android WebViews never fire afterprint — resolve shortly.
-            window.setTimeout(finish, 1500);
-          } catch (e) {
-            if (!settled) {
-              settled = true;
-              window.removeEventListener("afterprint", onAfter);
-              window.clearTimeout(timer);
-              reject(e instanceof Error ? e : new Error(String(e)));
-            }
-          }
-        });
-      });
-    } catch (e) {
-      if (!settled) {
-        settled = true;
-        window.removeEventListener("afterprint", onAfter);
-        window.clearTimeout(timer);
-        reject(e instanceof Error ? e : new Error(String(e)));
-      }
-    }
-  });
 }
 
 async function silentPrintApi(
@@ -153,13 +104,11 @@ async function silentPrintApi(
 }
 
 export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
-  const cardRef = useRef<HTMLDivElement>(null);
   const [showBeat, setShowBeat] = useState(true);
   const [branding, setBranding] = useState<Branding>({});
   const [printStatus, setPrintStatus] = useState<PrintStatus>("idle");
   const [showPrintOverlay, setShowPrintOverlay] = useState(false);
   const [countdownSec, setCountdownSec] = useState(DESKTOP_PRINT_COUNTDOWN_SEC);
-  const [overlayMode, setOverlayMode] = useState<"desktop" | "mobile">("desktop");
   const dismissBeat = useCallback(() => setShowBeat(false), []);
 
   const printBusyRef = useRef(false);
@@ -187,11 +136,10 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
   }, [clearCountdown]);
 
   /** Tick 45→0; promise resolves when countdown hits 0 (or when cancelled). */
-  const startDesktopCountdown = useCallback(() => {
+  const startPrintCountdown = useCallback(() => {
     clearCountdown();
     countdownRemainingRef.current = DESKTOP_PRINT_COUNTDOWN_SEC;
     setCountdownSec(DESKTOP_PRINT_COUNTDOWN_SEC);
-    setOverlayMode("desktop");
     setShowPrintOverlay(true);
 
     const done = new Promise<void>((resolve) => {
@@ -273,7 +221,6 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
 
     const printerName =
       branding.printer_name?.trim() || SELPHY_PRINTER_HINT;
-    const mobile = isMobileBrowser();
     const generation = ++printGenerationRef.current;
     const stillCurrent = () =>
       mountedRef.current && printGenerationRef.current === generation;
@@ -282,26 +229,8 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
     setPrintStatus("printing");
 
     try {
-      if (mobile) {
-        // System sheet is quick — brief overlay, no 45s wait.
-        if (!cardRef.current) {
-          throw new Error("Card not ready");
-        }
-        setOverlayMode("mobile");
-        setShowPrintOverlay(true);
-        await printCardViaBrowser();
-        if (!stillCurrent()) return;
-        dismissPrintOverlay();
-        setPrintStatus("done");
-        toast.success("Print dialog opened", {
-          description: "Choose your printer in the system sheet.",
-        });
-        scheduleStatusIdle(2500);
-        return;
-      }
-
-      // Booth / desktop: fire print, keep 45s overlay until API success + countdown.
-      const countdownDone = startDesktopCountdown();
+      // All booth clients (Windows + tablet): silent IPP via booth server + 45s wait.
+      const countdownDone = startPrintCountdown();
       await silentPrintApi(imageUrl, printerName);
       if (!stillCurrent()) return;
       // Job accepted — finish the physical-print wait, then leave result screen.
@@ -360,7 +289,6 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
         </div>
 
         <FutureIdCard
-          ref={cardRef}
           profession={profession}
           imageUrl={imageUrl}
           mallLogoUrl={branding.doha_mall_logo_url || null}
@@ -400,23 +328,15 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
             <h3 className="mt-3 font-display text-3xl font-bold text-white md:text-4xl">
               Your photo is printing
             </h3>
-            {overlayMode === "desktop" ? (
-              <>
-                <p
-                  className="mt-8 font-display text-[7rem] font-bold leading-none tabular-nums text-primary drop-shadow-sm md:text-[8.5rem]"
-                  aria-label={`${countdownSec} seconds remaining`}
-                >
-                  {countdownSec}
-                </p>
-                <p className="mt-4 font-display text-base text-white/75 md:text-lg">
-                  Hang tight — almost ready!
-                </p>
-              </>
-            ) : (
-              <p className="mt-8 font-display text-lg text-white/80">
-                Opening the print sheet…
-              </p>
-            )}
+            <p
+              className="mt-8 font-display text-[7rem] font-bold leading-none tabular-nums text-primary drop-shadow-sm md:text-[8.5rem]"
+              aria-label={`${countdownSec} seconds remaining`}
+            >
+              {countdownSec}
+            </p>
+            <p className="mt-4 font-display text-base text-white/75 md:text-lg">
+              Hang tight — almost ready!
+            </p>
           </div>
         </div>
       )}

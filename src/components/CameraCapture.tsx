@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { captureFromVideo, fileToDownscaledDataUrl } from "@/lib/photo";
+import { cn } from "@/lib/utils";
 
 export function CameraCapture({
   onCancel,
@@ -67,16 +68,47 @@ export function CameraCapture({
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center px-6 py-10">
-      <div className="w-full max-w-md text-center">
-        <h2 className="font-display text-3xl font-bold text-foreground md:text-4xl">
-          Line up your face
-        </h2>
-        <p className="mt-2 text-foreground/70">
-          Look straight ahead and smile.
-        </p>
+    <div
+      className={cn(
+        "flex h-[100svh] max-h-[100dvh] items-center justify-center overflow-hidden",
+        "px-[max(1.5rem,env(safe-area-inset-left))] pr-[max(1.5rem,env(safe-area-inset-right))]",
+        "pt-[max(0.75rem,env(safe-area-inset-top))]",
+        /* leave room for fixed fullscreen control (bottom-right) */
+        "pb-[max(3.5rem,calc(env(safe-area-inset-bottom)+3.25rem))]",
+      )}
+    >
+      <div
+        className={cn(
+          "grid w-full min-h-0 max-w-md text-center",
+          "grid-rows-[auto_minmax(0,1fr)_auto] gap-y-3",
+          "landscape:max-w-4xl landscape:grid-cols-[auto_minmax(0,1fr)]",
+          "landscape:grid-rows-[auto_minmax(0,1fr)] landscape:items-center",
+          "landscape:gap-x-8 landscape:gap-y-2 landscape:text-left",
+        )}
+      >
+        <header className="landscape:col-start-2 landscape:row-start-1">
+          <h2
+            className={cn(
+              "font-display text-3xl font-bold text-foreground md:text-4xl",
+              "landscape:text-2xl landscape:md:text-3xl",
+            )}
+          >
+            Line up your face
+          </h2>
+          <p className="mt-1 text-sm text-foreground/70 landscape:mt-1 md:text-base">
+            Look straight ahead and smile.
+          </p>
+        </header>
 
-        <div className="relative mx-auto mt-8 aspect-[3/4] w-full overflow-hidden rounded-3xl border border-white/10 bg-black shadow-2xl">
+        {/* Height-first + matching width so the oval shrinks in short landscape viewports */}
+        <div
+          className={cn(
+            "relative mx-auto min-h-0 overflow-hidden rounded-3xl border border-white/10 bg-black shadow-2xl",
+            "aspect-[3/4] h-[min(52svh,28rem)] w-[min(100%,calc(min(52svh,28rem)*0.75))]",
+            "landscape:col-start-1 landscape:row-span-2 landscape:mx-0 landscape:rounded-2xl",
+            "landscape:h-[min(56svh,20rem)] landscape:w-[min(40vw,calc(min(56svh,20rem)*0.75))]",
+          )}
+        >
           {!error ? (
             <video
               ref={videoRef}
@@ -99,11 +131,21 @@ export function CameraCapture({
           </div>
         </div>
 
-        <div className="mt-8 flex flex-col items-center gap-4">
+        <div
+          className={cn(
+            "flex flex-col items-center gap-3",
+            "landscape:col-start-2 landscape:row-start-2 landscape:items-stretch landscape:justify-center landscape:gap-2.5",
+          )}
+        >
           <button
             onClick={handleTake}
             disabled={!!error || !stream}
-            className="w-full rounded-full bg-gradient-to-r from-primary to-accent px-8 py-5 font-display text-xl font-bold text-white shadow-lg transition-transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40 motion-reduce:transform-none"
+            className={cn(
+              "w-full rounded-full bg-gradient-to-r from-primary to-accent font-display font-bold text-white shadow-lg",
+              "px-8 py-5 text-xl transition-transform hover:scale-[1.02] active:scale-[0.98]",
+              "disabled:opacity-40 motion-reduce:transform-none",
+              "landscape:px-6 landscape:py-3.5 landscape:text-lg",
+            )}
           >
             Take photo
           </button>

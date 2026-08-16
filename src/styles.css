@@ -140,7 +140,11 @@
 }
 
 @media print {
-  /* Card-only browser print (Android system sheet / desktop fallback). */
+  /* Last-resort browser print: one full-bleed photo page (never tiny ID card). */
+  @page {
+    size: 148mm 100mm;
+    margin: 0;
+  }
   html,
   body {
     width: 148mm !important;
@@ -150,36 +154,30 @@
     background: white !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+    overflow: hidden !important;
   }
   body * {
     visibility: hidden !important;
   }
-  .print-card,
-  .print-card * {
+  .print-photo {
     visibility: visible !important;
-  }
-  .print-hidden,
-  .print\:hidden {
-    display: none !important;
-    visibility: hidden !important;
-  }
-  .print-card {
     position: fixed !important;
     inset: 0 !important;
     width: 148mm !important;
     height: 100mm !important;
     max-width: none !important;
+    max-height: none !important;
     margin: 0 !important;
-    transform: none !important;
+    object-fit: cover !important;
+    object-position: center !important;
     border-radius: 0 !important;
     box-shadow: none !important;
-    outline: none !important;
-    overflow: hidden !important;
+    z-index: 1 !important;
   }
-  .print-card-face {
-    aspect-ratio: auto !important;
-    width: 100% !important;
-    height: 100% !important;
+  .print-hidden,
+  .print\:hidden {
+    display: none !important;
+    visibility: hidden !important;
   }
 }
 

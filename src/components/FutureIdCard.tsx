@@ -38,7 +38,7 @@ export const FutureIdCard = forwardRef<HTMLDivElement, Props>(
               <img
                 src={imageUrl}
                 alt={`Future ${profession.title}`}
-                className="h-full w-full object-cover"
+                className="print-photo h-full w-full object-cover"
                 crossOrigin="anonymous"
               />
               {mallLogoUrl ? (
