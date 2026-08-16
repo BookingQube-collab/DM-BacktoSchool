@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { json } from "@/lib/admin-auth.server";
+import { enqueuePrintJob } from "@/lib/print-jobs.server";
 import {
   fetchPrintableImageBytes,
   printPostcardImageBytes,
@@ -7,7 +8,7 @@ import {
   resolvePrinterName,
 } from "@/lib/print.server";
 
-/** Allow tablet/Vercel origin to POST print jobs to the Windows booth PC. */
+/** Allow tablet/Vercel origin to POST print jobs (legacy direct booth path). */
 function corsHeaders(request: Request): Record<string, string> {
   const origin = request.headers.get("Origin")?.trim();
   return {
@@ -17,6 +18,10 @@ function corsHeaders(request: Request): Record<string, string> {
     "Access-Control-Max-Age": "86400",
     Vary: "Origin",
   };
+}
+
+function isWindowsBooth(): boolean {
+  return typeof process !== "undefined" && process.platform === "win32";
 }
 
 export const Route = createFileRoute("/api/print")({
@@ -31,6 +36,14 @@ export const Route = createFileRoute("/api/print")({
       POST: async ({ request }) => {
         const cors = corsHeaders(request);
         try {
+          // Ensure booth worker is polling whenever Windows serves /api/print.
+          if (isWindowsBooth()) {
+            const { startPrintWorker } = await import(
+              "@/lib/print-worker.server"
+            );
+            startPrintWorker();
+          }
+
           const body = (await request.json()) as {
             imageDataUrl?: string;
             imageUrl?: string;
@@ -48,6 +61,31 @@ export const Route = createFileRoute("/api/print")({
             return json(
               { error: "imageUrl or imageDataUrl is required" },
               400,
+              cors,
+            );
+          }
+
+          // Vercel / non-Windows: enqueue for the booth worker (avoids mixed content).
+          if (!isWindowsBooth()) {
+            if (!imageUrl) {
+              return json(
+                {
+                  error:
+                    "imageUrl is required when printing from the cloud (queue). Open the booth PC on Windows for data-URL prints.",
+                },
+                400,
+                cors,
+              );
+            }
+            const job = await enqueuePrintJob(imageUrl);
+            return json(
+              {
+                ok: true,
+                queued: true,
+                jobId: job.id,
+                method: "queue",
+              },
+              200,
               cors,
             );
           }

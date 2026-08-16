@@ -8,9 +8,10 @@ import { FutureIdCard } from "./FutureIdCard";
 const SELPHY_PRINTER_HINT = "Canon SELPHY CP1500";
 /**
  * Booth `/api/print` can take ~40s on SELPHY Wi‑Fi (IPP ack while printing).
- * Must outlive the 45s overlay so we never abort a still-working job.
+ * Queue + worker can also take a few poll cycles — keep above the 45s overlay.
  */
 const SILENT_PRINT_TIMEOUT_MS = 60_000;
+const PRINT_STATUS_POLL_MS = 2_000;
 /** Kids wait for physical SELPHY output after the job is accepted */
 const DESKTOP_PRINT_COUNTDOWN_SEC = 45;
 
@@ -29,7 +30,7 @@ type Branding = {
 type PrintStatus = "idle" | "printing" | "done" | "error";
 
 function isBoothNetworkPrintError(raw: string): boolean {
-  return /booth computer network|requires the app server|is the booth server running|win32|failed to fetch|networkerror|load failed/i.test(
+  return /booth computer network|requires the app server|is the booth server running|win32|failed to fetch|networkerror|load failed|mixed content|blocked:mixed/i.test(
     raw,
   );
 }
@@ -40,10 +41,13 @@ function guestPrintError(raw: string, hasBoothUrl: boolean): string {
   if (/taking longer than expected|may still be printing/i.test(m)) {
     return raw.length > 140 ? `${raw.slice(0, 137)}…` : raw;
   }
+  if (/booth worker|print queue|npm run dev/i.test(m)) {
+    return "Print queued but booth PC did not pick it up — keep npm run dev running on the Windows booth PC.";
+  }
   if (isBoothNetworkPrintError(m)) {
     return hasBoothUrl
-      ? "Could not reach the booth PC — check Wi‑Fi and that npm run dev is running there."
-      : "Set Booth print server URL in Admin → Settings (Windows booth PC LAN address).";
+      ? "Could not reach the booth PC — on HTTPS tablets use the cloud print queue (same-origin Print). Keep npm run dev on the booth PC."
+      : "Print needs the booth PC online (npm run dev) so the print queue worker can run.";
   }
   if (/not found|admin → settings|pick a detected printer/i.test(m)) {
     return "Printer name not found — ask staff to set it in Admin → Settings.";
@@ -73,9 +77,77 @@ function guestPrintError(raw: string, hasBoothUrl: boolean): string {
   return cut.length > 120 ? `${cut.slice(0, 117)}…` : cut;
 }
 
-function printApiUrl(boothPrintBaseUrl: string): string {
+/**
+ * Avoid mixed content: HTTPS tablet must not fetch http://192.168… booth URL.
+ * Use same-origin `/api/print` (Vercel queues; booth worker prints).
+ * HTTP booth site can still POST directly to the LAN booth URL.
+ */
+function resolvePrintApiUrl(boothPrintBaseUrl: string): string {
   const base = boothPrintBaseUrl.trim().replace(/\/+$/, "");
+  const pageIsHttps =
+    typeof window !== "undefined" && window.location.protocol === "https:";
+  const boothIsHttp = /^http:\/\//i.test(base);
+
+  if (pageIsHttps && boothIsHttp) {
+    return "/api/print";
+  }
   return base ? `${base}/api/print` : "/api/print";
+}
+
+function sleep(ms: number) {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
+async function pollQueuedPrintJob(
+  jobId: string,
+  signal: AbortSignal,
+): Promise<{ printer_name?: string; method?: string }> {
+  const deadline = Date.now() + SILENT_PRINT_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    if (signal.aborted) {
+      throw new DOMException("Aborted", "AbortError");
+    }
+    await sleep(PRINT_STATUS_POLL_MS);
+    if (signal.aborted) {
+      throw new DOMException("Aborted", "AbortError");
+    }
+
+    const res = await fetch(
+      `/api/print/status?id=${encodeURIComponent(jobId)}`,
+      { signal },
+    );
+    let payload: {
+      ok?: boolean;
+      status?: string;
+      error?: string;
+    } = {};
+    try {
+      payload = (await res.json()) as typeof payload;
+    } catch {
+      /* non-JSON */
+    }
+
+    if (!res.ok) {
+      throw new Error(payload.error || `Print status failed (${res.status})`);
+    }
+
+    if (payload.status === "done") {
+      return { method: "queue" };
+    }
+    if (payload.status === "failed") {
+      throw new Error(
+        payload.error ||
+          "Print queue failed — check SELPHY and that npm run dev is running on the booth PC.",
+      );
+    }
+    // pending | printing — keep waiting
+  }
+
+  throw new Error(
+    "Print is taking longer than expected. Check the SELPHY — it may still be printing. If not, ensure npm run dev is running on the booth PC, then retry.",
+  );
 }
 
 async function silentPrintApi(
@@ -86,7 +158,7 @@ async function silentPrintApi(
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), SILENT_PRINT_TIMEOUT_MS);
   try {
-    const res = await fetch(printApiUrl(boothPrintBaseUrl), {
+    const res = await fetch(resolvePrintApiUrl(boothPrintBaseUrl), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -101,6 +173,8 @@ async function silentPrintApi(
       error?: string;
       printer_name?: string;
       method?: string;
+      queued?: boolean;
+      jobId?: string;
     } = {};
     try {
       payload = (await res.json()) as typeof payload;
@@ -114,7 +188,12 @@ async function silentPrintApi(
           `Print request failed (${res.status}). Is the booth server running on this PC?`,
       );
     }
-    // Server accepted / queued the job — never treat as "not ready".
+
+    if (payload.queued && payload.jobId) {
+      return await pollQueuedPrintJob(payload.jobId, controller.signal);
+    }
+
+    // Server accepted / printed immediately — never treat as "not ready".
     return { printer_name: payload.printer_name, method: payload.method };
   } catch (e) {
     if (e instanceof DOMException && e.name === "AbortError") {
@@ -267,7 +346,7 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
     setPrintStatus("printing");
 
     try {
-      // Silent booth IPP via Windows booth PC (or same-origin when on that PC).
+      // Silent booth IPP: same-origin queue on HTTPS Vercel, or direct on HTTP booth.
       // Never opens Android/system print sheet — Print → countdown → print only.
       const countdownDone = startPrintCountdown();
       await silentPrintApi(imageUrl, printerName, boothPrintBaseUrl);

@@ -127,7 +127,7 @@ export const Route = createFileRoute("/api/admin/settings")({
                 return json(
                   {
                     error:
-                      "Booth print server URL must be http(s)://host:port (e.g. http://192.168.18.87:8080)",
+                      "Booth print server URL must be a host or http(s)://host:port (e.g. 192.168.18.87 or http://192.168.18.87:8080)",
                   },
                   400,
                 );

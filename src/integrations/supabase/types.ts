@@ -157,6 +157,33 @@ export type Database = {
           },
         ]
       }
+      print_jobs: {
+        Row: {
+          id: string
+          image_url: string
+          status: string
+          error: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          image_url: string
+          status?: string
+          error?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          image_url?: string
+          status?: string
+          error?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

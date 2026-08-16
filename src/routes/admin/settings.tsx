@@ -304,21 +304,25 @@ function AdminSettingsPage() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="booth_print_base_url">
-              Booth print server URL
+              Booth print server URL (optional)
             </Label>
             <Input
               id="booth_print_base_url"
               value={boothPrintBaseUrl}
               onChange={(e) => setBoothPrintBaseUrl(e.target.value)}
-              placeholder="http://192.168.18.87:8080"
+              placeholder="192.168.18.87 or http://192.168.18.87:8080"
               inputMode="url"
               autoComplete="off"
             />
             <p className="text-xs text-muted-foreground">
-              Tablet/Vercel Print sends jobs to this Windows booth PC. Run{" "}
-              <code className="rounded bg-muted px-1">npm run dev</code> (or
-              prod) there with LAN access. No Android print dialog. Example:{" "}
-              <strong>http://192.168.18.87:8080</strong>
+              Optional for tablets on the HTTPS Vercel site — Print uses a
+              Supabase job queue (no mixed-content block). Keep{" "}
+              <code className="rounded bg-muted px-1">npm run dev</code> on the
+              Windows booth PC so the worker polls and prints. Use this URL only
+              when guests open the booth on the LAN HTTP site for direct print.
+              Bare IPs get <code className="rounded bg-muted px-1">http://</code>{" "}
+              and port <code className="rounded bg-muted px-1">8080</code>{" "}
+              automatically.
             </p>
           </div>
           {detectedPrinters.length > 0 ? (
@@ -367,19 +371,24 @@ function AdminSettingsPage() {
           ) : null}
           <ol className="list-decimal space-y-1 pl-4 text-xs text-muted-foreground">
             <li>
-              Set <strong>Booth print server URL</strong> to this Windows PC’s
-              LAN address (e.g. http://192.168.18.87:8080). Tablets on Vercel
-              POST to that host’s /api/print — silent print, no Android sheet.
+              On the Windows booth PC, keep the app server running (
+              <code className="rounded bg-muted px-1">
+                npm run dev -- --host --port 8080
+              </code>
+              ). That starts the print-queue worker. Same Wi‑Fi as the SELPHY.
               Current target printer: <strong>{resolvedPrinter}</strong>.
             </li>
             <li>
-              On this booth PC, keep the app server running (
-              <code className="rounded bg-muted px-1">npm run dev -- --host --port 8080</code>
-              ). Same Wi‑Fi as the tablet and SELPHY.
+              Tablets on Vercel (HTTPS) Print via same-origin{" "}
+              <code className="rounded bg-muted px-1">/api/print</code> →
+              Supabase queue → booth worker → SELPHY. No Android print dialog.
+              Booth print server URL is not required for that path.
             </li>
             <li>
-              Tablets do <strong>not</strong> need an Android Canon print
-              plugin. Guests see the in-app countdown only.
+              Optional: set <strong>Booth print server URL</strong> if guests
+              use the LAN HTTP booth site and you want an explicit direct target
+              (e.g. http://192.168.18.87:8080). HTTPS pages never call an HTTP
+              booth URL from the browser (mixed content).
             </li>
             <li>
               USB: install the manufacturer driver (Canon SELPHY or Evolis).

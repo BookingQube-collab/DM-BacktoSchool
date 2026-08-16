@@ -3,6 +3,13 @@ import "./lib/error-capture";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 
+// Windows booth only: poll Supabase print_jobs and silent-print (Vercel tablets enqueue).
+if (typeof process !== "undefined" && process.platform === "win32") {
+  void import("./lib/print-worker.server")
+    .then((m) => m.startPrintWorker())
+    .catch((err) => console.error("[print-worker] failed to start:", err));
+}
+
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
 };

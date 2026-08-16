@@ -33,6 +33,7 @@ import { Route as ApiAdminRegistrationsRouteImport } from './routes/api/admin/re
 import { Route as ApiAdminReprintRouteImport } from './routes/api/admin/reprint'
 import { Route as ApiAdminSettingsRouteImport } from './routes/api/admin/settings'
 import { Route as ApiAdminStatsRouteImport } from './routes/api/admin/stats'
+import { Route as ApiPrintStatusRouteImport } from './routes/api/print/status'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -154,6 +155,11 @@ const ApiAdminStatsRoute = ApiAdminStatsRouteImport.update({
   path: '/api/admin/stats',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPrintStatusRoute = ApiPrintStatusRouteImport.update({
+  id: '/status',
+  path: '/status',
+  getParentRoute: () => ApiPrintRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -167,7 +173,7 @@ export interface FileRoutesByFullPath {
   '/admin/settings': typeof AdminSettingsRoute
   '/api/branding': typeof ApiBrandingRoute
   '/api/leaderboard': typeof ApiLeaderboardRoute
-  '/api/print': typeof ApiPrintRoute
+  '/api/print': typeof ApiPrintRouteWithChildren
   '/api/register': typeof ApiRegisterRoute
   '/api/transform': typeof ApiTransformRoute
   '/admin/': typeof AdminIndexRoute
@@ -180,6 +186,7 @@ export interface FileRoutesByFullPath {
   '/api/admin/reprint': typeof ApiAdminReprintRoute
   '/api/admin/settings': typeof ApiAdminSettingsRoute
   '/api/admin/stats': typeof ApiAdminStatsRoute
+  '/api/print/status': typeof ApiPrintStatusRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -192,7 +199,7 @@ export interface FileRoutesByTo {
   '/admin/settings': typeof AdminSettingsRoute
   '/api/branding': typeof ApiBrandingRoute
   '/api/leaderboard': typeof ApiLeaderboardRoute
-  '/api/print': typeof ApiPrintRoute
+  '/api/print': typeof ApiPrintRouteWithChildren
   '/api/register': typeof ApiRegisterRoute
   '/api/transform': typeof ApiTransformRoute
   '/admin': typeof AdminIndexRoute
@@ -205,6 +212,7 @@ export interface FileRoutesByTo {
   '/api/admin/reprint': typeof ApiAdminReprintRoute
   '/api/admin/settings': typeof ApiAdminSettingsRoute
   '/api/admin/stats': typeof ApiAdminStatsRoute
+  '/api/print/status': typeof ApiPrintStatusRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -219,7 +227,7 @@ export interface FileRoutesById {
   '/admin/settings': typeof AdminSettingsRoute
   '/api/branding': typeof ApiBrandingRoute
   '/api/leaderboard': typeof ApiLeaderboardRoute
-  '/api/print': typeof ApiPrintRoute
+  '/api/print': typeof ApiPrintRouteWithChildren
   '/api/register': typeof ApiRegisterRoute
   '/api/transform': typeof ApiTransformRoute
   '/admin/': typeof AdminIndexRoute
@@ -232,6 +240,7 @@ export interface FileRoutesById {
   '/api/admin/reprint': typeof ApiAdminReprintRoute
   '/api/admin/settings': typeof ApiAdminSettingsRoute
   '/api/admin/stats': typeof ApiAdminStatsRoute
+  '/api/print/status': typeof ApiPrintStatusRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -260,6 +269,7 @@ export interface FileRouteTypes {
     | '/api/admin/reprint'
     | '/api/admin/settings'
     | '/api/admin/stats'
+    | '/api/print/status'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -285,6 +295,7 @@ export interface FileRouteTypes {
     | '/api/admin/reprint'
     | '/api/admin/settings'
     | '/api/admin/stats'
+    | '/api/print/status'
   id:
     | '__root__'
     | '/'
@@ -311,6 +322,7 @@ export interface FileRouteTypes {
     | '/api/admin/reprint'
     | '/api/admin/settings'
     | '/api/admin/stats'
+    | '/api/print/status'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -320,7 +332,7 @@ export interface RootRouteChildren {
   RegisterRoute: typeof RegisterRoute
   ApiBrandingRoute: typeof ApiBrandingRoute
   ApiLeaderboardRoute: typeof ApiLeaderboardRoute
-  ApiPrintRoute: typeof ApiPrintRoute
+  ApiPrintRoute: typeof ApiPrintRouteWithChildren
   ApiRegisterRoute: typeof ApiRegisterRoute
   ApiTransformRoute: typeof ApiTransformRoute
   ApiAdminAuthRoute: typeof ApiAdminAuthRoute
@@ -504,6 +516,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAdminStatsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/print/status': {
+      id: '/api/print/status'
+      path: '/status'
+      fullPath: '/api/print/status'
+      preLoaderRoute: typeof ApiPrintStatusRouteImport
+      parentRoute: typeof ApiPrintRoute
+    }
   }
 }
 
@@ -527,6 +546,18 @@ const AdminRouteChildren: AdminRouteChildren = {
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
+interface ApiPrintRouteChildren {
+  ApiPrintStatusRoute: typeof ApiPrintStatusRoute
+}
+
+const ApiPrintRouteChildren: ApiPrintRouteChildren = {
+  ApiPrintStatusRoute: ApiPrintStatusRoute,
+}
+
+const ApiPrintRouteWithChildren = ApiPrintRoute._addFileChildren(
+  ApiPrintRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
@@ -534,7 +565,7 @@ const rootRouteChildren: RootRouteChildren = {
   RegisterRoute: RegisterRoute,
   ApiBrandingRoute: ApiBrandingRoute,
   ApiLeaderboardRoute: ApiLeaderboardRoute,
-  ApiPrintRoute: ApiPrintRoute,
+  ApiPrintRoute: ApiPrintRouteWithChildren,
   ApiRegisterRoute: ApiRegisterRoute,
   ApiTransformRoute: ApiTransformRoute,
   ApiAdminAuthRoute: ApiAdminAuthRoute,

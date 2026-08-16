@@ -96,14 +96,27 @@ export async function resolveDohaMallLogoUrl(): Promise<{
 
 const DEFAULT_PRINTER_NAME = "Canon SELPHY CP1500";
 
-/** Normalize booth print server base (no trailing slash). Empty = same-origin. */
+/**
+ * Normalize booth print server base (no trailing slash). Empty = same-origin.
+ * Accepts bare LAN IPs (`192.168.x.x`), optional port, or full http(s) URLs.
+ * Defaults http:// and port 8080 for IPv4 without an explicit port.
+ */
 export function normalizeBoothPrintBaseUrl(raw: string): string {
-  const trimmed = raw.trim().replace(/\/+$/, "");
+  let trimmed = raw.trim().replace(/\/+$/, "");
   if (!trimmed) return "";
+  // Staff sometimes paste the full print endpoint.
+  trimmed = trimmed.replace(/\/api\/print\/?$/i, "");
+  if (!/^https?:\/\//i.test(trimmed)) {
+    trimmed = `http://${trimmed}`;
+  }
   try {
     const u = new URL(trimmed);
     if (u.protocol !== "http:" && u.protocol !== "https:") return "";
-    // Only origin + optional port/path prefix (no /api/print suffix).
+    const isIpv4 = /^\d{1,3}(?:\.\d{1,3}){3}$/.test(u.hostname);
+    if (!u.port && u.protocol === "http:" && isIpv4) {
+      u.port = "8080";
+    }
+    // Only origin + optional path prefix (no /api/print suffix).
     return `${u.origin}${u.pathname === "/" ? "" : u.pathname.replace(/\/+$/, "")}`;
   } catch {
     return "";
