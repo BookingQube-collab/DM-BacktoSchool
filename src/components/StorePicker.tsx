@@ -3,6 +3,7 @@ import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
 export type Store = { id: string; name: string; logo_url: string | null };
 
@@ -82,6 +83,7 @@ export function StorePicker({
   const [open, setOpen] = useState(false);
   const [pickedStore, setPickedStore] = useState<Store | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const { t } = useI18n();
 
   const inFeatured = featured.some((s) => s.id === selectedId);
   const offFeaturedStore =
@@ -139,15 +141,13 @@ export function StorePicker({
   }
 
   const featuredHeading =
-    featuredSource === "sales"
-      ? "Popular stores"
-      : "Featured stores";
+    featuredSource === "sales" ? t("pickerPopular") : t("pickerFeatured");
 
   return (
     <div className="space-y-4">
       <div ref={wrapRef} className="relative space-y-2">
         <Label htmlFor="store_search" className="text-base">
-          Search store
+          {t("pickerSearchStore")}
         </Label>
         <div className="relative">
           <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
@@ -161,7 +161,7 @@ export function StorePicker({
             }}
             onFocus={() => setOpen(true)}
             className="h-12 rounded-xl pl-11 pr-4 text-base"
-            placeholder="Type store name…"
+            placeholder={t("pickerTypeStore")}
             autoComplete="off"
           />
         </div>
@@ -170,11 +170,11 @@ export function StorePicker({
           <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-2xl border border-border bg-popover shadow-xl">
             {searching ? (
               <p className="px-4 py-3 text-sm text-muted-foreground">
-                Searching…
+                {t("pickerSearching")}
               </p>
             ) : suggestions.length === 0 ? (
               <p className="px-4 py-3 text-sm text-muted-foreground">
-                No stores match &ldquo;{query.trim()}&rdquo;
+                {t("pickerNoMatch", { query: query.trim() })}
               </p>
             ) : (
               <ul className="max-h-64 overflow-y-auto py-1">
@@ -203,7 +203,7 @@ export function StorePicker({
       {offFeaturedStore ? (
         <div className="space-y-2">
           <p className="text-sm font-semibold text-muted-foreground">
-            Selected store
+            {t("pickerSelectedStore")}
           </p>
           <div className="flex items-start gap-3">
             <StoreCard
@@ -217,7 +217,7 @@ export function StorePicker({
               className="mt-1 flex items-center gap-1 rounded-lg px-2 py-1 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground"
             >
               <X className="h-4 w-4" />
-              Clear
+              {t("commonClear")}
             </button>
           </div>
         </div>
@@ -226,10 +226,10 @@ export function StorePicker({
       <div className="space-y-2">
         <Label className="text-base">{featuredHeading}</Label>
         {loading ? (
-          <p className="text-sm text-muted-foreground">Loading stores…</p>
+          <p className="text-sm text-muted-foreground">{t("pickerLoading")}</p>
         ) : featured.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
-            No stores yet — add logos in Admin → Stores
+            {t("pickerNoStores")}
           </p>
         ) : (
           <div className="-mx-1 overflow-x-auto px-1 pb-2">
@@ -248,8 +248,8 @@ export function StorePicker({
         {!loading && featured.length > 0 ? (
           <p className="text-xs text-muted-foreground">
             {featuredSource === "sales"
-              ? "Ranked by registrations. Search above for any store."
-              : "Top brands to get started. Search above for any store."}
+              ? t("pickerRankedSales")
+              : t("pickerTopBrands")}
           </p>
         ) : null}
       </div>

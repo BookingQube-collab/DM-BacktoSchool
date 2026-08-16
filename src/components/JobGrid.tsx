@@ -1,6 +1,8 @@
-import { PROFESSIONS, type Profession } from "@/lib/professions";
+import { PROFESSIONS, localizedProfessionTitle, type Profession } from "@/lib/professions";
+import { useI18n } from "@/lib/i18n";
 
 export function JobGrid({ onPick }: { onPick: (p: Profession) => void }) {
+  const { t, locale } = useI18n();
   return (
     <div className="min-h-screen w-full px-6 py-10 md:px-12 md:py-16">
       <div className="mx-auto max-w-6xl text-center">
@@ -12,7 +14,7 @@ export function JobGrid({ onPick }: { onPick: (p: Profession) => void }) {
           />
         </h1>
         <p className="mt-5 text-lg text-foreground/80 md:text-xl">
-          Pick a job. Take a photo. Meet your future self.
+          {t("boothTagline")}
         </p>
 
         <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
@@ -26,7 +28,7 @@ export function JobGrid({ onPick }: { onPick: (p: Profession) => void }) {
                 {p.emoji}
               </span>
               <span className="font-display text-lg font-semibold text-foreground">
-                {p.title}
+                {localizedProfessionTitle(p, locale)}
               </span>
             </button>
           ))}

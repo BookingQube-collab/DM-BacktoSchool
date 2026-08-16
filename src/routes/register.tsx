@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { todayISODate } from "@/lib/registration";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/register")({
   component: RegisterPage,
@@ -15,10 +16,10 @@ export const Route = createFileRoute("/register")({
 
 type Step = 1 | 2 | 3;
 
-const STEPS = [
-  { n: 1 as const, label: "Bill basics" },
-  { n: 2 as const, label: "Bill photo" },
-  { n: 3 as const, label: "Guest details" },
+const STEP_KEYS = [
+  { n: 1 as const, key: "registerStep1" as const },
+  { n: 2 as const, key: "registerStep2" as const },
+  { n: 3 as const, key: "registerStep3" as const },
 ];
 
 const emptyForm = {
@@ -34,6 +35,7 @@ const emptyForm = {
 };
 
 function RegisterPage() {
+  const { t } = useI18n();
   const [featured, setFeatured] = useState<Store[]>([]);
   const [featuredSource, setFeaturedSource] = useState<"sales" | "top_brands">(
     "top_brands",
@@ -82,28 +84,28 @@ function RegisterPage() {
 
   function validateStep(current: Step): string | null {
     if (current === 1) {
-      if (!form.company_id) return "Select a store";
+      if (!form.company_id) return t("registerErrSelectStore");
       const value = Number(form.transaction_value);
       if (!Number.isFinite(value) || value < 0) {
-        return "Enter the transaction value from the bill";
+        return t("registerErrTxnValue");
       }
       return null;
     }
     if (current === 2) {
-      if (!receiptImage) return "Capture or upload a bill photo";
+      if (!receiptImage) return t("registerErrBillPhoto");
       return null;
     }
-    if (!form.first_name.trim()) return "First name is required";
-    if (!form.last_name.trim()) return "Last name is required";
+    if (!form.first_name.trim()) return t("registerErrFirstName");
+    if (!form.last_name.trim()) return t("registerErrLastName");
     if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-      return "Valid email is required";
+      return t("registerErrEmail");
     }
     if (form.mobile.replace(/\D/g, "").length < 8) {
-      return "Valid mobile number is required";
+      return t("registerErrMobile");
     }
-    if (!form.nationality) return "Nationality is required";
-    if (!form.address_zone.trim()) return "Address zone number is required";
-    if (!form.transaction_date) return "Transaction date is required";
+    if (!form.nationality) return t("registerErrNationality");
+    if (!form.address_zone.trim()) return t("registerErrZone");
+    if (!form.transaction_date) return t("registerErrDate");
     return null;
   }
 
@@ -130,7 +132,7 @@ function RegisterPage() {
       return;
     }
     if (!receiptImage) {
-      setError("Bill photo is required");
+      setError(t("registerErrBillRequired"));
       setStep(2);
       return;
     }
@@ -150,13 +152,13 @@ function RegisterPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "Registration failed");
+        setError(data.error || t("registerErrFailed"));
         return;
       }
-      setSuccess(`Registered for ${data.store}. Ready for the next guest.`);
+      setSuccess(t("registerSuccess", { store: data.store }));
       resetForNextGuest();
     } catch {
-      setError("Could not reach the server");
+      setError(t("commonCouldNotReachServer"));
     } finally {
       setLoading(false);
     }
@@ -168,26 +170,29 @@ function RegisterPage() {
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
             <p className="font-display text-3xl font-bold md:text-4xl">
-              Guest registration
+              {t("registerTitle")}
             </p>
             <p className="mt-2 text-sm text-muted-foreground md:text-base">
-              Doha Mall Back to School — three quick steps
+              {t("registerSubtitle")}
             </p>
           </div>
           <Link
             to="/"
             className="rounded-xl border border-border px-3 py-2 text-sm text-muted-foreground hover:bg-secondary"
           >
-            Photo booth
+            {t("registerPhotoBooth")}
           </Link>
         </div>
 
         <div className="mb-5 rounded-3xl border border-border bg-secondary/45 p-4 shadow-xl backdrop-blur md:p-5">
           <p className="mb-3 text-sm font-semibold text-muted-foreground">
-            Step {step} of 3 — {STEPS[step - 1].label}
+            {t("registerStepOf", {
+              step,
+              label: t(STEP_KEYS[step - 1].key),
+            })}
           </p>
           <div className="flex gap-2">
-            {STEPS.map((s) => (
+            {STEP_KEYS.map((s) => (
               <div key={s.n} className="flex min-w-0 flex-1 flex-col gap-1.5">
                 <div
                   className={`h-2 rounded-full transition-colors ${
@@ -203,7 +208,7 @@ function RegisterPage() {
                       : "text-muted-foreground"
                   }`}
                 >
-                  {s.label}
+                  {t(s.key)}
                 </span>
               </div>
             ))}
@@ -222,7 +227,7 @@ function RegisterPage() {
               />
               <div className="space-y-2">
                 <Label htmlFor="transaction_value" className="text-base">
-                  Transaction value (QAR)
+                  {t("registerTxnValue")}
                 </Label>
                 <Input
                   id="transaction_value"
@@ -233,7 +238,7 @@ function RegisterPage() {
                   value={form.transaction_value}
                   onChange={(e) => update("transaction_value", e.target.value)}
                   className="h-12 rounded-xl px-4 text-base"
-                  placeholder="Amount from bill"
+                  placeholder={t("registerTxnPlaceholder")}
                 />
               </div>
             </div>
@@ -252,7 +257,7 @@ function RegisterPage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="first_name" className="text-base">
-                    First name
+                    {t("registerFirstName")}
                   </Label>
                   <Input
                     id="first_name"
@@ -264,7 +269,7 @@ function RegisterPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="last_name" className="text-base">
-                    Last name
+                    {t("registerLastName")}
                   </Label>
                   <Input
                     id="last_name"
@@ -279,7 +284,7 @@ function RegisterPage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-base">
-                    Email
+                    {t("registerEmail")}
                   </Label>
                   <Input
                     id="email"
@@ -292,7 +297,7 @@ function RegisterPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="mobile" className="text-base">
-                    Mobile
+                    {t("registerMobile")}
                   </Label>
                   <PhoneIsdInput
                     key={phoneKey}
@@ -306,7 +311,7 @@ function RegisterPage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="nationality" className="text-base">
-                    Nationality
+                    {t("commonNationality")}
                   </Label>
                   <NationalityPicker
                     id="nationality"
@@ -316,13 +321,13 @@ function RegisterPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="address_zone" className="text-base">
-                    Address zone number
+                    {t("registerAddressZone")}
                   </Label>
                   <Input
                     id="address_zone"
                     value={form.address_zone}
                     onChange={(e) => update("address_zone", e.target.value)}
-                    placeholder="e.g. 45"
+                    placeholder={t("registerZonePlaceholder")}
                     className="h-12 rounded-xl px-4 text-base"
                   />
                 </div>
@@ -330,7 +335,7 @@ function RegisterPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="transaction_date" className="text-base">
-                  Transaction date
+                  {t("registerTxnDate")}
                 </Label>
                 <Input
                   id="transaction_date"
@@ -355,7 +360,7 @@ function RegisterPage() {
                 onClick={goBack}
                 disabled={loading}
               >
-                Back
+                {t("commonBack")}
               </Button>
             ) : null}
             {step < 3 ? (
@@ -366,7 +371,7 @@ function RegisterPage() {
                 onClick={goNext}
                 disabled={!storesReady || !hasStores}
               >
-                Continue
+                {t("commonContinue")}
               </Button>
             ) : (
               <Button
@@ -376,7 +381,7 @@ function RegisterPage() {
                 onClick={() => void onRegister()}
                 disabled={loading || !storesReady || !hasStores}
               >
-                {loading ? "Saving…" : "Register"}
+                {loading ? t("commonSaving") : t("registerRegister")}
               </Button>
             )}
           </div>

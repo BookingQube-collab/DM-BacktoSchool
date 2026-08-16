@@ -1,6 +1,8 @@
 import { forwardRef } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import type { Profession } from "@/lib/professions";
+import { localizedProfessionTag, localizedProfessionTitle } from "@/lib/professions";
+import { useI18n } from "@/lib/i18n";
 
 type Props = {
   profession: Profession;
@@ -10,7 +12,8 @@ type Props = {
 
 export const FutureIdCard = forwardRef<HTMLDivElement, Props>(
   function FutureIdCard({ profession, imageUrl, mallLogoUrl }, ref) {
-    const issued = new Date().toLocaleDateString(undefined, {
+    const { t, locale } = useI18n();
+    const issued = new Date().toLocaleDateString(locale === "ar" ? "ar-QA" : "en-GB", {
       year: "numeric",
       month: "short",
       day: "numeric",
@@ -25,7 +28,7 @@ export const FutureIdCard = forwardRef<HTMLDivElement, Props>(
         <div className="print-card-face flex aspect-[148/100] flex-col">
           <div className="relative flex shrink-0 items-center justify-between gap-3 bg-gradient-to-r from-primary via-primary to-accent px-5 py-3 text-white">
             <span className="font-display text-xs uppercase tracking-[0.25em] opacity-90">
-              Future ID
+              {t("futureId")}
             </span>
             <span className="shrink-0 font-display text-lg font-black tracking-wider">
               E3
@@ -37,7 +40,7 @@ export const FutureIdCard = forwardRef<HTMLDivElement, Props>(
             <div className="relative min-h-0 overflow-hidden bg-slate-100">
               <img
                 src={imageUrl}
-                alt={`Future ${profession.title}`}
+                alt={t("futureIdAlt", { title: localizedProfessionTitle(profession, locale) })}
                 className="h-full w-full object-cover"
                 crossOrigin="anonymous"
               />
@@ -56,10 +59,10 @@ export const FutureIdCard = forwardRef<HTMLDivElement, Props>(
             <div className="flex min-h-0 flex-col items-center px-3 py-3 md:px-4 md:py-4">
               <div className="flex min-h-0 w-full shrink flex-col items-center text-center">
                 <p className="font-display text-2xl font-extrabold leading-tight text-slate-900 md:text-3xl">
-                  {profession.title}
+                  {localizedProfessionTitle(profession, locale)}
                 </p>
                 <p className="mt-1 text-sm text-slate-500 md:text-base">
-                  "{profession.tag}"
+                  "{localizedProfessionTag(profession, locale)}"
                 </p>
                 <span className="mt-2 inline-block text-3xl leading-none" aria-hidden>
                   {profession.emoji}
@@ -69,7 +72,7 @@ export const FutureIdCard = forwardRef<HTMLDivElement, Props>(
               <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center py-2">
                 <div
                   className="rounded-md bg-white p-1"
-                  aria-label="Scan to take your photo home"
+                  aria-label={t("futureIdScan")}
                 >
                   <QRCodeSVG
                     value={imageUrl}
@@ -83,7 +86,7 @@ export const FutureIdCard = forwardRef<HTMLDivElement, Props>(
               </div>
 
               <div className="flex w-full shrink-0 items-center justify-between border-t border-dashed border-slate-200 pt-2.5 text-xs uppercase tracking-widest text-slate-500">
-                <span>Issued</span>
+                <span>{t("futureIdIssued")}</span>
                 <span className="font-semibold text-slate-700">{issued}</span>
               </div>
             </div>

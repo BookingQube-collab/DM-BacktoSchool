@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { humanizeFilename } from "@/lib/image";
 import { fileToDownscaledDataUrl } from "@/lib/photo";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/admin/companies")({
   component: AdminCompaniesPage,
@@ -40,6 +41,7 @@ type BulkDraft = {
 };
 
 function AdminCompaniesPage() {
+  const { t } = useI18n();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [name, setName] = useState("");
   const [singlePreview, setSinglePreview] = useState<string | null>(null);
@@ -78,15 +80,15 @@ function AdminCompaniesPage() {
   const activeBreakdown = useMemo(
     () => [
       {
-        name: "Active",
+        name: t("storesActive"),
         count: companies.filter((c) => c.is_active).length,
       },
       {
-        name: "Inactive",
+        name: t("storesInactive"),
         count: companies.filter((c) => !c.is_active).length,
       },
     ].filter((x) => x.count > 0),
-    [companies],
+    [companies, t],
   );
 
   async function onSingleFile(file: File | undefined) {
@@ -262,7 +264,7 @@ function AdminCompaniesPage() {
   }
 
   async function removeCompany(id: string) {
-    if (!confirm("Delete this store?")) return;
+    if (!confirm(t("storesConfirmDelete"))) return;
     const res = await fetch(`/api/admin/companies?id=${encodeURIComponent(id)}`, {
       method: "DELETE",
       credentials: "include",
@@ -309,10 +311,8 @@ function AdminCompaniesPage() {
     <div className="max-w-3xl space-y-10">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-3xl font-bold">Stores</h1>
-          <p className="mt-2 text-muted-foreground">
-            Add store names and logos for the registration desk grid.
-          </p>
+          <h1 className="font-display text-3xl font-bold">{t("storesTitle")}</h1>
+          <p className="mt-2 text-muted-foreground">{t("storesSubtitle")}</p>
         </div>
         <Button
           type="button"

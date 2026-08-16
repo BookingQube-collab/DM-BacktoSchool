@@ -14,7 +14,11 @@ import {
 import {
   defaultRegistrationsFromDate,
   todayISODate,
+  validateRegistration,
 } from "@/lib/registration";
+
+const GUEST_SELECT =
+  "id, first_name, last_name, email, mobile, nationality, address_zone, transaction_date, transaction_value, receipt_image_path, receipt_image_url, created_at, company_id, companies(id, name)";
 
 function csvEscape(value: unknown) {
   const str = String(value ?? "");
@@ -175,11 +179,8 @@ export const Route = createFileRoute("/api/admin/registrations")({
             maxValue,
           };
 
-          const selectCols =
-            "id, first_name, last_name, email, mobile, nationality, address_zone, transaction_date, transaction_value, receipt_image_path, receipt_image_url, created_at, company_id, companies(id, name)";
-
           let listQuery = applyGuestFilters(
-            supabaseAdmin.from("guests").select(selectCols),
+            supabaseAdmin.from("guests").select(GUEST_SELECT),
             filterOpts,
           )
             .order("transaction_date", { ascending: false })
@@ -284,6 +285,73 @@ export const Route = createFileRoute("/api/admin/registrations")({
               nationalities,
               zones,
             },
+          });
+        } catch (e) {
+          const message = e instanceof Error ? e.message : String(e);
+          return json({ error: message }, 500);
+        }
+      },
+      PUT: async ({ request }) => {
+        const auth = requireAdminSession(request);
+        if (!auth.ok) return auth.response;
+
+        try {
+          const body = (await request.json()) as Partial<{
+            id: string;
+            first_name: string;
+            last_name: string;
+            email: string;
+            mobile: string;
+            nationality: string;
+            address_zone: string;
+            transaction_date: string;
+            company_id: string;
+            transaction_value: number | string;
+          }>;
+
+          const id = typeof body.id === "string" ? body.id.trim() : "";
+          if (!id) return json({ error: "Registration id is required" }, 400);
+
+          const { errors, data } = validateRegistration({
+            ...body,
+            transaction_value:
+              body.transaction_value === undefined
+                ? undefined
+                : Number(body.transaction_value),
+          });
+          if (errors.length) return json({ error: errors[0], errors }, 400);
+
+          const { data: store, error: storeErr } = await supabaseAdmin
+            .from("companies")
+            .select("id")
+            .eq("id", data.company_id)
+            .maybeSingle();
+          if (storeErr) return json({ error: storeErr.message }, 500);
+          if (!store) return json({ error: "Store not found" }, 400);
+
+          const { data: updated, error } = await supabaseAdmin
+            .from("guests")
+            .update({
+              first_name: data.first_name,
+              last_name: data.last_name,
+              email: data.email,
+              mobile: data.mobile,
+              nationality: data.nationality,
+              address_zone: data.address_zone,
+              transaction_date: data.transaction_date,
+              company_id: data.company_id,
+              transaction_value: data.transaction_value,
+            })
+            .eq("id", id)
+            .select(GUEST_SELECT)
+            .maybeSingle();
+
+          if (error) return json({ error: error.message }, 500);
+          if (!updated) return json({ error: "Registration not found" }, 404);
+
+          return json({
+            ok: true,
+            registration: mapRegistration(updated as GuestListRow),
           });
         } catch (e) {
           const message = e instanceof Error ? e.message : String(e);

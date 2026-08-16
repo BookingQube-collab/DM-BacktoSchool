@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Maximize2, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
 const STORAGE_KEY = "smart-start:prefer-fullscreen";
 
@@ -87,6 +88,7 @@ export function FullscreenToggle() {
   const intentionalExitRef = useRef(false);
   const preferredRef = useRef(false);
   const restoringRef = useRef(false);
+  const { t } = useI18n();
 
   useEffect(() => {
     const el = document.documentElement as HTMLElement & {
@@ -145,7 +147,8 @@ export function FullscreenToggle() {
       const target = e.target;
       if (
         target instanceof Element &&
-        target.closest("[data-fullscreen-toggle]")
+        (target.closest("[data-fullscreen-toggle]") ||
+          target.closest("[data-language-toggle]"))
       ) {
         return;
       }
@@ -216,10 +219,10 @@ export function FullscreenToggle() {
 
   const needsRestore = preferred && !active;
   const label = active
-    ? "Exit fullscreen"
+    ? t("fullscreenExit")
     : needsRestore
-      ? "Restore fullscreen"
-      : "Enter fullscreen";
+      ? t("fullscreenRestore")
+      : t("fullscreenEnter");
 
   return (
     <div
@@ -240,7 +243,7 @@ export function FullscreenToggle() {
             "hover:bg-black/80",
           )}
         >
-          Tap to stay fullscreen
+          {t("fullscreenTapToStay")}
         </button>
       )}
       <Button

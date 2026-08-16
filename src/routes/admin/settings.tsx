@@ -15,6 +15,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { fileToLogoDataUrl } from "@/lib/photo";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/admin/settings")({
   component: AdminSettingsPage,
@@ -34,6 +35,7 @@ type Settings = {
 };
 
 function AdminSettingsPage() {
+  const { t } = useI18n();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [freepik, setFreepik] = useState("");
   const [eventName, setEventName] = useState("");
@@ -187,11 +189,8 @@ function AdminSettingsPage() {
 
   return (
     <div className="max-w-xl">
-      <h1 className="font-display text-3xl font-bold">Settings</h1>
-      <p className="mt-2 text-muted-foreground">
-        Update API keys, booth branding, printer, and admin login. Secrets are
-        stored in Supabase and never shown in full after saving.
-      </p>
+      <h1 className="font-display text-3xl font-bold">{t("settingsTitle")}</h1>
+      <p className="mt-2 text-muted-foreground">{t("settingsSubtitle")}</p>
 
       <form onSubmit={onSave} className="mt-8 space-y-5">
         <div className="space-y-2">

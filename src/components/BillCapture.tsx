@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { SwitchCamera } from "lucide-react";
 import { captureFromVideo, fileToDownscaledDataUrl } from "@/lib/photo";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n";
 
 type FacingMode = "environment" | "user";
 
@@ -23,6 +24,7 @@ export function BillCapture({
   const [swapping, setSwapping] = useState(false);
   // Auto-open camera when step mounts with no existing bill photo
   const [cameraOn, setCameraOn] = useState(() => !previewUrl);
+  const { t } = useI18n();
 
   useEffect(() => {
     if (previewUrl) {
@@ -71,7 +73,7 @@ export function BillCapture({
         setError(
           e instanceof Error
             ? e.message
-            : "Could not access camera. Upload a photo instead.",
+            : t("billCameraError"),
         );
         setCameraOn(false);
       } finally {
@@ -108,7 +110,7 @@ export function BillCapture({
       stopCamera();
       onCaptured(dataUrl);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not capture photo");
+      setError(e instanceof Error ? e.message : t("billCaptureError"));
     }
   };
 
@@ -118,7 +120,7 @@ export function BillCapture({
       stopCamera();
       onCaptured(dataUrl);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not read file");
+      setError(e instanceof Error ? e.message : t("billFileError"));
     }
   };
 
@@ -128,7 +130,7 @@ export function BillCapture({
         <div className="overflow-hidden rounded-2xl border border-border bg-black/40">
           <img
             src={previewUrl}
-            alt="Bill preview"
+            alt={t("billPreviewAlt")}
             className="mx-auto max-h-[50vh] w-full object-contain"
           />
         </div>
@@ -141,7 +143,7 @@ export function BillCapture({
             setError(null);
           }}
         >
-          Retake bill photo
+          {t("billRetake")}
         </Button>
       </div>
     );
@@ -159,7 +161,7 @@ export function BillCapture({
           />
           {!stream && !error ? (
             <div className="absolute inset-0 flex items-center justify-center text-sm text-foreground/70">
-              {swapping ? "Switching camera…" : "Starting camera…"}
+              {swapping ? t("billSwitching") : t("billStarting")}
             </div>
           ) : null}
 
@@ -170,8 +172,8 @@ export function BillCapture({
               disabled={swapping || !stream}
               aria-label={
                 facingMode === "environment"
-                  ? "Switch to front camera"
-                  : "Switch to rear camera"
+                  ? t("billSwitchFront")
+                  : t("billSwitchRear")
               }
               className="absolute right-3 top-3 z-10 flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-black/55 text-white shadow-lg backdrop-blur-sm transition active:scale-95 disabled:opacity-40"
             >
@@ -187,14 +189,14 @@ export function BillCapture({
               onClick={handleTake}
               disabled={!stream || swapping}
             >
-              Capture bill
+              {t("billCapture")}
             </Button>
           </div>
         </div>
       ) : (
         <div className="flex aspect-[3/4] max-h-[min(62vh,560px)] w-full items-center justify-center rounded-2xl border border-dashed border-border bg-secondary/30 px-6 text-center">
           <p className="text-sm text-muted-foreground md:text-base">
-            Capture a clear photo of the full bill
+            {t("billHint")}
           </p>
         </div>
       )}
@@ -212,7 +214,7 @@ export function BillCapture({
               setCameraOn(true);
             }}
           >
-            Open camera
+            {t("billOpenCamera")}
           </Button>
         ) : null}
 
@@ -222,7 +224,7 @@ export function BillCapture({
           className="h-12 w-full text-base"
           onClick={() => fileInputRef.current?.click()}
         >
-          Upload from device
+          {t("billUpload")}
         </Button>
         <input
           ref={fileInputRef}
@@ -243,7 +245,7 @@ export function BillCapture({
             onClick={stopCamera}
             className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
           >
-            Cancel camera
+            {t("billCancelCamera")}
           </button>
         ) : null}
       </div>

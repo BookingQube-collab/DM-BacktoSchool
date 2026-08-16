@@ -24,6 +24,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { DayBucket, NamedCount, StoreValueBucket } from "@/lib/admin-charts";
 import { formatQar, defaultRegistrationsFromDate, todayISODate } from "@/lib/registration";
+import { professionTitleById } from "@/lib/professions";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/admin/")({
   component: AdminDashboardPage,
@@ -56,6 +58,7 @@ type Stats = {
 const TOP_STORES_LIMIT = 10;
 
 function AdminDashboardPage() {
+  const { t, locale } = useI18n();
   const [from, setFrom] = useState(defaultRegistrationsFromDate);
   const [to, setTo] = useState(todayISODate);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -175,24 +178,24 @@ function AdminDashboardPage() {
 
   const summaryCards = [
     {
-      label: "Registrations in range",
+      label: t("dashRegsInRange"),
       value: stats?.daily_registrations ?? "—",
       icon: Users,
     },
     {
-      label: "Transaction value in range",
+      label: t("dashValueInRange"),
       value: stats ? formatQar(stats.daily_transaction_value) : "—",
       icon: Receipt,
     },
     {
-      label: "Highest receipts",
+      label: t("dashHighest"),
       value: stats?.highest_store
         ? `${stats.highest_store.store_name} (${stats.highest_store.receipts})`
         : "—",
       icon: ArrowUpRight,
     },
     {
-      label: "Lowest receipts",
+      label: t("dashLowest"),
       value: stats?.lowest_store
         ? `${stats.lowest_store.store_name} (${stats.lowest_store.receipts})`
         : "—",
@@ -218,25 +221,23 @@ function AdminDashboardPage() {
     <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-3xl font-bold">Dashboard</h1>
-          <p className="mt-2 text-muted-foreground">
-            Monitor daily registrations and store transaction activity.
-          </p>
+          <h1 className="font-display text-3xl font-bold">{t("dashTitle")}</h1>
+          <p className="mt-2 text-muted-foreground">{t("dashSubtitle")}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline">
-            <Link to="/admin/registrations">View registrations</Link>
+            <Link to="/admin/registrations">{t("dashViewRegs")}</Link>
           </Button>
           <Button type="button" variant="secondary" onClick={downloadCsv}>
             <Download className="size-4" />
-            Download CSV
+            {t("commonDownloadCsv")}
           </Button>
         </div>
       </div>
 
       <div className="flex flex-wrap items-end gap-3 rounded-3xl border border-border bg-secondary/40 p-4">
         <div className="space-y-2">
-          <Label htmlFor="from">From</Label>
+          <Label htmlFor="from">{t("commonFrom")}</Label>
           <Input
             id="from"
             type="date"
@@ -245,7 +246,7 @@ function AdminDashboardPage() {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="to">To</Label>
+          <Label htmlFor="to">{t("commonTo")}</Label>
           <Input
             id="to"
             type="date"
@@ -255,7 +256,7 @@ function AdminDashboardPage() {
         </div>
         <Button type="button" onClick={() => load(from, to)} disabled={loading}>
           <CalendarDays className="size-4" />
-          {loading ? "Loading…" : "Apply filter"}
+          {loading ? t("commonLoading") : t("commonApplyFilter")}
         </Button>
       </div>
 
@@ -290,19 +291,22 @@ function AdminDashboardPage() {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <NamedCountDonutChart
-          title="Nationality mix"
-          subtitle="Registrations in range"
+          title={t("dashNationalityMix")}
+          subtitle={t("dashRegsInRangeShort")}
           items={stats?.by_nationality ?? []}
         />
         <NamedCountBarChart
-          title="By zone"
-          subtitle="Address zone breakdown"
+          title={t("dashByZone")}
+          subtitle={t("dashZoneBreakdown")}
           items={stats?.by_zone ?? []}
         />
         <NamedCountBarChart
-          title="Photos by profession"
-          subtitle="Booth sessions in range"
-          items={stats?.by_profession ?? []}
+          title={t("dashPhotosByProfession")}
+          subtitle={t("dashBoothSessions")}
+          items={(stats?.by_profession ?? []).map((item) => ({
+            ...item,
+            name: professionTitleById(item.name, locale, item.name),
+          }))}
         />
       </div>
 

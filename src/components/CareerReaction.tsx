@@ -5,7 +5,8 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import type { Profession } from "@/lib/professions";
+import { useI18n, type MessageKey } from "@/lib/i18n";
+import type { Profession, ProfessionId } from "@/lib/professions";
 import {
   CAREER_REACTION_DURATION_MS,
   CAREER_REACTION_REDUCED_MS,
@@ -16,6 +17,21 @@ import {
 type Props = {
   career: Profession;
   onComplete: () => void;
+};
+
+const REACTION_COPY: Record<ProfessionId, MessageKey> = {
+  pilot: "reactionPilot",
+  doctor: "reactionDoctor",
+  astronaut: "reactionAstronaut",
+  firefighter: "reactionFirefighter",
+  police: "reactionPolice",
+  chef: "reactionChef",
+  racer: "reactionRacer",
+  footballer: "reactionFootballer",
+  scientist: "reactionScientist",
+  vet: "reactionVet",
+  engineer: "reactionEngineer",
+  artist: "reactionArtist",
 };
 
 /** Module lock so a new reaction cancels / replaces any previous one. */
@@ -188,7 +204,9 @@ function EffectLayer({
  * Auto-completes after ~4s (shorter with reduced motion).
  */
 export function CareerReaction({ career, onComplete }: Props) {
+  const { t } = useI18n();
   const config = getCareerReaction(career);
+  const slogan = t(REACTION_COPY[config.id] ?? "reactionArtist");
   const reactId = useId();
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
@@ -223,7 +241,7 @@ export function CareerReaction({ career, onComplete }: Props) {
   return (
     <div
       role="dialog"
-      aria-label={config.text}
+      aria-label={slogan}
       aria-modal="true"
       data-career={config.id}
       data-effect={config.effect}
@@ -243,7 +261,7 @@ export function CareerReaction({ career, onComplete }: Props) {
           </span>
         </div>
 
-        <p className="career-reaction__text">{config.text}</p>
+        <p className="career-reaction__text">{slogan}</p>
       </div>
     </div>
   );

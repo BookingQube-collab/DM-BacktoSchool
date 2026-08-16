@@ -12,6 +12,8 @@ import {
 } from "@/lib/leaderboard";
 import { professionEmojiFlairClass } from "@/lib/profession-flair";
 import { useCountUp } from "@/lib/use-count-up";
+import { professionTitleById } from "@/lib/professions";
+import { useI18n } from "@/lib/i18n";
 import { CareerReaction } from "./CareerReaction";
 
 /** Reflect / glow plays first; count-up starts after this. */
@@ -61,6 +63,7 @@ export function LeaderboardBoard({
   const reactionQueueRef = useRef<ProfessionId[]>([]);
   const reactionPlayingRef = useRef(false);
   const isTv = variant === "tv";
+  const { t, locale } = useI18n();
 
   const playNextReaction = () => {
     while (reactionQueueRef.current.length > 0) {
@@ -123,7 +126,7 @@ export function LeaderboardBoard({
         if (!cancelled) applyLeaderboard(next);
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : "Could not load leaderboard");
+          setError(e instanceof Error ? e.message : t("lbLoadError"));
         }
       }
     };
@@ -179,7 +182,7 @@ export function LeaderboardBoard({
             isTv ? "mt-3 text-[clamp(0.7rem,1.4vh,1rem)]" : "text-sm"
           }`}
         >
-          Career leaderboard
+          {t("lbTitle")}
         </p>
         <h2
           className={`mt-2 font-display font-bold text-foreground ${
@@ -188,7 +191,7 @@ export function LeaderboardBoard({
               : "text-4xl md:text-5xl"
           }`}
         >
-          Who&apos;s dreaming biggest?
+          {t("lbHeadline")}
         </h2>
         <p
           className={`mt-2 text-foreground/70 ${
@@ -202,7 +205,7 @@ export function LeaderboardBoard({
           >
             {data ? total : "—"}
           </span>{" "}
-          photos taken across every dream job
+          {t("lbPhotosTaken")}
         </p>
       </div>
 
@@ -212,7 +215,7 @@ export function LeaderboardBoard({
 
       {!data && !error && (
         <p className="mt-10 shrink-0 text-center text-foreground/50">
-          Loading ranks…
+          {t("lbLoading")}
         </p>
       )}
 
@@ -234,6 +237,9 @@ export function LeaderboardBoard({
               isTop={row.rank === 1 && row.count > 0}
               tv={isTv}
               bumpToken={bumpTokens[row.id] ?? 0}
+              title={professionTitleById(row.id, locale, row.title)}
+              youLabel={t("lbYou")}
+              leadingLabel={t("lbLeading")}
             />
           ))}
         </ol>
@@ -245,7 +251,7 @@ export function LeaderboardBoard({
             to="/"
             className="rounded-2xl bg-gradient-to-r from-primary to-accent px-8 py-4 font-display text-lg font-bold text-white shadow-lg transition hover:scale-[1.01] motion-reduce:transform-none"
           >
-            Take a photo
+            {t("lbTakePhoto")}
           </Link>
         </div>
       )}
@@ -261,6 +267,9 @@ function ProfessionRow({
   isTop,
   tv,
   bumpToken,
+  title,
+  youLabel,
+  leadingLabel,
 }: {
   row: LeaderboardProfession;
   maxCount: number;
@@ -269,6 +278,9 @@ function ProfessionRow({
   isTop: boolean;
   tv: boolean;
   bumpToken: number;
+  title: string;
+  youLabel: string;
+  leadingLabel: string;
 }) {
   const [celebrating, setCelebrating] = useState(false);
   const [enterAnim, setEnterAnim] = useState(true);
@@ -368,10 +380,10 @@ function ProfessionRow({
                 : "text-lg"
             }`}
           >
-            {row.title}
+            {title}
             {highlighted && (
               <span className="ml-2 text-xs font-sans font-normal uppercase tracking-wider text-accent">
-                You
+                {youLabel}
               </span>
             )}
             {isTop && !highlighted && row.count > 0 && (
@@ -380,7 +392,7 @@ function ProfessionRow({
                   tv ? "text-[clamp(0.55rem,1.2vh,0.75rem)]" : "text-xs"
                 }`}
               >
-                Leading
+                {leadingLabel}
               </span>
             )}
           </p>

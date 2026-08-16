@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/admin/login")({
   component: AdminLoginPage,
@@ -14,6 +15,7 @@ function AdminLoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const { t } = useI18n();
 
   useEffect(() => {
     let cancelled = false;
@@ -39,12 +41,12 @@ function AdminLoginPage() {
       });
       const data = (await res.json()) as { error?: string };
       if (!res.ok) {
-        setError(data.error || "Login failed");
+        setError(data.error || t("adminLoginFailed"));
         return;
       }
       navigate({ to: "/admin" });
     } catch {
-      setError("Could not reach the server");
+      setError(t("commonCouldNotReachServer"));
     } finally {
       setLoading(false);
     }
@@ -53,14 +55,14 @@ function AdminLoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md rounded-3xl border border-border bg-secondary/50 p-8 shadow-xl backdrop-blur">
-        <p className="font-display text-3xl font-bold text-foreground">Admin login</p>
+        <p className="font-display text-3xl font-bold text-foreground">{t("adminLoginTitle")}</p>
         <p className="mt-2 text-sm text-muted-foreground">
-          Manage API keys, companies, and event settings.
+          {t("adminLoginSubtitle")}
         </p>
 
         <form onSubmit={onSubmit} className="mt-8 space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="username">Username</Label>
+            <Label htmlFor="username">{t("adminUsername")}</Label>
             <Input
               id="username"
               value={username}
@@ -70,7 +72,7 @@ function AdminLoginPage() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">{t("adminPassword")}</Label>
             <Input
               id="password"
               type="password"
@@ -84,12 +86,11 @@ function AdminLoginPage() {
             <p className="text-sm text-destructive">{error}</p>
           ) : (
             <p className="text-xs text-muted-foreground">
-              Default: <span className="font-semibold">admin</span> /{" "}
-              <span className="font-semibold">admin123</span> (change in Settings)
+              {t("adminLoginDefault")}
             </p>
           )}
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Signing in…" : "Sign in"}
+            {loading ? t("adminSigningIn") : t("adminSignIn")}
           </Button>
         </form>
       </div>

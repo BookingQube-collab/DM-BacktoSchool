@@ -1,18 +1,55 @@
 import { Link, Outlet, createFileRoute, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Building2, Camera, ClipboardList, LayoutDashboard, LogOut, Settings } from "lucide-react";
+import {
+  Building2,
+  Camera,
+  ClipboardList,
+  LayoutDashboard,
+  LogOut,
+  Monitor,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Settings,
+} from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin")({
   component: AdminLayout,
 });
 
+const SIDEBAR_COLLAPSED_KEY = "admin-sidebar-collapsed";
+
+function readSidebarCollapsed(): boolean {
+  try {
+    return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeSidebarCollapsed(collapsed: boolean): void {
+  try {
+    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? "1" : "0");
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
 function AdminLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isLogin = pathname === "/admin/login";
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [checking, setChecking] = useState(!isLogin);
   const [username, setUsername] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState(false);
+  const [sidebarReady, setSidebarReady] = useState(false);
+
+  useEffect(() => {
+    setCollapsed(readSidebarCollapsed());
+    setSidebarReady(true);
+  }, []);
 
   useEffect(() => {
     if (isLogin) {
@@ -39,6 +76,14 @@ function AdminLayout() {
     };
   }, [isLogin, navigate, pathname]);
 
+  function toggleCollapsed() {
+    setCollapsed((prev) => {
+      const next = !prev;
+      writeSidebarCollapsed(next);
+      return next;
+    });
+  }
+
   async function logout() {
     await fetch("/api/admin/auth", { method: "DELETE", credentials: "include" });
     navigate({ to: "/admin/login" });
@@ -51,73 +96,126 @@ function AdminLayout() {
   if (checking) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
-        <p className="font-sans text-muted-foreground">Checking session…</p>
+        <p className="font-sans text-muted-foreground">{t("adminChecking")}</p>
       </div>
     );
   }
 
   const nav = [
-    { to: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
-    { to: "/admin/registrations", label: "Registrations", icon: ClipboardList, exact: false },
-    { to: "/admin/photos", label: "Photos", icon: Camera, exact: false },
-    { to: "/admin/companies", label: "Stores", icon: Building2, exact: false },
-    { to: "/admin/settings", label: "Settings", icon: Settings, exact: false },
+    { to: "/admin", label: t("adminDashboard"), icon: LayoutDashboard, exact: true },
+    { to: "/admin/registrations", label: t("adminRegistrations"), icon: ClipboardList, exact: false },
+    { to: "/admin/photos", label: t("adminPhotos"), icon: Camera, exact: false },
+    { to: "/admin/companies", label: t("adminStores"), icon: Building2, exact: false },
+    { to: "/admin/settings", label: t("adminSettings"), icon: Settings, exact: false },
   ] as const;
 
+  const itemClass = (active: boolean) =>
+    cn(
+      "inline-flex items-center rounded-xl text-sm font-semibold transition-colors",
+      collapsed ? "size-10 justify-center" : "w-full gap-2 px-3 py-2",
+      active
+        ? "bg-primary text-primary-foreground"
+        : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+    );
+
+  const expandLabel = t("adminExpand");
+  const collapseLabel = t("adminCollapse");
+
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto flex min-h-screen max-w-6xl flex-col md:flex-row">
-        <aside className="border-b border-border bg-secondary/40 p-5 md:w-64 md:border-b-0 md:border-r">
-          <div className="mb-8">
-            <p className="font-display text-xl font-bold">Doha Mall Admin</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Signed in as {username}
-            </p>
-          </div>
-          <nav className="flex flex-wrap gap-2 md:flex-col">
-            {nav.map((item) => {
-              const active = item.exact
-                ? pathname === item.to || pathname === `${item.to}/`
-                : pathname.startsWith(item.to);
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  className={cn(
-                    "inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition-colors",
-                    active
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-secondary hover:text-foreground",
-                  )}
-                >
-                  <Icon className="size-4" />
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-          <div className="mt-6 space-y-2">
-            <Link
-              to="/register"
-              className="block rounded-xl px-3 py-2 text-sm font-semibold text-accent hover:bg-secondary"
-            >
-              Open registration desk
-            </Link>
-            <button
-              type="button"
-              onClick={logout}
-              className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            >
-              <LogOut className="size-4" />
-              Log out
-            </button>
-          </div>
-        </aside>
-        <main className="flex-1 p-6 md:p-8">
-          <Outlet />
-        </main>
-      </div>
+    <div className="flex min-h-screen bg-background text-foreground">
+      <aside
+        className={cn(
+          "sticky top-0 z-20 flex h-svh shrink-0 flex-col overflow-hidden border-r border-border bg-secondary/40",
+          collapsed ? "w-16" : "w-64",
+          sidebarReady && "transition-[width] duration-300 ease-in-out",
+        )}
+      >
+        <div
+          className={cn(
+            "flex shrink-0 items-start gap-2",
+            collapsed ? "justify-center px-2 pt-4 pb-3" : "justify-between p-5 pb-4",
+          )}
+        >
+          {!collapsed && (
+            <div className="min-w-0">
+              <p className="font-display text-xl font-bold">{t("adminBrand")}</p>
+              <p className="mt-1 truncate text-sm text-muted-foreground">
+                {t("adminSignedIn", { username: username ?? "admin" })}
+              </p>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? expandLabel : collapseLabel}
+            title={collapsed ? expandLabel : collapseLabel}
+            className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          >
+            {collapsed ? (
+              <PanelLeftOpen className="size-4" />
+            ) : (
+              <PanelLeftClose className="size-4" />
+            )}
+          </button>
+        </div>
+
+        <nav
+          className={cn(
+            "flex flex-1 flex-col gap-1 overflow-y-auto",
+            collapsed ? "items-center px-2" : "px-3",
+          )}
+        >
+          {nav.map((item) => {
+            const active = item.exact
+              ? pathname === item.to || pathname === `${item.to}/`
+              : pathname.startsWith(item.to);
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                title={item.label}
+                className={itemClass(active)}
+              >
+                <Icon className="size-4 shrink-0" />
+                <span className={cn(collapsed && "sr-only")}>{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div
+          className={cn(
+            "mt-auto flex shrink-0 flex-col gap-1 pb-4",
+            collapsed ? "items-center px-2" : "px-3",
+          )}
+        >
+          <Link
+            to="/register"
+            title={t("adminOpenDesk")}
+            className={cn(
+              itemClass(false),
+              !collapsed && "text-accent hover:text-accent",
+            )}
+          >
+            <Monitor className="size-4 shrink-0" />
+            <span className={cn(collapsed && "sr-only")}>{t("adminOpenDesk")}</span>
+          </Link>
+          <button
+            type="button"
+            onClick={logout}
+            title={t("adminLogout")}
+            className={itemClass(false)}
+          >
+            <LogOut className="size-4 shrink-0" />
+            <span className={cn(collapsed && "sr-only")}>{t("adminLogout")}</span>
+          </button>
+        </div>
+      </aside>
+      <main className="min-w-0 flex-1 p-6 md:p-8">
+        <Outlet />
+      </main>
     </div>
   );
 }

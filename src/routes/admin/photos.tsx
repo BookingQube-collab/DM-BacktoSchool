@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import type { DayBucket, NamedCount } from "@/lib/admin-charts";
 import { todayISODate } from "@/lib/registration";
+import { professionTitleById } from "@/lib/professions";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/admin/photos")({
   component: AdminPhotosPage,
@@ -62,6 +64,7 @@ function formatTakenAt(iso: string) {
 }
 
 function AdminPhotosPage() {
+  const { t, locale } = useI18n();
   const [from, setFrom] = useState(todayISODate());
   const [to, setTo] = useState(todayISODate());
   const [rows, setRows] = useState<PhotoSession[]>([]);
@@ -173,10 +176,10 @@ function AdminPhotosPage() {
   }
 
   function reprintLabel(state: ReprintState | undefined) {
-    if (state === "printing") return "Printing…";
-    if (state === "done") return "Sent";
-    if (state === "error") return "Retry";
-    return "Reprint";
+    if (state === "printing") return t("photosPrinting");
+    if (state === "done") return t("photosSent");
+    if (state === "error") return t("commonRetry");
+    return t("photosReprint");
   }
 
   function reprintStatusText(
@@ -184,9 +187,9 @@ function AdminPhotosPage() {
     err: string | undefined,
     printer: string | undefined,
   ): string | null {
-    if (state === "printing") return "Sending to booth printer…";
+    if (state === "printing") return t("photosSending");
     if (state === "done") {
-      return printer ? `Sent to ${printer}` : "Sent to printer";
+      return printer ? t("photosSentTo", { printer }) : t("photosSentPrinter");
     }
     if (err) return err;
     return null;
@@ -241,12 +244,8 @@ function AdminPhotosPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-3xl font-bold">Photos</h1>
-          <p className="mt-2 text-muted-foreground">
-            Future ID sessions taken at the booth. Reprint sends the stored
-            transformed photo to the booth printer (same silent spool as the
-            kiosk).
-          </p>
+          <h1 className="font-display text-3xl font-bold">{t("photosTitle")}</h1>
+          <p className="mt-2 text-muted-foreground">{t("photosSubtitle")}</p>
         </div>
         <Button
           type="button"
@@ -255,7 +254,7 @@ function AdminPhotosPage() {
           onClick={() => setDialog({ type: "bulk", scope: "filter" })}
         >
           <Trash2 className="size-4" />
-          Delete all…
+          {t("regDeleteAll")}
         </Button>
       </div>
 
@@ -294,7 +293,10 @@ function AdminPhotosPage() {
                 ? `${totalInRange} photo${totalInRange === 1 ? "" : "s"} in range`
                 : "Current date filter"
             }
-            items={byProfession}
+            items={byProfession.map((item) => ({
+              ...item,
+              name: professionTitleById(item.name, locale, item.name),
+            }))}
           />
           <PhotosByDayChart days={byDay} />
         </div>
@@ -349,7 +351,9 @@ function AdminPhotosPage() {
                       </a>
                     </td>
                     <td className="px-3 py-3">
-                      <p className="font-medium">{row.profession_title}</p>
+                      <p className="font-medium">
+                        {professionTitleById(row.profession_id, locale, row.profession_title)}
+                      </p>
                       <p className="text-xs text-muted-foreground">
                         {row.profession_id}
                       </p>

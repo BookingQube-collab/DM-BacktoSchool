@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import type { Profession } from "@/lib/professions";
 import { fetchLeaderboard } from "@/lib/leaderboard";
 import { professionEmojiFlairClass } from "@/lib/profession-flair";
+import { localizedProfessionTitle } from "@/lib/professions";
 import { useCountUp } from "@/lib/use-count-up";
+import { useI18n } from "@/lib/i18n";
 
 type Props = {
   profession: Profession;
@@ -14,6 +16,7 @@ type Props = {
  * with a count-up of that profession's total (+1 already persisted).
  */
 export function ProfessionJoinBeat({ profession, onDone }: Props) {
+  const { t, locale } = useI18n();
   const [count, setCount] = useState<number | null>(null);
   const [total, setTotal] = useState<number | null>(null);
   const [ready, setReady] = useState(false);
@@ -59,7 +62,7 @@ export function ProfessionJoinBeat({ profession, onDone }: Props) {
   return (
     <div
       role="dialog"
-      aria-label="Joined the leaderboard"
+      aria-label={t("lbJoinAria")}
       className="fixed inset-0 z-50 flex items-center justify-center px-6"
       onClick={onDone}
       onKeyDown={(e) => {
@@ -70,7 +73,7 @@ export function ProfessionJoinBeat({ profession, onDone }: Props) {
 
       <div className="relative z-10 flex max-w-lg flex-col items-center text-center leaderboard-pop-in motion-reduce:animate-none">
         <p className="font-display text-sm uppercase tracking-[0.35em] text-accent">
-          You joined the crew
+          {t("lbJoinedCrew")}
         </p>
 
         <div className="mt-6 flex h-28 w-28 items-center justify-center rounded-full bg-gradient-to-br from-primary/40 to-accent/30 ring-2 ring-accent/50 leaderboard-pulse motion-reduce:animate-none">
@@ -83,21 +86,20 @@ export function ProfessionJoinBeat({ profession, onDone }: Props) {
         </div>
 
         <h2 className="mt-6 font-display text-3xl font-bold text-foreground md:text-4xl">
-          Future {profession.title}
+          {t("lbFutureTitle", { title: localizedProfessionTitle(profession, locale) })}
         </h2>
 
         <p className="mt-3 text-lg text-foreground/75">
           {ready ? (
             <>
-              You&apos;re one of{" "}
+              {t("lbOneOf")}{" "}
               <span className="font-display text-3xl font-bold text-accent tabular-nums">
                 {displayCount}
               </span>{" "}
-              {profession.title.toLowerCase()}
-              {displayCount === 1 ? "" : "s"}
+              {localizedProfessionTitle(profession, locale)}
             </>
           ) : (
-            <span className="text-foreground/50">Counting…</span>
+            <span className="text-foreground/50">{t("lbCounting")}</span>
           )}
         </p>
 
@@ -106,12 +108,12 @@ export function ProfessionJoinBeat({ profession, onDone }: Props) {
             <span className="font-display text-xl font-semibold text-foreground tabular-nums">
               {displayTotal}
             </span>{" "}
-            future selves so far
+            {t("lbFutureSelves")}
           </p>
         )}
 
         <p className="mt-10 text-xs uppercase tracking-widest text-foreground/40">
-          Tap to continue
+          {t("lbTapContinue")}
         </p>
       </div>
     </div>

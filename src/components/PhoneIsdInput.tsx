@@ -23,6 +23,7 @@ import {
   type DialCodeOption,
 } from "@/lib/countries";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
 type PhoneIsdInputProps = {
   id?: string;
@@ -52,6 +53,7 @@ export function PhoneIsdInput({
     defaultDialOption(value),
   );
   const [local, setLocal] = useState(initial.local);
+  const { t } = useI18n();
 
   function emit(option: DialCodeOption, nextLocal: string) {
     onChange(combineMobile(option.dial, nextLocal));
@@ -78,7 +80,7 @@ export function PhoneIsdInput({
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            aria-label="Country dial code"
+            aria-label={t("registerDialCode")}
             className="h-12 shrink-0 gap-1.5 rounded-xl border-input bg-transparent px-3 text-base font-normal shadow-sm hover:bg-secondary/60"
           >
             <span className="text-xl leading-none" aria-hidden>
@@ -94,11 +96,11 @@ export function PhoneIsdInput({
         >
           <Command className="rounded-xl bg-popover text-popover-foreground">
             <CommandInput
-              placeholder="Search country or code…"
+              placeholder={t("registerSearchCountry")}
               className="h-11 text-base"
             />
             <CommandList className="max-h-64">
-              <CommandEmpty>No country found.</CommandEmpty>
+              <CommandEmpty>{t("registerNoCountry")}</CommandEmpty>
               <CommandGroup>
                 {DIAL_CODES.map((c) => (
                   <CommandItem

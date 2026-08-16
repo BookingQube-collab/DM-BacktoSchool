@@ -28,6 +28,7 @@ import {
 } from "@/lib/admin-charts";
 import { formatQar } from "@/lib/registration";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
 type PanelProps = {
   title: string;
@@ -46,6 +47,8 @@ export function AdminChartPanel({
   empty,
   emptyMessage = "No data for this filter.",
 }: PanelProps) {
+  const { t } = useI18n();
+  const emptyText = emptyMessage === "No data for this filter." ? t("chartNoData") : emptyMessage;
   return (
     <div
       className={cn(
@@ -61,7 +64,7 @@ export function AdminChartPanel({
       </div>
       {empty ? (
         <p className="flex h-[180px] items-center justify-center text-sm text-muted-foreground">
-          {emptyMessage}
+          {emptyText}
         </p>
       ) : (
         children
@@ -93,11 +96,12 @@ export function StoreValueBarChart({
     value: Math.round(s.transaction_value * 100) / 100,
     receipts: s.receipts,
   }));
+  const { t } = useI18n();
 
   return (
     <AdminChartPanel
-      title="Top stores by value"
-      subtitle="Transaction value (QAR) in the selected range"
+      title={t("chartTopStores")}
+      subtitle={t("chartTopStoresSub")}
       empty={data.length === 0}
     >
       <ChartContainer config={barConfig} className={heightClass}>
@@ -166,11 +170,12 @@ export function RegistrationsOverTimeChart({
     label: shortDateLabel(d.date),
   }));
   const hasAny = data.some((d) => d.count > 0);
+  const { t } = useI18n();
 
   return (
     <AdminChartPanel
-      title="Registrations over time"
-      subtitle="Daily guest registrations"
+      title={t("chartRegsOverTime")}
+      subtitle={t("chartRegsOverTimeSub")}
       empty={!hasAny}
     >
       <ChartContainer config={lineConfig} className={heightClass}>
@@ -356,11 +361,12 @@ export function PhotosByDayChart({
     label: shortDateLabel(d.date),
   }));
   const hasAny = data.some((d) => d.count > 0);
+  const { t } = useI18n();
 
   return (
     <AdminChartPanel
-      title="Photos by day"
-      subtitle="Booth sessions in the selected range"
+      title={t("chartPhotosByDay")}
+      subtitle={t("chartPhotosByDaySub")}
       empty={!hasAny}
     >
       <ChartContainer config={barConfig} className={heightClass}>
@@ -396,19 +402,20 @@ export function LogoCoverageBar({
 }) {
   const total = withLogo + withoutLogo;
   const pct = total > 0 ? Math.round((withLogo / total) * 100) : 0;
+  const { t } = useI18n();
 
   return (
     <AdminChartPanel
-      title="Logo coverage"
-      subtitle={`${withLogo} of ${total} stores have logos`}
+      title={t("chartLogoCoverage")}
+      subtitle={t("chartLogoCoverageSub", { with: withLogo, total })}
       empty={total === 0}
-      emptyMessage="No stores configured yet."
+      emptyMessage={t("chartNoStores")}
     >
       <div className="space-y-3 pt-2">
         <div className="flex items-end justify-between gap-2">
           <p className="font-display text-3xl font-bold">{pct}%</p>
           <p className="text-sm text-muted-foreground">
-            {withoutLogo} missing
+            {t("chartMissing", { count: withoutLogo })}
           </p>
         </div>
         <div className="h-3 overflow-hidden rounded-full bg-muted">
@@ -422,11 +429,11 @@ export function LogoCoverageBar({
         </div>
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="rounded-2xl border border-border bg-background/40 px-3 py-2">
-            <p className="text-xs text-muted-foreground">With logo</p>
+            <p className="text-xs text-muted-foreground">{t("chartWithLogo")}</p>
             <p className="font-display text-xl font-bold">{withLogo}</p>
           </div>
           <div className="rounded-2xl border border-border bg-background/40 px-3 py-2">
-            <p className="text-xs text-muted-foreground">No logo</p>
+            <p className="text-xs text-muted-foreground">{t("chartNoLogo")}</p>
             <p className="font-display text-xl font-bold">{withoutLogo}</p>
           </div>
         </div>

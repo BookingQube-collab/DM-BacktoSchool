@@ -1,17 +1,19 @@
 import { useEffect, useState } from "react";
+import { useI18n, type MessageKey } from "@/lib/i18n";
 
-const MESSAGES = [
-  "Fast-forwarding time…",
-  "Tailoring your uniform…",
-  "Polishing the badge…",
-  "Rehearsing your first day…",
-  "Adding a splash of magic…",
+const GENERATING_KEYS: MessageKey[] = [
+  "generating1",
+  "generating2",
+  "generating3",
+  "generating4",
+  "generating5",
 ];
 
 export function Generating({ photoDataUrl }: { photoDataUrl: string }) {
   const [i, setI] = useState(0);
+  const { t } = useI18n();
   useEffect(() => {
-    const id = setInterval(() => setI((n) => (n + 1) % MESSAGES.length), 2000);
+    const id = setInterval(() => setI((n) => (n + 1) % GENERATING_KEYS.length), 2000);
     return () => clearInterval(id);
   }, []);
 
@@ -32,11 +34,9 @@ export function Generating({ photoDataUrl }: { photoDataUrl: string }) {
           key={i}
           className="mt-8 font-display text-2xl text-foreground animate-in fade-in motion-reduce:animate-none"
         >
-          {MESSAGES[i]}
+          {t(GENERATING_KEYS[i])}
         </p>
-        <p className="mt-2 text-sm text-foreground/60">
-          This can take up to a minute.
-        </p>
+        <p className="mt-2 text-sm text-foreground/60">{t("generatingWait")}</p>
       </div>
     </div>
   );

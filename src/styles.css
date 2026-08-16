@@ -96,6 +96,11 @@
     font-weight: 400;
   }
 
+  html[dir="rtl"] {
+    --font-display: "GE SS Two", "Gotham", ui-sans-serif, sans-serif;
+    --font-sans: "Playpen Sans Arabic", "Gotham", ui-sans-serif, sans-serif;
+  }
+
   body {
     color: var(--color-foreground);
     font-feature-settings: "kern" 1, "liga" 1;

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { Profession } from "@/lib/professions";
+import { localizedProfessionTitle } from "@/lib/professions";
+import { useI18n } from "@/lib/i18n";
 import { CareerReaction } from "./CareerReaction";
 import { FutureIdCard } from "./FutureIdCard";
 
@@ -209,6 +211,7 @@ async function silentPrintApi(
 }
 
 export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
+  const { t, locale } = useI18n();
   const [showBeat, setShowBeat] = useState(true);
   const [branding, setBranding] = useState<Branding>({});
   const [printStatus, setPrintStatus] = useState<PrintStatus>("idle");
@@ -317,8 +320,8 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
     if (!stillCurrent()) return;
     setShowPrintOverlay(false);
     setPrintStatus("done");
-    toast.success("Sent to printer", {
-      description: "Your photo is printing.",
+    toast.success(t("resultToastSent"), {
+      description: t("resultToastSentDesc"),
     });
     // Same path as "PICK ANOTHER DREAM JOB!" → job selection (JobGrid).
     onRestart();
@@ -329,8 +332,8 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
       return;
     }
     if (!imageUrl?.trim()) {
-      toast.error("Print failed — retry", {
-        description: "Photo not ready — wait for the transform to finish, then retry.",
+      toast.error(t("resultPrintFailed"), {
+        description: t("resultPhotoNotReady"),
       });
       return;
     }
@@ -359,9 +362,9 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
       if (!stillCurrent()) return;
       dismissPrintOverlay();
       const raw =
-        e instanceof Error ? e.message : "Print failed. Try again.";
+        e instanceof Error ? e.message : t("resultPrintGeneric");
       setPrintStatus("error");
-      toast.error("Print failed — retry", {
+      toast.error(t("resultPrintFailed"), {
         description: guestPrintError(raw, Boolean(boothPrintBaseUrl)),
         duration: 8000,
       });
@@ -375,12 +378,12 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
 
   const printLabel =
     printStatus === "printing"
-      ? "Printing…"
+      ? t("resultPrinting")
       : printStatus === "done"
-        ? "Sent to printer"
+        ? t("resultSent")
         : printStatus === "error"
-          ? "Print failed — retry"
-          : "Print";
+          ? t("resultPrintFailed")
+          : t("resultPrint");
 
   return (
     <div className="min-h-screen px-6 py-10">
@@ -400,10 +403,12 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
       <div className="mx-auto flex max-w-3xl flex-col items-center gap-8">
         <div className="text-center print:hidden">
           <p className="font-display text-sm uppercase tracking-[0.3em] text-accent">
-            Meet your future self
+            {t("resultMeetFuture")}
           </p>
           <h2 className="mt-2 font-display text-3xl font-bold text-foreground md:text-4xl">
-            Congratulations, future {profession.title}!
+            {t("resultCongrats", {
+              title: localizedProfessionTitle(profession, locale),
+            })}
           </h2>
         </div>
 
@@ -430,7 +435,7 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
             disabled={printStatus === "printing" || showPrintOverlay}
             className="rounded-2xl bg-white/10 px-5 py-4 font-display text-lg font-semibold tracking-wide text-foreground ring-1 ring-white/20 backdrop-blur-sm transition hover:bg-white/15 disabled:cursor-wait disabled:opacity-60"
           >
-            PICK ANOTHER DREAM JOB!
+            {t("resultPickAnother")}
           </button>
         </div>
       </div>
@@ -444,19 +449,19 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
         >
           <div className="flex max-w-md flex-col items-center text-center">
             <p className="font-display text-sm uppercase tracking-[0.35em] text-accent">
-              Printing…
+              {t("resultPrinting")}
             </p>
             <h3 className="mt-3 font-display text-3xl font-bold text-white md:text-4xl">
-              Your photo is printing
+              {t("resultPhotoPrinting")}
             </h3>
             <p
               className="mt-8 font-display text-[7rem] font-bold leading-none tabular-nums text-primary drop-shadow-sm md:text-[8.5rem]"
-              aria-label={`${countdownSec} seconds remaining`}
+              aria-label={t("resultSecondsLeft", { count: countdownSec })}
             >
               {countdownSec}
             </p>
             <p className="mt-4 font-display text-base text-white/75 md:text-lg">
-              Hang tight — almost ready!
+              {t("resultHangTight")}
             </p>
           </div>
         </div>

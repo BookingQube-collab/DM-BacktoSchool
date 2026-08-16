@@ -5,6 +5,7 @@ import { CameraCapture } from "@/components/CameraCapture";
 import { tryRestorePreferredFullscreen } from "@/components/FullscreenToggle";
 import { Generating } from "@/components/Generating";
 import { ResultScreen } from "@/components/ResultScreen";
+import { useI18n } from "@/lib/i18n";
 import {
   PROFESSIONS,
   buildPromptForProfession,
@@ -43,6 +44,7 @@ type Stage =
 
 function FutureMeKiosk() {
   const [stage, setStage] = useState<Stage>({ kind: "pick" });
+  const { t } = useI18n();
 
   const runTransform = async (profession: Profession, photo: string) => {
     setStage({ kind: "generating", profession, photo });
@@ -64,7 +66,7 @@ function FutureMeKiosk() {
         kind: "error",
         profession,
         photo,
-        message: e instanceof Error ? e.message : "Something went wrong",
+        message: e instanceof Error ? e.message : t("boothSomethingWrong"),
       });
     }
   };
@@ -122,7 +124,7 @@ function FutureMeKiosk() {
     <div className="flex min-h-screen items-center justify-center px-6 text-center">
       <div className="max-w-md">
         <h2 className="font-display text-3xl font-bold text-foreground">
-          That didn't work
+          {t("boothDidntWork")}
         </h2>
         <p className="mt-2 text-foreground/70">{stage.message}</p>
         <div className="mt-6 flex flex-col gap-3">
@@ -130,17 +132,17 @@ function FutureMeKiosk() {
             onClick={() => void runTransform(stage.profession, stage.photo)}
             className="rounded-full bg-gradient-to-r from-primary to-accent px-6 py-3 font-display text-lg font-bold text-white"
           >
-            Try again
+            {t("commonTryAgain")}
           </button>
           <button
             onClick={() => setStage({ kind: "pick" })}
             className="text-sm text-foreground/60 underline"
           >
-            Pick a different job
+            {t("boothPickDifferent")}
           </button>
         </div>
         {/* keep PROFESSIONS referenced to satisfy tree-shaking side-effect concerns */}
-        <span className="sr-only">{PROFESSIONS.length} jobs available</span>
+        <span className="sr-only">{t("boothJobsAvailable", { count: PROFESSIONS.length })}</span>
       </div>
     </div>
   );

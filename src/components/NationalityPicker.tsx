@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/popover";
 import { NATIONALITIES, type NationalityOption } from "@/lib/countries";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
 type NationalityPickerProps = {
   id?: string;
@@ -31,6 +32,7 @@ export function NationalityPicker({
   className,
 }: NationalityPickerProps) {
   const [open, setOpen] = useState(false);
+  const { t } = useI18n();
   const selected: NationalityOption | undefined = NATIONALITIES.find(
     (n) => n.name === value,
   );
@@ -58,7 +60,7 @@ export function NationalityPicker({
               <span className="truncate">{selected.name}</span>
             </span>
           ) : (
-            "Select nationality"
+            t("registerSelectNationality")
           )}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
@@ -69,11 +71,11 @@ export function NationalityPicker({
       >
         <Command className="rounded-xl bg-popover text-popover-foreground">
           <CommandInput
-            placeholder="Search nationality…"
+            placeholder={t("registerSearchNationality")}
             className="h-11 text-base"
           />
           <CommandList className="max-h-64">
-            <CommandEmpty>No nationality found.</CommandEmpty>
+            <CommandEmpty>{t("registerNoNationality")}</CommandEmpty>
             <CommandGroup>
               {NATIONALITIES.map((n) => (
                 <CommandItem

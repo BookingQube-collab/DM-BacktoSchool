@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { tryRestorePreferredFullscreen } from "@/components/FullscreenToggle";
 import { captureFromVideo } from "@/lib/photo";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
 export function CameraCapture({
   onCancel,
@@ -13,6 +14,7 @@ export function CameraCapture({
   const videoRef = useRef<HTMLVideoElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { t } = useI18n();
 
   useEffect(() => {
     let active = true;
@@ -41,7 +43,7 @@ export function CameraCapture({
         setError(
           e instanceof Error
             ? e.message
-            : "Could not access camera. Please allow camera access and try again.",
+            : t("boothCameraError"),
         );
         void tryRestorePreferredFullscreen();
       }
@@ -59,7 +61,7 @@ export function CameraCapture({
       stream?.getTracks().forEach((t) => t.stop());
       onCaptured(dataUrl);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not capture photo");
+      setError(e instanceof Error ? e.message : t("boothCaptureError"));
     }
   };
 
@@ -89,10 +91,10 @@ export function CameraCapture({
               "landscape:text-3xl landscape:md:text-4xl",
             )}
           >
-            Line up your face
+            {t("boothLineUp")}
           </h2>
           <p className="mt-2 text-base text-foreground/75 landscape:mt-1.5 md:text-lg">
-            Look straight ahead and smile.
+            {t("boothSmile")}
           </p>
         </header>
 
@@ -145,7 +147,7 @@ export function CameraCapture({
               "landscape:px-7 landscape:py-4 landscape:text-xl",
             )}
           >
-            Take photo
+            {t("boothTakePhoto")}
           </button>
 
           <button
@@ -159,7 +161,7 @@ export function CameraCapture({
               "landscape:text-lg landscape:py-3.5",
             )}
           >
-            ← Pick a different job
+            {t("boothPickDifferent")}
           </button>
         </div>
       </div>

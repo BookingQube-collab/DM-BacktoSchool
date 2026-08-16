@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Download, Search, Trash2 } from "lucide-react";
+import { Download, Pencil, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   NamedCountBarChart,
@@ -8,6 +8,14 @@ import {
   StoreValueBarChart,
 } from "@/components/admin/AdminCharts";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -21,6 +29,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import type { NamedCount, StoreValueBucket } from "@/lib/admin-charts";
+import { NATIONALITIES } from "@/lib/countries";
+import { useI18n } from "@/lib/i18n";
 import {
   defaultRegistrationsFromDate,
   formatQar,
@@ -42,9 +52,36 @@ type Registration = {
   transaction_date: string;
   transaction_value: number;
   receipt_image_url: string | null;
+  store_id: string | null;
   store_name: string;
   created_at: string;
 };
+
+type EditForm = {
+  first_name: string;
+  last_name: string;
+  email: string;
+  mobile: string;
+  nationality: string;
+  address_zone: string;
+  transaction_date: string;
+  company_id: string;
+  transaction_value: string;
+};
+
+function formFromRow(row: Registration): EditForm {
+  return {
+    first_name: row.first_name,
+    last_name: row.last_name,
+    email: row.email,
+    mobile: row.mobile,
+    nationality: row.nationality,
+    address_zone: row.address_zone,
+    transaction_date: row.transaction_date,
+    company_id: row.store_id ?? "",
+    transaction_value: String(row.transaction_value ?? ""),
+  };
+}
 
 type Store = { id: string; name: string };
 
@@ -64,6 +101,7 @@ const selectClass =
   "flex h-9 min-w-40 rounded-md border border-input bg-transparent px-3 py-1 text-sm";
 
 function AdminRegistrationsPage() {
+  const { t } = useI18n();
   const [from, setFrom] = useState(defaultRegistrationsFromDate);
   const [to, setTo] = useState(todayISODate);
   const [storeId, setStoreId] = useState("");
@@ -82,6 +120,10 @@ function AdminRegistrationsPage() {
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [dialog, setDialog] = useState<DeleteDialog>(null);
+  const [editRow, setEditRow] = useState<Registration | null>(null);
+  const [editForm, setEditForm] = useState<EditForm | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   function buildFilterParams(overrides?: {
     from?: string;
@@ -122,7 +164,7 @@ function AdminRegistrationsPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "Failed to load registrations");
+        setError(data.error || t("regLoadFail"));
         return;
       }
       setRows((data.registrations as Registration[]) ?? []);
@@ -136,7 +178,7 @@ function AdminRegistrationsPage() {
       if (facets?.nationalities) setNationalities(facets.nationalities);
       if (facets?.zones) setZones(facets.zones);
     } catch {
-      setError("Could not load registrations");
+      setError(t("regLoadError"));
     } finally {
       setLoading(false);
     }
@@ -166,7 +208,7 @@ function AdminRegistrationsPage() {
       credentials: "include",
     });
     if (!res.ok) {
-      setError("Could not download CSV");
+      setError(t("dashCsvFail"));
       return;
     }
     const blob = await res.blob();
@@ -200,7 +242,7 @@ function AdminRegistrationsPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const msg = data.error || "Delete failed";
+        const msg = data.error || t("commonDeleteFailed");
         setError(msg);
         toast.error(msg);
         return;
@@ -208,18 +250,120 @@ function AdminRegistrationsPage() {
       const count = typeof data.deleted === "number" ? data.deleted : 0;
       toast.success(
         dialog.type === "one"
-          ? "Registration deleted"
-          : `Deleted ${count} registration${count === 1 ? "" : "s"}`,
+          ? t("regDeletedOne")
+          : t("regDeletedMany", {
+              count,
+              plural: count === 1 ? "" : "s",
+            }),
       );
       setDialog(null);
       await load();
     } catch {
-      setError("Could not delete");
-      toast.error("Could not delete");
+      setError(t("commonCouldNotDelete"));
+      toast.error(t("commonCouldNotDelete"));
     } finally {
       setDeleting(false);
     }
   }
+
+  function openEdit(row: Registration) {
+    setEditRow(row);
+    setEditForm(formFromRow(row));
+    setEditError(null);
+  }
+
+  function closeEdit() {
+    if (saving) return;
+    setEditRow(null);
+    setEditForm(null);
+    setEditError(null);
+  }
+
+  function updateEdit<K extends keyof EditForm>(key: K, value: EditForm[K]) {
+    setEditForm((prev) => (prev ? { ...prev, [key]: value } : prev));
+  }
+
+  function validateEdit(form: EditForm): string | null {
+    if (!form.company_id) return t("registerErrSelectStore");
+    const value = Number(form.transaction_value);
+    if (!Number.isFinite(value) || value < 0) return t("registerErrTxnValue");
+    if (!form.first_name.trim()) return t("registerErrFirstName");
+    if (!form.last_name.trim()) return t("registerErrLastName");
+    if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+      return t("registerErrEmail");
+    }
+    if (form.mobile.replace(/\D/g, "").length < 8) {
+      return t("registerErrMobile");
+    }
+    if (!form.nationality) return t("registerErrNationality");
+    if (!form.address_zone.trim()) return t("registerErrZone");
+    if (!form.transaction_date) return t("registerErrDate");
+    return null;
+  }
+
+  async function saveEdit() {
+    if (!editRow || !editForm) return;
+    const msg = validateEdit(editForm);
+    if (msg) {
+      setEditError(msg);
+      return;
+    }
+
+    setSaving(true);
+    setEditError(null);
+    try {
+      const res = await fetch("/api/admin/registrations", {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editRow.id,
+          ...editForm,
+          transaction_value: Number(editForm.transaction_value),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const fail = data.error || t("regSaveFailed");
+        setEditError(fail);
+        toast.error(fail);
+        return;
+      }
+      toast.success(t("regSaved"));
+      setEditRow(null);
+      setEditForm(null);
+      await load();
+    } catch {
+      const fail = t("regSaveFailed");
+      setEditError(fail);
+      toast.error(fail);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const editNationalityOptions = (() => {
+    const names = NATIONALITIES.map((n) => n.name);
+    const current = editForm?.nationality?.trim();
+    if (current && !names.includes(current)) return [current, ...names];
+    return names;
+  })();
+
+  const editStoreOptions = (() => {
+    if (
+      editForm?.company_id &&
+      !stores.some((s) => s.id === editForm.company_id)
+    ) {
+      return [
+        {
+          id: editForm.company_id,
+          name: editRow?.store_name || t("regUnassigned"),
+        },
+        ...stores,
+      ];
+    }
+    return stores;
+  })();
 
   const hasExtraFilters = Boolean(
     q.trim() ||
@@ -234,15 +378,13 @@ function AdminRegistrationsPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-3xl font-bold">Registrations</h1>
-          <p className="mt-2 text-muted-foreground">
-            All guest receipts captured at the registration desk.
-          </p>
+          <h1 className="font-display text-3xl font-bold">{t("regTitle")}</h1>
+          <p className="mt-2 text-muted-foreground">{t("regSubtitle")}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="secondary" onClick={downloadCsv}>
             <Download className="size-4" />
-            Download CSV
+            {t("commonDownloadCsv")}
           </Button>
           <Button
             type="button"
@@ -251,7 +393,7 @@ function AdminRegistrationsPage() {
             onClick={() => setDialog({ type: "bulk", scope: "filter" })}
           >
             <Trash2 className="size-4" />
-            Delete all…
+            {t("regDeleteAll")}
           </Button>
         </div>
       </div>
@@ -259,7 +401,7 @@ function AdminRegistrationsPage() {
       <div className="space-y-3 rounded-3xl border border-border bg-secondary/40 p-4">
         <div className="flex flex-wrap items-end gap-3">
           <div className="space-y-2">
-            <Label htmlFor="from">From</Label>
+            <Label htmlFor="from">{t("commonFrom")}</Label>
             <Input
               id="from"
               type="date"
@@ -268,7 +410,7 @@ function AdminRegistrationsPage() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="to">To</Label>
+            <Label htmlFor="to">{t("commonTo")}</Label>
             <Input
               id="to"
               type="date"
@@ -277,7 +419,7 @@ function AdminRegistrationsPage() {
             />
           </div>
           <div className="min-w-[12rem] flex-1 space-y-2">
-            <Label htmlFor="q">Search guest</Label>
+            <Label htmlFor="q">{t("regSearchGuest")}</Label>
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -289,19 +431,19 @@ function AdminRegistrationsPage() {
                   if (e.key === "Enter") void load();
                 }}
                 className="pl-9"
-                placeholder="Name, email, or mobile"
+                placeholder={t("regSearchPlaceholder")}
               />
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="store">Store</Label>
+            <Label htmlFor="store">{t("commonStore")}</Label>
             <select
               id="store"
               value={storeId}
               onChange={(e) => setStoreId(e.target.value)}
               className={selectClass}
             >
-              <option value="">All stores</option>
+              <option value="">{t("regAllStores")}</option>
               {stores.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
@@ -313,14 +455,14 @@ function AdminRegistrationsPage() {
 
         <div className="flex flex-wrap items-end gap-3">
           <div className="space-y-2">
-            <Label htmlFor="nationality">Nationality</Label>
+            <Label htmlFor="nationality">{t("commonNationality")}</Label>
             <select
               id="nationality"
               value={nationality}
               onChange={(e) => setNationality(e.target.value)}
               className={selectClass}
             >
-              <option value="">All nationalities</option>
+              <option value="">{t("regAllNationalities")}</option>
               {nationalities.map((n) => (
                 <option key={n} value={n}>
                   {n}
@@ -329,14 +471,14 @@ function AdminRegistrationsPage() {
             </select>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="zone">Zone</Label>
+            <Label htmlFor="zone">{t("commonZone")}</Label>
             <select
               id="zone"
               value={zone}
               onChange={(e) => setZone(e.target.value)}
               className={selectClass}
             >
-              <option value="">All zones</option>
+              <option value="">{t("regAllZones")}</option>
               {zones.map((z) => (
                 <option key={z} value={z}>
                   {z}
@@ -345,7 +487,7 @@ function AdminRegistrationsPage() {
             </select>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="min_value">Min value (QAR)</Label>
+            <Label htmlFor="min_value">{t("regMinValue")}</Label>
             <Input
               id="min_value"
               type="number"
@@ -358,7 +500,7 @@ function AdminRegistrationsPage() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="max_value">Max value (QAR)</Label>
+            <Label htmlFor="max_value">{t("regMaxValue")}</Label>
             <Input
               id="max_value"
               type="number"
@@ -367,11 +509,11 @@ function AdminRegistrationsPage() {
               value={maxValue}
               onChange={(e) => setMaxValue(e.target.value)}
               className="w-32"
-              placeholder="Any"
+              placeholder={t("regMaxAny")}
             />
           </div>
           <Button type="button" onClick={() => void load()} disabled={loading}>
-            {loading ? "Loading…" : "Apply filter"}
+            {loading ? t("commonLoading") : t("commonApplyFilter")}
           </Button>
           <Button
             type="button"
@@ -400,7 +542,7 @@ function AdminRegistrationsPage() {
               });
             }}
           >
-            Last 30 days
+            {t("regLast30")}
           </Button>
         </div>
       </div>
@@ -412,7 +554,7 @@ function AdminRegistrationsPage() {
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="rounded-3xl border border-border bg-secondary/40 p-4">
               <p className="text-xs font-semibold text-muted-foreground">
-                Filtered count
+                {t("regFilteredCount")}
               </p>
               <p className="mt-2 font-display text-2xl font-bold">
                 {rows.length}
@@ -420,7 +562,7 @@ function AdminRegistrationsPage() {
             </div>
             <div className="rounded-3xl border border-border bg-secondary/40 p-4">
               <p className="text-xs font-semibold text-muted-foreground">
-                Total value
+                {t("regTotalValue")}
               </p>
               <p className="mt-2 font-display text-2xl font-bold">
                 {formatQar(aggregates.total_value)}
@@ -428,7 +570,7 @@ function AdminRegistrationsPage() {
             </div>
             <div className="rounded-3xl border border-border bg-secondary/40 p-4">
               <p className="text-xs font-semibold text-muted-foreground">
-                Avg transaction
+                {t("regAvgTxn")}
               </p>
               <p className="mt-2 font-display text-2xl font-bold">
                 {formatQar(
@@ -443,14 +585,14 @@ function AdminRegistrationsPage() {
               heightClass="aspect-auto h-[180px] w-full"
             />
             <NamedCountDonutChart
-              title="Nationality"
-              subtitle="Filtered results"
+              title={t("commonNationality")}
+              subtitle={t("chartFiltered")}
               items={aggregates.by_nationality}
               heightClass="aspect-auto h-[180px] w-full"
             />
             <NamedCountBarChart
               title="By zone"
-              subtitle="Filtered results"
+              subtitle={t("chartFiltered")}
               items={aggregates.by_zone}
               heightClass="aspect-auto h-[180px] w-full"
             />
@@ -470,14 +612,14 @@ function AdminRegistrationsPage() {
         <table className="min-w-full text-left text-sm">
           <thead className="bg-secondary/60 text-muted-foreground">
             <tr>
-              <th className="px-3 py-3 font-semibold">Date</th>
-              <th className="px-3 py-3 font-semibold">Guest</th>
-              <th className="px-3 py-3 font-semibold">Mobile</th>
-              <th className="px-3 py-3 font-semibold">Zone</th>
-              <th className="px-3 py-3 font-semibold">Store</th>
+              <th className="px-3 py-3 font-semibold">{t("regColDate")}</th>
+              <th className="px-3 py-3 font-semibold">{t("regColGuest")}</th>
+              <th className="px-3 py-3 font-semibold">{t("regColMobile")}</th>
+              <th className="px-3 py-3 font-semibold">{t("regColZone")}</th>
+              <th className="px-3 py-3 font-semibold">{t("regColStore")}</th>
               <th className="px-3 py-3 font-semibold">Value</th>
-              <th className="px-3 py-3 font-semibold">Bill</th>
-              <th className="px-3 py-3 font-semibold">Actions</th>
+              <th className="px-3 py-3 font-semibold">{t("regColBill")}</th>
+              <th className="px-3 py-3 font-semibold">{t("regColActions")}</th>
             </tr>
           </thead>
           <tbody>
@@ -523,35 +665,46 @@ function AdminRegistrationsPage() {
                         href={row.receipt_image_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-2 text-accent hover:underline"
+                        className="inline-flex flex-col items-center gap-1 text-accent hover:underline"
                       >
                         <img
                           src={row.receipt_image_url}
                           alt=""
                           className="size-10 rounded-md object-cover border border-border"
                         />
-                        View
+                        {t("commonView")}
                       </a>
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}
                   </td>
                   <td className="px-3 py-3">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="destructive"
-                      onClick={() =>
-                        setDialog({
-                          type: "one",
-                          id: row.id,
-                          label: `${row.first_name} ${row.last_name}`.trim(),
-                        })
-                      }
-                    >
-                      <Trash2 className="size-3.5" />
-                      Delete
-                    </Button>
+                    <div className="flex flex-col gap-1.5">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openEdit(row)}
+                      >
+                        <Pencil className="size-3.5" />
+                        {t("commonEdit")}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="destructive"
+                        onClick={() =>
+                          setDialog({
+                            type: "one",
+                            id: row.id,
+                            label: `${row.first_name} ${row.last_name}`.trim(),
+                          })
+                        }
+                      >
+                        <Trash2 className="size-3.5" />
+                        {t("commonDelete")}
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -559,6 +712,144 @@ function AdminRegistrationsPage() {
           </tbody>
         </table>
       </div>
+
+      <Dialog
+        open={editRow != null}
+        onOpenChange={(open) => {
+          if (!open) closeEdit();
+        }}
+      >
+        <DialogContent className="max-h-[min(90vh,44rem)] max-w-2xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t("regEditTitle")}</DialogTitle>
+            <DialogDescription>{t("regEditSubtitle")}</DialogDescription>
+          </DialogHeader>
+          {editForm ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="edit_first_name">{t("registerFirstName")}</Label>
+                <Input
+                  id="edit_first_name"
+                  value={editForm.first_name}
+                  onChange={(e) => updateEdit("first_name", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_last_name">{t("registerLastName")}</Label>
+                <Input
+                  id="edit_last_name"
+                  value={editForm.last_name}
+                  onChange={(e) => updateEdit("last_name", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_email">{t("registerEmail")}</Label>
+                <Input
+                  id="edit_email"
+                  type="email"
+                  value={editForm.email}
+                  onChange={(e) => updateEdit("email", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_mobile">{t("registerMobile")}</Label>
+                <Input
+                  id="edit_mobile"
+                  type="tel"
+                  value={editForm.mobile}
+                  onChange={(e) => updateEdit("mobile", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_nationality">
+                  {t("commonNationality")}
+                </Label>
+                <select
+                  id="edit_nationality"
+                  value={editForm.nationality}
+                  onChange={(e) => updateEdit("nationality", e.target.value)}
+                  className={`${selectClass} w-full`}
+                >
+                  <option value="">{t("registerSelectNationality")}</option>
+                  {editNationalityOptions.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_zone">{t("registerAddressZone")}</Label>
+                <Input
+                  id="edit_zone"
+                  value={editForm.address_zone}
+                  onChange={(e) => updateEdit("address_zone", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_store">{t("commonStore")}</Label>
+                <select
+                  id="edit_store"
+                  value={editForm.company_id}
+                  onChange={(e) => updateEdit("company_id", e.target.value)}
+                  className={`${selectClass} w-full`}
+                >
+                  <option value="">{t("registerErrSelectStore")}</option>
+                  {editStoreOptions.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_value">{t("registerTxnValue")}</Label>
+                <Input
+                  id="edit_value"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={editForm.transaction_value}
+                  onChange={(e) =>
+                    updateEdit("transaction_value", e.target.value)
+                  }
+                />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="edit_date">{t("registerTxnDate")}</Label>
+                <Input
+                  id="edit_date"
+                  type="date"
+                  value={editForm.transaction_date}
+                  onChange={(e) =>
+                    updateEdit("transaction_date", e.target.value)
+                  }
+                />
+              </div>
+            </div>
+          ) : null}
+          {editError ? (
+            <p className="text-sm text-destructive">{editError}</p>
+          ) : null}
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={saving}
+              onClick={closeEdit}
+            >
+              {t("commonCancel")}
+            </Button>
+            <Button
+              type="button"
+              disabled={saving || !editForm}
+              onClick={() => void saveEdit()}
+            >
+              {saving ? t("commonSaving") : t("commonSave")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog
         open={dialog != null}
@@ -570,8 +861,8 @@ function AdminRegistrationsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>
               {dialog?.type === "one"
-                ? "Delete this registration?"
-                : "Delete registrations?"}
+                ? t("regDeleteOneTitle")
+                : t("regDeleteBulkTitle")}
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3 text-sm text-muted-foreground">
@@ -627,7 +918,7 @@ function AdminRegistrationsPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>{t("commonCancel")}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               disabled={deleting}
@@ -636,7 +927,7 @@ function AdminRegistrationsPage() {
                 void confirmDelete();
               }}
             >
-              {deleting ? "Deleting…" : "Delete"}
+              {deleting ? t("commonDeleting") : t("commonDelete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
