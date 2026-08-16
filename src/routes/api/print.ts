@@ -58,7 +58,7 @@ export const Route = createFileRoute("/api/print")({
           const message = e instanceof Error ? e.message : String(e);
           // 503 = printer/server path unavailable (not a bad client payload)
           const status =
-            /not found|offline|work offline|paused|requires the app server|win32|no printers detected|0 bytes|empty page|bounds are empty|photo not ready|not ready|not accepted|ipp|wsd|soft.?driver|timed out|waiting for printer|could not download/i.test(
+            /not found|offline|work offline|paused|requires the app server|booth computer network|win32|no printers detected|0 bytes|empty page|bounds are empty|photo not ready|not ready|not accepted|ipp|wsd|soft.?driver|timed out|waiting for printer|could not download|not reachable|could not reach/i.test(
               message,
             )
               ? 503

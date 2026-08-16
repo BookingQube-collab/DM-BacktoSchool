@@ -9,7 +9,8 @@ export type SettingKey =
   | "admin_password_hash"
   | "doha_mall_logo_path"
   | "doha_mall_logo_url"
-  | "printer_name";
+  | "printer_name"
+  | "printer_host";
 
 const SECRET_KEYS = new Set<SettingKey>(["freepik_api_key", "admin_password_hash"]);
 
@@ -98,10 +99,12 @@ export async function getBrandingSettings() {
   const logo = await resolveDohaMallLogoUrl();
   const printerName =
     (await getSetting("printer_name")).trim() || DEFAULT_PRINTER_NAME;
+  const printerHost = (await getSetting("printer_host")).trim();
   return {
     doha_mall_logo_path: logo.path,
     doha_mall_logo_url: logo.url,
     printer_name: printerName,
+    printer_host: printerHost,
   };
 }
 
@@ -136,12 +139,14 @@ export async function listPublicSettings() {
     doha_mall_logo_path: branding.doha_mall_logo_path,
     doha_mall_logo_url: branding.doha_mall_logo_url,
     printer_name: branding.printer_name,
+    printer_host: branding.printer_host,
     updated_at: {
       freepik_api_key: map.get("freepik_api_key")?.updated_at ?? null,
       event_name: map.get("event_name")?.updated_at ?? null,
       admin_username: map.get("admin_username")?.updated_at ?? null,
       doha_mall_logo_path: map.get("doha_mall_logo_path")?.updated_at ?? null,
       printer_name: map.get("printer_name")?.updated_at ?? null,
+      printer_host: map.get("printer_host")?.updated_at ?? null,
     },
   };
 }

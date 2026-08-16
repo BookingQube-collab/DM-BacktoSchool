@@ -69,6 +69,7 @@ export const Route = createFileRoute("/api/admin/settings")({
             admin_username?: string;
             admin_password?: string;
             printer_name?: string;
+            printer_host?: string;
             doha_mall_logo_image?: string;
             clear_doha_mall_logo?: boolean;
           };
@@ -94,6 +95,25 @@ export const Route = createFileRoute("/api/admin/settings")({
           }
           if (typeof body.printer_name === "string") {
             await setSetting("printer_name", body.printer_name.trim());
+          }
+          if (typeof body.printer_host === "string") {
+            const host = body.printer_host.trim();
+            // Allow empty (clear) or a simple IPv4 / hostname.
+            if (
+              host &&
+              !/^(?:\d{1,3}(?:\.\d{1,3}){3}|[a-z0-9][a-z0-9._-]{0,62})$/i.test(
+                host,
+              )
+            ) {
+              return json(
+                {
+                  error:
+                    "Printer IP must be an IPv4 address (e.g. 192.168.18.108) or leave blank",
+                },
+                400,
+              );
+            }
+            await setSetting("printer_host", host);
           }
 
           if (body.clear_doha_mall_logo) {

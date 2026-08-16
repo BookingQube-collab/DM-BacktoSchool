@@ -29,6 +29,7 @@ type Settings = {
   doha_mall_logo_path: string;
   doha_mall_logo_url: string;
   printer_name: string;
+  printer_host: string;
 };
 
 function AdminSettingsPage() {
@@ -38,6 +39,8 @@ function AdminSettingsPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [printerName, setPrinterName] = useState("");
+  const [printerHost, setPrinterHost] = useState("");
+  const [detectedSelphyIp, setDetectedSelphyIp] = useState<string | null>(null);
   const [detectedPrinters, setDetectedPrinters] = useState<
     {
       name: string;
@@ -66,6 +69,7 @@ function AdminSettingsPage() {
     setEventName(s.event_name);
     setUsername(s.admin_username);
     setPrinterName(s.printer_name || "Canon SELPHY CP1500");
+    setPrinterHost(s.printer_host || "");
     setLogoPreview(s.doha_mall_logo_url || null);
     setPendingLogo(null);
     setClearLogo(false);
@@ -86,17 +90,21 @@ function AdminSettingsPage() {
         }[];
         hint?: string;
         error?: string;
+        selphy_ip?: string | null;
       };
       if (!res.ok) {
         setPrintersHint(data.error || "Could not list printers");
         setDetectedPrinters([]);
+        setDetectedSelphyIp(null);
         return;
       }
       setDetectedPrinters(data.printers || []);
       setPrintersHint(data.hint || null);
+      setDetectedSelphyIp(data.selphy_ip?.trim() || null);
     } catch {
       setPrintersHint("Could not list printers on this host");
       setDetectedPrinters([]);
+      setDetectedSelphyIp(null);
     }
   }
 
@@ -139,6 +147,7 @@ function AdminSettingsPage() {
         event_name: eventName,
         admin_username: username,
         printer_name: printerName,
+        printer_host: printerHost.trim(),
       };
       if (freepik && !freepik.includes("•")) {
         body.freepik_api_key = freepik;
@@ -258,6 +267,37 @@ function AdminSettingsPage() {
             <strong>Canon SELPHY CP1500</strong> selected for photo prints.
             Evolis Primacy 2 is for CR80 card printing only.
           </p>
+          <div className="space-y-2">
+            <Label htmlFor="printer_host">Printer IP (Wi‑Fi SELPHY)</Label>
+            <Input
+              id="printer_host"
+              value={printerHost}
+              onChange={(e) => setPrinterHost(e.target.value)}
+              placeholder={detectedSelphyIp || "192.168.18.108"}
+              inputMode="decimal"
+              autoComplete="off"
+            />
+            <p className="text-xs text-muted-foreground">
+              Optional. Use when Windows still lists an old SELPHY address after
+              DHCP changed. Leave blank to auto-detect (ARP + live IPP probe).
+              {detectedSelphyIp ? (
+                <>
+                  {" "}
+                  Detected now:{" "}
+                  <button
+                    type="button"
+                    className="font-medium text-foreground underline-offset-2 hover:underline"
+                    onClick={() => setPrinterHost(detectedSelphyIp)}
+                    title="Use detected IP"
+                  >
+                    {detectedSelphyIp}
+                  </button>
+                </>
+              ) : (
+                " No live SELPHY IP detected yet — power on the printer on the booth Wi‑Fi."
+              )}
+            </p>
+          </div>
           {detectedPrinters.length > 0 ? (
             <div className="rounded-md bg-muted/60 px-3 py-2 text-xs">
               <p className="font-medium text-foreground">
@@ -304,25 +344,24 @@ function AdminSettingsPage() {
           ) : null}
           <ol className="list-decimal space-y-1 pl-4 text-xs text-muted-foreground">
             <li>
-              Booth silent print: power on the printer, avoid PC sleep. Run this
-              Node server on the same Windows booth PC. Current target:{" "}
-              <strong>{resolvedPrinter}</strong>.
+              Booth silent print runs on this Windows PC (POST /api/print). Open
+              the booth app URL from this PC’s LAN address — not only a cloud
+              URL. Current target: <strong>{resolvedPrinter}</strong>.
+            </li>
+            <li>
+              Tablets do <strong>not</strong> need an Android Canon print
+              plugin. Guests print through the booth server; Android Default
+              Print Service is unused for booth Print.
             </li>
             <li>
               USB: install the manufacturer driver (Canon SELPHY or Evolis).
-              Wi‑Fi SELPHY: power on, same Wi‑Fi as this booth PC. The app
-              prints over IPP directly when it can resolve the printer IP —
-              no need to switch to Evolis for photo cards.
+              Wi‑Fi SELPHY: power on, same Wi‑Fi as this booth PC. Set Printer
+              IP above if auto-detect picks a stale address.
             </li>
             <li>
               If Wi‑Fi SELPHY still fails: run Canon SELPHY Wi‑Fi setup / SELPHY
               PRINT so a non‑WSD queue appears. Evolis Primacy 2 stays available
               for CR80 card reprints only.
-            </li>
-            <li>
-              Tablets and phones on the booth Wi‑Fi use the same silent print as
-              Windows (POST /api/print + countdown). Open the booth app URL from
-              the Windows server — do not rely on the Android system print sheet.
             </li>
             <li>Optional fullscreen booth Chrome shortcut:</li>
           </ol>

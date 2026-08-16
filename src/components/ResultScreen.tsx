@@ -33,17 +33,32 @@ function guestPrintError(raw: string): string {
   if (/taking longer than expected|may still be printing/i.test(m)) {
     return raw.length > 140 ? `${raw.slice(0, 137)}…` : raw;
   }
+  if (
+    /booth computer network|requires the app server|is the booth server running|win32/i.test(
+      m,
+    )
+  ) {
+    return "Open this app from the booth computer network.";
+  }
+  if (/not found|admin → settings|pick a detected printer/i.test(m)) {
+    return "Printer name not found — ask staff to set it in Admin → Settings.";
+  }
+  if (
+    /not reachable|could not reach selphy|selphy not reachable/i.test(m)
+  ) {
+    return "Printer not ready — check SELPHY power and Wi‑Fi (same network as the booth PC).";
+  }
   if (/selphy wi‑?fi|selphy wifi|did not accept the job/i.test(raw)) {
     return "Printer not ready — check SELPHY power and Wi‑Fi (same network as the booth PC).";
   }
-  if (/wi‑?fi|wifi|network\/ipp|ipp|wsd|soft.?driver|waiting for printer|microsoft ipp|admin printer name/i.test(m)) {
-    return "Printer not ready — check Wi‑Fi printer power and Admin printer name.";
+  if (/wi‑?fi|wifi|network\/ipp|ipp|wsd|soft.?driver|waiting for printer|microsoft ipp/i.test(m)) {
+    return "Printer not ready — check SELPHY power and Wi‑Fi (same network as the booth PC).";
   }
   if (/timed out|not ready|offline|work offline|paused/i.test(m)) {
     return "Printer not ready — check power, connection, and paper.";
   }
   if (/0 bytes|not accepted|rejected/i.test(m)) {
-    return "Printer did not accept the job — ask staff to check Wi‑Fi/USB and Admin printer name.";
+    return "Printer did not accept the job — ask staff to check SELPHY Wi‑Fi and Admin settings.";
   }
   if (/photo|too small|empty|could not download|cors/i.test(m)) {
     return "Photo not ready — wait for the transform to finish, then retry.";

@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import http from "node:http";
 import https from "node:https";
+import net from "node:net";
 import { mkdtemp, readFile, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -8,6 +9,8 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getSetting, resolveDohaMallLogoUrl } from "@/lib/settings.server";
 
 const DEFAULT_PRINTER_NAME = "Canon SELPHY CP1500";
+/** Canon Inc. Wi‑Fi OUI used by SELPHY CP1500 (ARP/NetNeighbor). */
+const CANON_SELPHY_MAC_PREFIX = "DC-C2-C9";
 
 export type InstalledPrinter = {
   name: string;
@@ -33,13 +36,40 @@ type IppEndpoint = {
 
 type IppCacheEntry = { endpoint: IppEndpoint | null; at: number };
 const ippEndpointCache = new Map<string, IppCacheEntry>();
-const IPP_CACHE_TTL_MS = 5 * 60_000;
+/** Short TTL — DHCP / SELPHY Wi‑Fi can change LAN IP (e.g. .103 → .108). */
+const IPP_CACHE_TTL_MS = 60_000;
+
+const BOOTH_NETWORK_ERROR =
+  "Open this app from the booth computer network.";
 
 export async function resolvePrinterName(override?: string) {
   const fromBody = override?.trim();
   if (fromBody) return fromBody;
   const fromSettings = (await getSetting("printer_name")).trim();
   return fromSettings || DEFAULT_PRINTER_NAME;
+}
+
+/** Optional Admin override for Wi‑Fi SELPHY LAN IP / hostname. */
+export async function resolvePrinterHost(override?: string): Promise<string> {
+  const fromBody = override?.trim();
+  if (fromBody) return normalizePrinterHost(fromBody);
+  const fromSettings = (await getSetting("printer_host")).trim();
+  return normalizePrinterHost(fromSettings);
+}
+
+function normalizePrinterHost(raw: string): string {
+  const t = raw.trim();
+  if (!t) return "";
+  // Allow "192.168.18.108", "http://192.168.18.108:631/ipp/print", or hostname.
+  try {
+    if (/^https?:\/\//i.test(t) || /^ipps?:\/\//i.test(t)) {
+      const u = new URL(t.replace(/^ipps?:/i, (m) => (m.startsWith("ipps") ? "https:" : "http:")));
+      return u.hostname;
+    }
+  } catch {
+    /* fall through */
+  }
+  return t.replace(/^\[|\]$/g, "").split("/")[0]?.split(":")[0]?.trim() || "";
 }
 
 function assertPrintableImageBytes(buf: Buffer, label = "Print image") {
@@ -487,7 +517,7 @@ function suggestReadyAlternate(
 }
 
 function selphyWifiStaffHint(): string {
-  return "check SELPHY power, same Wi‑Fi as this PC, paper/ink — or install Canon SELPHY PRINT for a non‑WSD queue";
+  return "check SELPHY power and Wi‑Fi (same network as the booth PC), or set Printer IP in Admin → Settings";
 }
 
 /**
@@ -508,9 +538,21 @@ function formatStaffPrintError(
     /wi‑?fi|wifi|network\/ipp|ipp|wsd|microsoft ipp|soft.?driver/i.test(raw);
   const selphy = soft || isSelphyName(ctx.resolved);
 
+  if (/booth computer network|requires the app server|win32/i.test(raw)) {
+    return BOOTH_NETWORK_ERROR;
+  }
+
   // Slow IPP ACK is not a reject — never map it to “did not accept”.
   if (/accepted-slow-ack|slow.?ack/i.test(raw)) {
     return raw;
+  }
+  if (
+    /ECONNREFUSED|ENETUNREACH|EHOSTUNREACH|connect (E|failed)|could not reach|no reachable|unreachable/i.test(
+      raw,
+    ) &&
+    selphy
+  ) {
+    return `SELPHY not reachable on Wi‑Fi — ${selphyWifiStaffHint()}.`;
   }
   if (/timed out|not ready|did not accept|0 bytes|rejected|ipp /i.test(raw) && selphy) {
     return `SELPHY Wi‑Fi did not accept the job — ${selphyWifiStaffHint()}.`;
@@ -1238,23 +1280,101 @@ function isLikelyLanIpv4(ip: string): boolean {
   return true;
 }
 
+function endpointFromHost(host: string): IppEndpoint | null {
+  const h = normalizePrinterHost(host);
+  if (!h) return null;
+  const url = isLikelyLanIpv4(h)
+    ? `http://${h}:631/ipp/print`
+    : `http://${h}:631/ipp/print`;
+  return {
+    url,
+    ip: isLikelyLanIpv4(h) ? h : undefined,
+    printerUri: url.replace(/^https:/i, "ipp:").replace(/^http:/i, "ipp:"),
+  };
+}
+
+function probeTcpPort(
+  host: string,
+  port: number,
+  timeoutMs = 900,
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = net.connect({ host, port }, () => {
+      socket.destroy();
+      resolve(true);
+    });
+    socket.setTimeout(timeoutMs);
+    socket.on("timeout", () => {
+      socket.destroy();
+      resolve(false);
+    });
+    socket.on("error", () => {
+      socket.destroy();
+      resolve(false);
+    });
+  });
+}
+
+async function firstReachableIppHost(
+  hosts: string[],
+): Promise<string | null> {
+  const uniq = [
+    ...new Set(
+      hosts
+        .map((h) => normalizePrinterHost(h))
+        .filter((h) => h && (isLikelyLanIpv4(h) || /^[a-z0-9._-]+$/i.test(h))),
+    ),
+  ];
+  if (!uniq.length) return null;
+
+  const results = await Promise.all(
+    uniq.map(async (host) => {
+      // SELPHY AirPrint/IPP is almost always :631; also try :443 briefly.
+      const open631 = await probeTcpPort(host, 631, 900);
+      if (open631) return host;
+      const open443 = await probeTcpPort(host, 443, 700);
+      return open443 ? host : null;
+    }),
+  );
+  return results.find((h): h is string => Boolean(h)) ?? null;
+}
+
 /**
  * Resolve direct IPP endpoint for a Windows Wi‑Fi/IPP printer (SELPHY).
- * Reads PnP device metadata (PrinterURL / IP) — avoids WSD spooler hangs.
+ * Reads PnP metadata + Canon MAC ARP neighbors, then probes TCP 631 so a
+ * stale Windows IP (e.g. .103 after DHCP moved to .108) is skipped.
  */
 export async function resolvePrinterIppEndpoint(
   printerName: string,
-  opts?: { force?: boolean },
+  opts?: { force?: boolean; preferredHost?: string },
 ): Promise<IppEndpoint | null> {
   if (process.platform !== "win32") return null;
-  const key = printerName.trim().toLowerCase() || DEFAULT_PRINTER_NAME.toLowerCase();
+  const preferredHost = normalizePrinterHost(opts?.preferredHost || "");
+  const key = [
+    printerName.trim().toLowerCase() || DEFAULT_PRINTER_NAME.toLowerCase(),
+    preferredHost || "-",
+  ].join("|");
   const cached = ippEndpointCache.get(key);
   if (
     !opts?.force &&
     cached &&
     Date.now() - cached.at < IPP_CACHE_TTL_MS
   ) {
-    return cached.endpoint;
+    // Re-validate cached host quickly — SELPHY DHCP can move overnight.
+    if (cached.endpoint?.ip || cached.endpoint?.url) {
+      let host = cached.endpoint.ip || "";
+      try {
+        host = host || new URL(cached.endpoint.url).hostname;
+      } catch {
+        /* ignore */
+      }
+      if (host && (await probeTcpPort(host, 631, 600))) {
+        return cached.endpoint;
+      }
+    } else if (cached.endpoint === null) {
+      return null;
+    }
+    // Stale cache (printer moved) — rediscover below.
   }
 
   const script = `
@@ -1262,6 +1382,7 @@ $ErrorActionPreference = 'SilentlyContinue'
 $want = ${JSON.stringify(printerName.trim() || DEFAULT_PRINTER_NAME)}
 $urls = New-Object System.Collections.Generic.List[string]
 $ips = New-Object System.Collections.Generic.List[string]
+$macIps = New-Object System.Collections.Generic.List[string]
 
 $devices = @(Get-PnpDevice -ErrorAction SilentlyContinue | Where-Object {
   $_.FriendlyName -eq $want -or
@@ -1319,9 +1440,21 @@ try {
   }
 } catch {}
 
+# Canon SELPHY Wi‑Fi OUI — ARP/NetNeighbor often has the live DHCP IP when
+# Windows PnP still lists a stale address.
+try {
+  Get-NetNeighbor -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+    Where-Object {
+      $_.LinkLayerAddress -like '${CANON_SELPHY_MAC_PREFIX}*' -and
+      $_.State -notin @('Unreachable','Incomplete','Permanent')
+    } |
+    ForEach-Object { [void]$macIps.Add([string]$_.IPAddress) }
+} catch {}
+
 [pscustomobject]@{
   urls = @($urls | Select-Object -Unique)
   ips = @($ips | Select-Object -Unique)
+  macIps = @($macIps | Select-Object -Unique)
 } | ConvertTo-Json -Compress
 `;
 
@@ -1329,39 +1462,92 @@ try {
   try {
     const { stdout } = await runPowerShell(script, 12_000);
     const text = stdout.trim();
+    const urls: string[] = [];
+    const pnpIps: string[] = [];
+    const macIps: string[] = [];
     if (text) {
-      const parsed = JSON.parse(text) as { urls?: string[]; ips?: string[] };
-      const urls = Array.isArray(parsed.urls) ? parsed.urls.map(String) : [];
-      const ips = Array.isArray(parsed.ips)
-        ? parsed.ips.map(String).filter(isLikelyLanIpv4)
-        : [];
-      // Prefer IP extracted from an IPP URL over loose PnP values.
-      const urlIp = urls
-        .map((u) => {
-          try {
-            return new URL(u).hostname;
-          } catch {
-            return "";
-          }
-        })
-        .find((h) => isLikelyLanIpv4(h));
-      const ip = urlIp || ips[0];
-      const url = pickBestIppUrl(urls, ip);
-      if (url) {
-        const host = new URL(url).hostname;
-        endpoint = {
-          url,
-          ip: ip || host,
-          printerUri: url.replace(/^https:/i, "ipp:").replace(/^http:/i, "ipp:"),
-        };
+      const parsed = JSON.parse(text) as {
+        urls?: string[];
+        ips?: string[];
+        macIps?: string[];
+      };
+      if (Array.isArray(parsed.urls)) urls.push(...parsed.urls.map(String));
+      if (Array.isArray(parsed.ips)) {
+        pnpIps.push(...parsed.ips.map(String).filter(isLikelyLanIpv4));
+      }
+      if (Array.isArray(parsed.macIps)) {
+        macIps.push(...parsed.macIps.map(String).filter(isLikelyLanIpv4));
       }
     }
+
+    const urlHosts = urls
+      .map((u) => {
+        try {
+          return new URL(u).hostname;
+        } catch {
+          return "";
+        }
+      })
+      .filter(isLikelyLanIpv4);
+
+    // Prefer Admin override, then live Canon MAC ARP, then PnP/URL hosts.
+    const orderedHosts = [
+      preferredHost,
+      ...macIps,
+      ...urlHosts,
+      ...pnpIps,
+    ].filter(Boolean);
+
+    const reachable = await firstReachableIppHost(orderedHosts);
+    if (reachable) {
+      const matchingUrl = pickBestIppUrl(
+        urls.filter((u) => {
+          try {
+            return new URL(u).hostname === reachable;
+          } catch {
+            return false;
+          }
+        }),
+        reachable,
+      );
+      const url =
+        matchingUrl ||
+        (await probeTcpPort(reachable, 631, 500)
+          ? `http://${reachable}:631/ipp/print`
+          : `https://${reachable}:443/ipp/print`);
+      endpoint = {
+        url,
+        ip: isLikelyLanIpv4(reachable) ? reachable : undefined,
+        printerUri: url.replace(/^https:/i, "ipp:").replace(/^http:/i, "ipp:"),
+      };
+    } else if (preferredHost) {
+      // Admin set an IP — use it even if probe failed (firewall quirks).
+      endpoint = endpointFromHost(preferredHost);
+    }
   } catch {
-    endpoint = null;
+    endpoint = preferredHost ? endpointFromHost(preferredHost) : null;
   }
 
   ippEndpointCache.set(key, { endpoint, at: Date.now() });
   return endpoint;
+}
+
+/** Admin UI helper: detected live SELPHY IPP host (if any). */
+export async function detectSelphyIppHost(
+  printerName?: string,
+): Promise<{ ip: string | null; url: string | null }> {
+  if (process.platform !== "win32") {
+    return { ip: null, url: null };
+  }
+  const preferred = await resolvePrinterHost();
+  const endpoint = await resolvePrinterIppEndpoint(
+    printerName?.trim() || DEFAULT_PRINTER_NAME,
+    { force: true, preferredHost: preferred || undefined },
+  );
+  return {
+    ip: endpoint?.ip || null,
+    url: endpoint?.url || null,
+  };
 }
 
 function isIppTransportTimeout(err: unknown): boolean {
@@ -1371,6 +1557,13 @@ function isIppTransportTimeout(err: unknown): boolean {
 
 function ippBodyWasFinished(err: unknown): boolean {
   return Boolean((err as { bodyFinished?: boolean } | null)?.bodyFinished);
+}
+
+function isIppConnectFailure(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /ECONNREFUSED|ENETUNREACH|EHOSTUNREACH|ENOTFOUND|ECONNRESET|connect /i.test(
+    msg,
+  );
 }
 
 /**
@@ -1481,11 +1674,10 @@ async function printPostcardFileBytes(
   printerName: string,
 ) {
   if (process.platform !== "win32") {
-    throw new Error(
-      "Silent booth print requires the app server on the Windows PC connected to the SELPHY (USB or Wi‑Fi).",
-    );
+    throw new Error(BOOTH_NETWORK_ERROR);
   }
 
+  const preferredHost = await resolvePrinterHost();
   const { resolved, match, printers } = await resolveInstalledPrinter(printerName);
 
   if (match.workOffline) {
@@ -1525,17 +1717,45 @@ async function printPostcardFileBytes(
   // Wi‑Fi SELPHY: prefer direct IPP JPEG (works when Microsoft IPP/WSD hangs).
   if (preferIpp) {
     try {
-      const endpoint = await resolvePrinterIppEndpoint(resolved);
+      const endpoint = await resolvePrinterIppEndpoint(resolved, {
+        preferredHost: preferredHost || undefined,
+      });
       if (endpoint) {
         const jpeg = await ensureJpegBytes(bytes, ext);
-        const spoolInfo = await printJpegViaIpp(jpeg, endpoint);
-        return { printer_name: resolved, spool: spoolInfo, method: "ipp" as const };
+        try {
+          const spoolInfo = await printJpegViaIpp(jpeg, endpoint);
+          return { printer_name: resolved, spool: spoolInfo, method: "ipp" as const };
+        } catch (ippErr) {
+          // Stale PnP IP / DHCP move — force rediscovery once.
+          if (isIppConnectFailure(ippErr)) {
+            const retry = await resolvePrinterIppEndpoint(resolved, {
+              force: true,
+              preferredHost: preferredHost || undefined,
+            });
+            if (retry && retry.url !== endpoint.url) {
+              const spoolInfo = await printJpegViaIpp(jpeg, retry);
+              return {
+                printer_name: resolved,
+                spool: spoolInfo,
+                method: "ipp" as const,
+              };
+            }
+            throw new Error(
+              `SELPHY not reachable at ${endpoint.ip || endpoint.url} — ${selphyWifiStaffHint()}.`,
+            );
+          }
+          throw ippErr;
+        }
+      } else if (preferredHost || soft) {
+        throw new Error(
+          `Could not reach SELPHY on Wi‑Fi — ${selphyWifiStaffHint()}.`,
+        );
       }
     } catch (e) {
       // Fall through to Windows spooler only if IPP is unreachable / rejected.
       const ippMsg = e instanceof Error ? e.message : String(e);
       // Job rejected by printer — do not hide behind WSD hang.
-      if (/IPP Print-Job failed/i.test(ippMsg)) {
+      if (/IPP Print-Job failed|not reachable|Could not reach SELPHY/i.test(ippMsg)) {
         throw new Error(
           formatStaffPrintError(ippMsg, {
             resolved,
@@ -1575,7 +1795,10 @@ async function printPostcardFileBytes(
     // Soft queues that fail spooler: try one forced IPP rediscovery before giving up.
     if (preferIpp) {
       try {
-        const endpoint = await resolvePrinterIppEndpoint(resolved, { force: true });
+        const endpoint = await resolvePrinterIppEndpoint(resolved, {
+          force: true,
+          preferredHost: preferredHost || undefined,
+        });
         if (endpoint) {
           const jpeg = await ensureJpegBytes(bytes, ext);
           spoolInfo = await printJpegViaIpp(jpeg, endpoint);
