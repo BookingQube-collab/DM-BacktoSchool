@@ -1,6 +1,6 @@
 /**
  * Windows booth print worker — polls Supabase print_jobs and silent-prints via IPP.
- * Started only when process.platform === "win32" (local booth `npm run dev`).
+ * Started only when process.platform === "win32" (booth PC `npm run booth`).
  */
 import {
   claimNextPrintJob,
@@ -108,7 +108,7 @@ export function startPrintWorker() {
 
   started = true;
   console.log(
-    `[print-worker] polling print_jobs every ${POLL_MS}ms (keep npm run dev running)`,
+    `[print-worker] polling print_jobs every ${POLL_MS}ms (keep the booth PC on)`,
   );
   void tick();
   setInterval(() => {

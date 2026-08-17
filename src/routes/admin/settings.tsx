@@ -270,8 +270,6 @@ function AdminSettingsPage() {
     return t("settingsStaffRoleAdmin");
   }
 
-  const resolvedPrinter =
-    printerName.trim() || "Canon SELPHY CP1500";
   const kioskHint = `chrome.exe --kiosk "${typeof window !== "undefined" ? window.location.origin : "https://your-booth-url"}"`;
 
   return (
@@ -401,14 +399,9 @@ function AdminSettingsPage() {
               autoComplete="off"
             />
             <p className="text-xs text-muted-foreground">
-              Optional for tablets on the HTTPS Vercel site — Print uses a
-              Supabase job queue (no mixed-content block). Keep{" "}
-              <code className="rounded bg-muted px-1">npm run dev</code> on the
-              Windows booth PC so the worker polls and prints. Use this URL only
-              when guests open the booth on the LAN HTTP site for direct print.
-              Bare IPs get <code className="rounded bg-muted px-1">http://</code>{" "}
-              and port <code className="rounded bg-muted px-1">8080</code>{" "}
-              automatically.
+              Guest Print is from the Android tablet browser on the Vercel
+              site — no Windows PC. Tablet and SELPHY must be on the same
+              Wi‑Fi. This URL is unused for that path.
             </p>
           </div>
           {detectedPrinters.length > 0 ? (
@@ -457,18 +450,15 @@ function AdminSettingsPage() {
           ) : null}
           <ol className="list-decimal space-y-1 pl-4 text-xs text-muted-foreground">
             <li>
-              On the Windows booth PC, keep the app server running (
-              <code className="rounded bg-muted px-1">
-                npm run dev -- --host --port 8080
-              </code>
-              ). That starts the print-queue worker. Same Wi‑Fi as the SELPHY.
-              Current target printer: <strong>{resolvedPrinter}</strong>.
+              Guests print from the Android tablet (Chrome) on the Vercel
+              site. Same Wi‑Fi as the SELPHY. Print opens Android’s printer
+              list — pick <strong>Canon SELPHY CP1500</strong>, postcard /
+              Hagaki / 4×6, then Print. No Windows PC required.
             </li>
             <li>
-              Tablets on Vercel (HTTPS) Print via same-origin{" "}
-              <code className="rounded bg-muted px-1">/api/print</code> →
-              Supabase queue → booth worker → SELPHY. No Android print dialog.
-              Booth print server URL is not required for that path.
+              If SELPHY does not appear: install{" "}
+              <strong>Default Print Service</strong> or Canon’s print plugin,
+              keep the printer powered on, and retry Print.
             </li>
             <li>
               Optional: set <strong>Booth print server URL</strong> if guests

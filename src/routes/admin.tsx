@@ -169,7 +169,7 @@ function AdminLayout() {
 
   return (
     <AdminSessionContext.Provider value={session}>
-    <div className="flex min-h-screen bg-background text-foreground">
+    <div className="flex min-h-screen bg-background text-foreground print:hidden">
       <aside
         className={cn(
           "sticky top-0 z-20 flex h-svh shrink-0 flex-col overflow-hidden border-r border-border bg-secondary/40",

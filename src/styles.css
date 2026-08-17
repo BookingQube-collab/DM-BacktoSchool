@@ -144,8 +144,18 @@
   margin: 0;
 }
 
+/* Screen: keep the print image in layout (cached) but invisible. */
+.print-photo {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
 @media print {
-  /* Browser/system print fallback: one full-bleed postcard photo (never tiny ID card). */
+  /* Android/Chrome print sheet: one full-bleed postcard. Avoid visibility:hidden
+     on body * — that made the SELPHY preview blank on tablets. */
   @page {
     size: 148mm 100mm;
     margin: 0;
@@ -161,13 +171,11 @@
     print-color-adjust: exact !important;
     overflow: hidden !important;
   }
-  body * {
-    visibility: hidden !important;
-  }
   .print-photo {
-    visibility: visible !important;
-    position: fixed !important;
-    inset: 0 !important;
+    display: block !important;
+    position: absolute !important;
+    clip: auto !important;
+    overflow: visible !important;
     left: 0 !important;
     top: 0 !important;
     width: 148mm !important;
@@ -186,7 +194,6 @@
   .print-hidden,
   .print\:hidden {
     display: none !important;
-    visibility: hidden !important;
   }
 }
 

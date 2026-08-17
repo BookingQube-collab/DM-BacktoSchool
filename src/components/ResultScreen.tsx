@@ -6,15 +6,7 @@ import { useI18n } from "@/lib/i18n";
 import { CareerReaction } from "./CareerReaction";
 import { FutureIdCard } from "./FutureIdCard";
 
-/** Canon SELPHY CP1500 postcard (KP/RP) — landscape 148×100 mm / 6×4" */
-const SELPHY_PRINTER_HINT = "Canon SELPHY CP1500";
-/**
- * Booth `/api/print` can take ~40s on SELPHY Wi‑Fi (IPP ack while printing).
- * Queue + worker can also take a few poll cycles — keep above the 60s overlay.
- */
-const SILENT_PRINT_TIMEOUT_MS = 90_000;
-const PRINT_STATUS_POLL_MS = 2_000;
-/** Kids wait for physical SELPHY output after the job is accepted */
+/** Kids wait for physical SELPHY output after Android accepts the job */
 const DESKTOP_PRINT_COUNTDOWN_SEC = 60;
 
 type Props = {
@@ -26,183 +18,9 @@ type Props = {
 type Branding = {
   doha_mall_logo_url?: string;
   printer_name?: string;
-  booth_print_base_url?: string;
 };
 
 type PrintStatus = "idle" | "printing" | "done" | "error";
-
-function isBoothNetworkPrintError(raw: string): boolean {
-  return /booth computer network|requires the app server|is the booth server running|win32|failed to fetch|networkerror|load failed|mixed content|blocked:mixed/i.test(
-    raw,
-  );
-}
-
-function guestPrintError(raw: string, hasBoothUrl: boolean): string {
-  const m = raw.toLowerCase();
-  if (/booth worker|print queue|npm run dev/i.test(m)) {
-    return "Print queued but booth PC did not pick it up — keep npm run dev running on the Windows booth PC.";
-  }
-  // Ambiguous client wait — do not claim the printer rejected the job.
-  if (/taking longer than expected|may still be printing/i.test(m)) {
-    return raw.length > 140 ? `${raw.slice(0, 137)}…` : raw;
-  }
-  if (isBoothNetworkPrintError(m)) {
-    return hasBoothUrl
-      ? "Could not reach the booth PC — on HTTPS tablets use the cloud print queue (same-origin Print). Keep npm run dev on the booth PC."
-      : "Print needs the booth PC online (npm run dev) so the print queue worker can run.";
-  }
-  // Wi‑Fi miss first — staff hints also say “Admin → Settings” (Printer IP).
-  if (
-    /not reachable|could not reach selphy|selphy not reachable/i.test(m)
-  ) {
-    return "Printer not ready — check SELPHY power and Wi‑Fi (same network as the booth PC).";
-  }
-  if (/selphy wi‑?fi|selphy wifi|did not accept the job/i.test(raw)) {
-    return "Printer not ready — check SELPHY power and Wi‑Fi (same network as the booth PC).";
-  }
-  if (/printer not found:|pick a detected printer/i.test(m)) {
-    return "Printer name not found — ask staff to set it in Admin → Settings.";
-  }
-  if (/wi‑?fi|wifi|network\/ipp|ipp|wsd|soft.?driver|waiting for printer|microsoft ipp/i.test(m)) {
-    return "Printer not ready — check SELPHY power and Wi‑Fi (same network as the booth PC).";
-  }
-  if (/timed out|not ready|offline|work offline|paused/i.test(m)) {
-    return "Printer not ready — check power, connection, and paper.";
-  }
-  if (/0 bytes|not accepted|rejected/i.test(m)) {
-    return "Printer did not accept the job — ask staff to check SELPHY Wi‑Fi and Admin settings.";
-  }
-  if (/photo|too small|empty|could not download|cors/i.test(m)) {
-    return "Photo not ready — wait for the transform to finish, then retry.";
-  }
-  // Keep toast short; strip long “Available: …” lists
-  const cut = raw.split(/\s+Available:/i)[0]?.trim() || raw;
-  return cut.length > 120 ? `${cut.slice(0, 117)}…` : cut;
-}
-
-/**
- * Avoid mixed content: HTTPS tablet must not fetch http://192.168… booth URL.
- * Use same-origin `/api/print` (Vercel queues; booth worker prints).
- * HTTP booth site can still POST directly to the LAN booth URL.
- */
-function resolvePrintApiUrl(boothPrintBaseUrl: string): string {
-  const base = boothPrintBaseUrl.trim().replace(/\/+$/, "");
-  const pageIsHttps =
-    typeof window !== "undefined" && window.location.protocol === "https:";
-  const boothIsHttp = /^http:\/\//i.test(base);
-
-  if (pageIsHttps && boothIsHttp) {
-    return "/api/print";
-  }
-  return base ? `${base}/api/print` : "/api/print";
-}
-
-function sleep(ms: number) {
-  return new Promise<void>((resolve) => {
-    window.setTimeout(resolve, ms);
-  });
-}
-
-async function pollQueuedPrintJob(
-  jobId: string,
-): Promise<{ printer_name?: string; method?: string }> {
-  const deadline = Date.now() + SILENT_PRINT_TIMEOUT_MS;
-  while (Date.now() < deadline) {
-    await sleep(PRINT_STATUS_POLL_MS);
-
-    const res = await fetch(
-      `/api/print/status?id=${encodeURIComponent(jobId)}`,
-    );
-    let payload: {
-      ok?: boolean;
-      status?: string;
-      error?: string;
-    } = {};
-    try {
-      payload = (await res.json()) as typeof payload;
-    } catch {
-      /* non-JSON */
-    }
-
-    if (!res.ok) {
-      throw new Error(payload.error || `Print status failed (${res.status})`);
-    }
-
-    if (payload.status === "done") {
-      return { method: "queue" };
-    }
-    if (payload.status === "failed") {
-      throw new Error(
-        payload.error ||
-          "Print queue failed — check SELPHY and that npm run dev is running on the booth PC.",
-      );
-    }
-    // pending | printing — keep waiting
-  }
-
-  throw new Error(
-    "Print queued but booth PC did not pick it up — keep npm run dev running on the Windows booth PC.",
-  );
-}
-
-async function silentPrintApi(
-  imageUrl: string,
-  printerName: string,
-  boothPrintBaseUrl: string,
-): Promise<{ printer_name?: string; method?: string }> {
-  const controller = new AbortController();
-  const timer = window.setTimeout(() => controller.abort(), SILENT_PRINT_TIMEOUT_MS);
-  try {
-    const res = await fetch(resolvePrintApiUrl(boothPrintBaseUrl), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        imageUrl,
-        printer_name: printerName,
-      }),
-      signal: controller.signal,
-    });
-
-    let payload: {
-      ok?: boolean;
-      error?: string;
-      printer_name?: string;
-      method?: string;
-      queued?: boolean;
-      jobId?: string;
-    } = {};
-    try {
-      payload = (await res.json()) as typeof payload;
-    } catch {
-      /* non-JSON */
-    }
-
-    if (!res.ok) {
-      throw new Error(
-        payload.error ||
-          `Print request failed (${res.status}). Is the booth server running on this PC?`,
-      );
-    }
-
-    if (payload.queued && payload.jobId) {
-      window.clearTimeout(timer);
-      return await pollQueuedPrintJob(payload.jobId);
-    }
-
-    // Server accepted / printed immediately — never treat as "not ready".
-    return { printer_name: payload.printer_name, method: payload.method };
-  } catch (e) {
-    if (e instanceof DOMException && e.name === "AbortError") {
-      // Only after the full booth wait — still ambiguous (SELPHY may be printing).
-      throw new Error(
-        "Print is taking longer than expected. Check the SELPHY — it may still be printing. If not, retry.",
-      );
-    }
-    throw e instanceof Error ? e : new Error(String(e));
-  } finally {
-    window.clearTimeout(timer);
-  }
-}
 
 export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
   const { t, locale } = useI18n();
@@ -332,9 +150,6 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
       return;
     }
 
-    const printerName =
-      branding.printer_name?.trim() || SELPHY_PRINTER_HINT;
-    const boothPrintBaseUrl = branding.booth_print_base_url?.trim() || "";
     const generation = ++printGenerationRef.current;
     const stillCurrent = () =>
       mountedRef.current && printGenerationRef.current === generation;
@@ -343,23 +158,22 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
     setPrintStatus("printing");
 
     try {
-      // Silent booth IPP: same-origin queue on HTTPS Vercel, or direct on HTTP booth.
-      // Never opens Android/system print sheet — Print → countdown → print only.
+      // Tablet / Vercel: no booth PC. Open Android print sheet in this tap
+      // (must stay synchronous — any await before print() loses the gesture).
       const countdownDone = startPrintCountdown();
-      await silentPrintApi(imageUrl, printerName, boothPrintBaseUrl);
+      window.print();
       if (!stillCurrent()) return;
       await countdownDone;
       finishPrintSuccess(stillCurrent);
     } catch (e) {
       console.error(e);
-      // Never toast failure after success navigation / unmount.
       if (!stillCurrent()) return;
       dismissPrintOverlay();
       const raw =
         e instanceof Error ? e.message : t("resultPrintGeneric");
       setPrintStatus("error");
       toast.error(t("resultPrintFailed"), {
-        description: guestPrintError(raw, Boolean(boothPrintBaseUrl)),
+        description: raw,
         duration: 8000,
       });
       scheduleStatusIdle(3000);
@@ -385,14 +199,8 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
         <CareerReaction career={profession} onComplete={dismissBeat} />
       )}
 
-      {/* Screen-only Future ID; server print composites full-bleed photo + mall logo. */}
-      <img
-        src={imageUrl}
-        alt=""
-        className="print-photo pointer-events-none fixed left-[-9999px] top-0 h-px w-px opacity-0"
-        aria-hidden
-        crossOrigin="anonymous"
-      />
+      {/* Full-bleed photo for the Android/system print sheet (SELPHY postcard). */}
+      <img src={imageUrl} alt="" className="print-photo" aria-hidden />
 
       <div className="mx-auto flex max-w-3xl flex-col items-center gap-8">
         <div className="text-center print:hidden">

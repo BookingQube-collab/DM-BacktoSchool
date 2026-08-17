@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Printer, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -45,13 +46,6 @@ type DeleteDialog =
   | { type: "bulk"; scope: "filter" | "all" }
   | null;
 
-/** Keep reprint status short under the button (no mega printer lists). */
-function shortReprintMessage(raw: string): string {
-  const cut = (raw || "").split(/\s+Available:/i)[0]?.trim() || raw;
-  if (cut.length <= 160) return cut;
-  return `${cut.slice(0, 157)}…`;
-}
-
 function formatTakenAt(iso: string) {
   try {
     return new Date(iso).toLocaleString(undefined, {
@@ -81,9 +75,8 @@ function AdminPhotosPage() {
   const [reprintErrorById, setReprintErrorById] = useState<
     Record<string, string>
   >({});
-  const [reprintPrinterById, setReprintPrinterById] = useState<
-    Record<string, string>
-  >({});
+  const [printImageUrl, setPrintImageUrl] = useState("");
+  const printImgRef = useRef<HTMLImageElement>(null);
 
   async function load(nextFrom = from, nextTo = to) {
     setLoading(true);
@@ -119,60 +112,40 @@ function AdminPhotosPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function reprint(sessionId: string) {
+  function reprint(sessionId: string, imageUrl: string) {
+    if (!imageUrl?.trim()) {
+      setReprintById((prev) => ({ ...prev, [sessionId]: "error" }));
+      setReprintErrorById((prev) => ({
+        ...prev,
+        [sessionId]: t("resultPhotoNotReady"),
+      }));
+      window.setTimeout(() => {
+        setReprintById((prev) => ({ ...prev, [sessionId]: "idle" }));
+      }, 8000);
+      return;
+    }
+
     setReprintById((prev) => ({ ...prev, [sessionId]: "printing" }));
     setReprintErrorById((prev) => {
       const next = { ...prev };
       delete next[sessionId];
       return next;
     });
-    setReprintPrinterById((prev) => {
-      const next = { ...prev };
-      delete next[sessionId];
-      return next;
-    });
-    try {
-      const res = await fetch("/api/admin/reprint", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session_id: sessionId }),
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        printer_name?: string;
-      };
-      if (!res.ok) {
-        const message = shortReprintMessage(
-          data.error || `Reprint failed (${res.status})`,
-        );
-        setReprintById((prev) => ({ ...prev, [sessionId]: "error" }));
-        setReprintErrorById((prev) => ({ ...prev, [sessionId]: message }));
-        window.setTimeout(() => {
-          setReprintById((prev) => ({ ...prev, [sessionId]: "idle" }));
-        }, 8000);
-        return;
-      }
-      if (data.printer_name) {
-        setReprintPrinterById((prev) => ({
-          ...prev,
-          [sessionId]: data.printer_name!,
-        }));
-      }
-      setReprintById((prev) => ({ ...prev, [sessionId]: "done" }));
-      window.setTimeout(() => {
-        setReprintById((prev) => ({ ...prev, [sessionId]: "idle" }));
-      }, 3500);
-    } catch {
-      setReprintById((prev) => ({ ...prev, [sessionId]: "error" }));
-      setReprintErrorById((prev) => ({
-        ...prev,
-        [sessionId]: "Could not reach print server",
-      }));
-      window.setTimeout(() => {
-        setReprintById((prev) => ({ ...prev, [sessionId]: "idle" }));
-      }, 8000);
+
+    setPrintImageUrl(imageUrl);
+    const img = printImgRef.current;
+    if (img && img.getAttribute("src") !== imageUrl) {
+      img.src = imageUrl;
     }
+
+    // Same tablet path as guest Print — no booth PC. Stay synchronous so
+    // Android Chrome keeps the tap gesture for the system print sheet.
+    window.print();
+
+    setReprintById((prev) => ({ ...prev, [sessionId]: "done" }));
+    window.setTimeout(() => {
+      setReprintById((prev) => ({ ...prev, [sessionId]: "idle" }));
+    }, 3500);
   }
 
   function reprintLabel(state: ReprintState | undefined) {
@@ -185,12 +158,9 @@ function AdminPhotosPage() {
   function reprintStatusText(
     state: ReprintState,
     err: string | undefined,
-    printer: string | undefined,
   ): string | null {
     if (state === "printing") return t("photosSending");
-    if (state === "done") {
-      return printer ? t("photosSentTo", { printer }) : t("photosSentPrinter");
-    }
+    if (state === "done") return t("photosSentPrinter");
     if (err) return err;
     return null;
   }
@@ -241,6 +211,19 @@ function AdminPhotosPage() {
   }
 
   return (
+    <>
+      {typeof document !== "undefined"
+        ? createPortal(
+            <img
+              ref={printImgRef}
+              src={printImageUrl || undefined}
+              alt=""
+              className="print-photo"
+              aria-hidden
+            />,
+            document.body,
+          )
+        : null}
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -327,12 +310,7 @@ function AdminPhotosPage() {
               rows.map((row) => {
                 const state = reprintById[row.id] ?? "idle";
                 const reprintErr = reprintErrorById[row.id];
-                const reprintPrinter = reprintPrinterById[row.id];
-                const statusText = reprintStatusText(
-                  state,
-                  reprintErr,
-                  reprintPrinter,
-                );
+                const statusText = reprintStatusText(state, reprintErr);
                 return (
                   <tr key={row.id} className="border-t border-border align-top">
                     <td className="px-3 py-3">
@@ -368,7 +346,7 @@ function AdminPhotosPage() {
                           size="sm"
                           variant={state === "error" ? "destructive" : "default"}
                           disabled={state === "printing"}
-                          onClick={() => void reprint(row.id)}
+                          onClick={() => reprint(row.id, row.image_url)}
                         >
                           <Printer className="size-4" />
                           {reprintLabel(state)}
@@ -487,5 +465,6 @@ function AdminPhotosPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </>
   );
 }

@@ -96,11 +96,11 @@ export const en = {
   printErrTimeout:
     "Print is taking longer than expected. Check the SELPHY — it may still be printing. If not, retry.",
   printErrWorker:
-    "Print queued but booth PC did not pick it up — keep npm run dev running on the Windows booth PC.",
+    "Print queued but booth PC did not pick it up — keep the Windows booth PC powered on.",
   printErrNetworkHttps:
-    "Could not reach the booth PC — on HTTPS tablets use the cloud print queue (same-origin Print). Keep npm run dev on the booth PC.",
+    "Could not reach the booth PC — on HTTPS tablets use the cloud print queue (same-origin Print). Keep the Windows booth PC powered on.",
   printErrNetwork:
-    "Print needs the booth PC online (npm run dev) so the print queue worker can run.",
+    "Print needs the Windows booth PC powered on so it can send photos to the SELPHY.",
   printErrPrinterName: "Printer name not found — ask staff to set it in Admin → Settings.",
   printErrNotReady:
     "Printer not ready — check SELPHY power and Wi‑Fi (same network as the booth PC).",
@@ -320,7 +320,7 @@ export const en = {
 
   photosTitle: "Photos",
   photosSubtitle:
-    "Future ID sessions taken at the booth. Reprint sends the stored transformed photo to the booth printer (same silent spool as the kiosk).",
+    "Future ID sessions taken at the booth. Reprint opens the tablet printer list — pick Canon SELPHY, postcard/Hagaki/4×6, then Print.",
   photosLoadFail: "Failed to load photos",
   photosLoadError: "Could not load photos",
   photosByProfession: "By profession",
@@ -334,7 +334,7 @@ export const en = {
   photosPrinting: "Printing…",
   photosSent: "Sent",
   photosReprint: "Reprint",
-  photosSending: "Sending to booth printer…",
+  photosSending: "Opening printer…",
   photosSentTo: "Sent to {printer}",
   photosSentPrinter: "Sent to printer",
   photosReachFail: "Could not reach print server",
@@ -416,7 +416,7 @@ export const en = {
     " No live SELPHY IP detected yet — power on the printer on the booth Wi‑Fi.",
   settingsBoothUrl: "Booth print server URL (optional)",
   settingsBoothUrlHint:
-    "Optional for tablets on the HTTPS Vercel site — Print uses a Supabase job queue (no mixed-content block). Keep npm run dev on the Windows booth PC so the worker polls and prints. Use this URL only when guests open the booth on the LAN HTTP site for direct print. Bare IPs get http:// and port 8080 automatically.",
+    "Optional for tablets on the HTTPS Vercel site — Print uses a Supabase job queue (no mixed-content block). Keep the Windows booth PC powered on (install auto-start once). Use this URL only when guests open the booth on the LAN HTTP site for direct print. Bare IPs get http:// and port 8080 automatically.",
   settingsDetectedOnPc: "Detected on this PC",
   settingsReady: "ready",
   settingsWorkOffline: "Work Offline",
@@ -427,9 +427,9 @@ export const en = {
   settingsCouldNotList: "Could not list printers",
   settingsCouldNotListHost: "Could not list printers on this host",
   settingsStep1:
-    "On the Windows booth PC, keep the app server running (npm run dev -- --host --port 8080). That starts the print-queue worker. Same Wi‑Fi as the SELPHY. Current target printer: {printer}.",
+    "Guests print from the Android tablet (Chrome) on the Vercel site. Same Wi‑Fi as the SELPHY. Print opens Android’s printer list — pick Canon SELPHY CP1500, postcard/Hagaki/4×6, then Print. No Windows PC required.",
   settingsStep2:
-    "Tablets on Vercel (HTTPS) Print via same-origin /api/print → Supabase queue → booth worker → SELPHY. No Android print dialog. Booth print server URL is not required for that path.",
+    "If SELPHY does not appear: enable Default Print Service or Canon’s print plugin, keep the printer powered on, and retry Print.",
   settingsStep3:
     "Optional: set Booth print server URL if guests use the LAN HTTP booth site and you want an explicit direct target (e.g. http://192.168.18.87:8080). HTTPS pages never call an HTTP booth URL from the browser (mixed content).",
   settingsStep4:
@@ -587,11 +587,11 @@ export const ar: Record<keyof typeof en, string> = {
   printErrTimeout:
     "الطباعة تستغرق وقتاً أطول من المتوقع. تحقق من طابعة SELPHY — قد تكون لا تزال تطبع. إن لم يكن كذلك، أعد المحاولة.",
   printErrWorker:
-    "وُضعت الطباعة في قائمة الانتظار لكن جهاز الكشك لم يستلمها — أبقِ npm run dev يعمل على جهاز ويندوز.",
+    "وُضعت الطباعة في قائمة الانتظار لكن جهاز الكشك لم يستلمها — أبقِ جهاز ويندوز للكشك قيد التشغيل.",
   printErrNetworkHttps:
-    "تعذر الوصول إلى جهاز الكشك — على الأجهزة بـ HTTPS استخدم قائمة الطباعة السحابية. أبقِ npm run dev على جهاز الكشك.",
+    "تعذر الوصول إلى جهاز الكشك — على الأجهزة بـ HTTPS استخدم قائمة الطباعة السحابية. أبقِ جهاز ويندوز للكشك قيد التشغيل.",
   printErrNetwork:
-    "الطباعة تحتاج جهاز الكشك متصلاً (npm run dev) ليعمل عامل قائمة الطباعة.",
+    "الطباعة تحتاج جهاز ويندوز للكشك قيد التشغيل لإرسال الصور إلى SELPHY.",
   printErrPrinterName: "اسم الطابعة غير موجود — اطلب من الموظفين ضبطه في الإدارة ← الإعدادات.",
   printErrNotReady:
     "الطابعة غير جاهزة — تحقق من تشغيل SELPHY والواي فاي (نفس شبكة جهاز الكشك).",
@@ -811,7 +811,7 @@ export const ar: Record<keyof typeof en, string> = {
 
   photosTitle: "الصور",
   photosSubtitle:
-    "جلسات هوية المستقبل في الكشك. إعادة الطباعة ترسل الصورة المحوّلة المخزّنة إلى طابعة الكشك.",
+    "جلسات هوية المستقبل في الكشك. إعادة الطباعة تفتح قائمة طابعات الجهاز — اختر Canon SELPHY، مقاس Hagaki / 4×6، ثم طباعة.",
   photosLoadFail: "فشل تحميل الصور",
   photosLoadError: "تعذر تحميل الصور",
   photosByProfession: "حسب المهنة",
@@ -825,7 +825,7 @@ export const ar: Record<keyof typeof en, string> = {
   photosPrinting: "جاري الطباعة…",
   photosSent: "أُرسلت",
   photosReprint: "إعادة الطباعة",
-  photosSending: "جاري الإرسال إلى طابعة الكشك…",
+  photosSending: "جاري فتح الطابعة…",
   photosSentTo: "أُرسلت إلى {printer}",
   photosSentPrinter: "أُرسلت للطابعة",
   photosReachFail: "تعذر الوصول إلى خادم الطباعة",
@@ -906,7 +906,7 @@ export const ar: Record<keyof typeof en, string> = {
     " لم يُكتشف عنوان SELPHY بعد — شغّل الطابعة على واي فاي الكشك.",
   settingsBoothUrl: "رابط خادم طباعة الكشك (اختياري)",
   settingsBoothUrlHint:
-    "اختياري للأجهزة على موقع Vercel بـ HTTPS — الطباعة عبر قائمة Supabase. أبقِ npm run dev على جهاز ويندوز. استخدم هذا الرابط فقط عندما يفتح الضيوف الكشك عبر HTTP المحلي.",
+    "اختياري للأجهزة على موقع Vercel بـ HTTPS — الطباعة عبر قائمة Supabase. أبقِ جهاز ويندوز للكشك قيد التشغيل (ثبّت التشغيل التلقائي مرة واحدة). استخدم هذا الرابط فقط عندما يفتح الضيوف الكشك عبر HTTP المحلي.",
   settingsDetectedOnPc: "المكتشف على هذا الجهاز",
   settingsReady: "جاهزة",
   settingsWorkOffline: "عمل دون اتصال",
@@ -917,9 +917,9 @@ export const ar: Record<keyof typeof en, string> = {
   settingsCouldNotList: "تعذر عرض الطابعات",
   settingsCouldNotListHost: "تعذر عرض طابعات هذا الجهاز",
   settingsStep1:
-    "على جهاز ويندوز للكشك، أبقِ خادم التطبيق يعمل (npm run dev -- --host --port 8080). ذلك يشغّل عامل قائمة الطباعة. نفس واي فاي SELPHY. الطابعة الحالية: {printer}.",
+    "الضيوف يطبعون من جهاز أندرويد (كروم) على موقع Vercel. نفس واي فاي SELPHY. الطباعة تفتح قائمة طابعات أندرويد — اختر Canon SELPHY CP1500، مقاس Hagaki / 4×6، ثم طباعة. لا حاجة لجهاز ويندوز.",
   settingsStep2:
-    "الأجهزة على Vercel (HTTPS) تطبع عبر /api/print من نفس المصدر ← قائمة Supabase ← عامل الكشك ← SELPHY. لا حوار طباعة أندرويد.",
+    "إذا لم تظهر SELPHY: فعّل خدمة الطباعة الافتراضية أو إضافة Canon، وأبقِ الطابعة تعمل، ثم أعد المحاولة.",
   settingsStep3:
     "اختياري: عيّن رابط خادم طباعة الكشك إذا استخدم الضيوف موقع HTTP المحلي وتريد هدفاً مباشراً. صفحات HTTPS لا تستدعي رابط HTTP من المتصفح.",
   settingsStep4:
