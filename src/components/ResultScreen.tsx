@@ -51,9 +51,7 @@ function guestPrintError(raw: string, hasBoothUrl: boolean): string {
       ? "Could not reach the booth PC — on HTTPS tablets use the cloud print queue (same-origin Print). Keep npm run dev on the booth PC."
       : "Print needs the booth PC online (npm run dev) so the print queue worker can run.";
   }
-  if (/not found|admin → settings|pick a detected printer/i.test(m)) {
-    return "Printer name not found — ask staff to set it in Admin → Settings.";
-  }
+  // Wi‑Fi miss first — staff hints also say “Admin → Settings” (Printer IP).
   if (
     /not reachable|could not reach selphy|selphy not reachable/i.test(m)
   ) {
@@ -61,6 +59,9 @@ function guestPrintError(raw: string, hasBoothUrl: boolean): string {
   }
   if (/selphy wi‑?fi|selphy wifi|did not accept the job/i.test(raw)) {
     return "Printer not ready — check SELPHY power and Wi‑Fi (same network as the booth PC).";
+  }
+  if (/printer not found:|pick a detected printer/i.test(m)) {
+    return "Printer name not found — ask staff to set it in Admin → Settings.";
   }
   if (/wi‑?fi|wifi|network\/ipp|ipp|wsd|soft.?driver|waiting for printer|microsoft ipp/i.test(m)) {
     return "Printer not ready — check SELPHY power and Wi‑Fi (same network as the booth PC).";

@@ -1372,6 +1372,8 @@ export async function resolvePrinterIppEndpoint(
         return cached.endpoint;
       }
     } else if (cached.endpoint === null) {
+      // Don't cache-miss past an Admin Printer IP — DHCP / sleep can recover.
+      if (preferredHost) return endpointFromHost(preferredHost);
       return null;
     }
     // Stale cache (printer moved) — rediscover below.

@@ -167,6 +167,11 @@ function RegisterPage() {
   return (
     <div className="min-h-screen px-4 py-8 text-foreground">
       <div className="mx-auto w-full max-w-2xl">
+        <img
+          src="/smart-start-logo.png"
+          alt="Smart Start"
+          className="mb-5 h-auto w-[200px] max-w-full object-contain drop-shadow-lg md:w-[240px]"
+        />
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
             <p className="font-display text-3xl font-bold md:text-4xl">

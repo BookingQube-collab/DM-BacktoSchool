@@ -133,13 +133,24 @@ function AdminLayout() {
         <div
           className={cn(
             "flex shrink-0 items-start gap-2",
-            collapsed ? "justify-center px-2 pt-4 pb-3" : "justify-between p-5 pb-4",
+            collapsed ? "flex-col items-center justify-center px-2 pt-4 pb-3" : "justify-between p-5 pb-4",
           )}
         >
+          {collapsed ? (
+            <img
+              src="/smart-start-logo.png"
+              alt="Smart Start"
+              className="h-10 w-10 object-contain drop-shadow-md"
+            />
+          ) : null}
           {!collapsed && (
             <div className="min-w-0">
-              <p className="font-display text-xl font-bold">{t("adminBrand")}</p>
-              <p className="mt-1 truncate text-sm text-muted-foreground">
+              <img
+                src="/smart-start-logo.png"
+                alt="Smart Start"
+                className="h-auto w-[148px] max-w-full object-contain drop-shadow-md"
+              />
+              <p className="mt-2 truncate text-sm text-muted-foreground">
                 {t("adminSignedIn", { username: username ?? "admin" })}
               </p>
             </div>

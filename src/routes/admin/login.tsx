@@ -55,6 +55,11 @@ function AdminLoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md rounded-3xl border border-border bg-secondary/50 p-8 shadow-xl backdrop-blur">
+        <img
+          src="/smart-start-logo.png"
+          alt="Smart Start"
+          className="mx-auto mb-6 h-auto w-[200px] max-w-full object-contain drop-shadow-lg"
+        />
         <p className="font-display text-3xl font-bold text-foreground">{t("adminLoginTitle")}</p>
         <p className="mt-2 text-sm text-muted-foreground">
           {t("adminLoginSubtitle")}
