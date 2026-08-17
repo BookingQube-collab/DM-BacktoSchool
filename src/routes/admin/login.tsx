@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { type AdminRole } from "@/lib/admin-roles";
 import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/admin/login")({
@@ -11,7 +12,7 @@ export const Route = createFileRoute("/admin/login")({
 
 function AdminLoginPage() {
   const navigate = useNavigate();
-  const [username, setUsername] = useState("admin");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -21,7 +22,15 @@ function AdminLoginPage() {
     let cancelled = false;
     (async () => {
       const res = await fetch("/api/admin/auth", { credentials: "include" });
-      if (!cancelled && res.ok) navigate({ to: "/admin" });
+      if (!cancelled && res.ok) {
+        const data = (await res.json()) as { role?: AdminRole; home?: string };
+        navigate({
+          to:
+            data.home === "/admin/registrations"
+              ? "/admin/registrations"
+              : "/admin",
+        });
+      }
     })();
     return () => {
       cancelled = true;
@@ -39,12 +48,21 @@ function AdminLoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
-      const data = (await res.json()) as { error?: string };
+      const data = (await res.json()) as {
+        error?: string;
+        role?: AdminRole;
+        home?: string;
+      };
       if (!res.ok) {
         setError(data.error || t("adminLoginFailed"));
         return;
       }
-      navigate({ to: "/admin" });
+      navigate({
+        to:
+          data.home === "/admin/registrations"
+            ? "/admin/registrations"
+            : "/admin",
+      });
     } catch {
       setError(t("commonCouldNotReachServer"));
     } finally {

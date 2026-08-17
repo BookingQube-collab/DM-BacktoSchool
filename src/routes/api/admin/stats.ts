@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { json, requireAdminSession } from "@/lib/admin-auth.server";
+import { json, requireAdminPage } from "@/lib/admin-auth.server";
 import {
   aggregateByDay,
   aggregateNamedCounts,
@@ -36,7 +36,7 @@ export const Route = createFileRoute("/api/admin/stats")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const auth = requireAdminSession(request);
+        const auth = requireAdminPage(request, "dashboard");
         if (!auth.ok) return auth.response;
 
         try {

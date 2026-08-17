@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { json, requireAdminSession } from "@/lib/admin-auth.server";
+import { json, requireAdminPage } from "@/lib/admin-auth.server";
 import {
   purgeEventActivity,
   verifyAdminPasswordOnly,
@@ -14,7 +14,7 @@ export const Route = createFileRoute("/api/admin/purge")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const auth = requireAdminSession(request);
+        const auth = requireAdminPage(request, "settings");
         if (!auth.ok) return auth.response;
 
         try {

@@ -1,6 +1,22 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { hashPassword, verifyPassword } from "@/lib/admin-auth.server";
+import {
+  canonicalUsernameForRole,
+  navKeysForRole,
+  normalizeAdminUsername,
+  roleFromUsername,
+  type AdminNavKey,
+  type AdminRole,
+} from "@/lib/admin-roles";
 import { refreshSignedUrl } from "@/lib/image-upload";
+import {
+  ensureDefaultStaffUsers,
+  findStaffUser,
+  loadStaffUsers,
+  staffPasswordForRole,
+  toPublicStaffUsers,
+  verifyStaffPassword,
+} from "@/lib/staff-users.server";
 
 export type SettingKey =
   | "freepik_api_key"
@@ -52,6 +68,86 @@ export async function verifyAdminCredentials(
 
   const bootstrap = process.env.ADMIN_PASSWORD || "admin123";
   return password === bootstrap;
+}
+
+export type AuthenticatedAdminUser = {
+  username: string;
+  role: AdminRole;
+  pages: AdminNavKey[];
+};
+
+/** Resolve Operation / Doha Mall / full admin credentials. */
+export async function authenticateAdminUser(
+  username: string,
+  password: string,
+): Promise<AuthenticatedAdminUser | null> {
+  const staff = await loadStaffUsers();
+  const staffMatch = findStaffUser(staff, username);
+  if (staffMatch) {
+    if (!verifyStaffPassword(staffMatch, password)) return null;
+    return {
+      username: staffMatch.username,
+      role: staffMatch.role,
+      pages: staffMatch.pages,
+    };
+  }
+
+  const ok = await verifyAdminCredentials(username.trim(), password);
+  if (ok) {
+    const canonical = await getAdminUsername();
+    return {
+      username: canonical,
+      role: "admin",
+      pages: [...navKeysForRole("admin")],
+    };
+  }
+
+  // Until staff users are saved, keep the hardcoded Operation / Doha Mall logins.
+  if (staff.length === 0) {
+    const staffRole = roleFromUsername(username);
+    if (staffRole === "operation" || staffRole === "dohamall") {
+      if (password !== staffPasswordForRole(staffRole)) return null;
+      return {
+        username: canonicalUsernameForRole(staffRole, username),
+        role: staffRole,
+        pages: [...navKeysForRole(staffRole)],
+      };
+    }
+  }
+
+  return null;
+}
+
+/** Re-read current role/pages for a signed-in username. */
+export async function resolveAdminSessionUser(
+  username: string,
+  fallbackRole: AdminRole,
+  fallbackPages?: AdminNavKey[],
+): Promise<AuthenticatedAdminUser | null> {
+  const adminUsername = await getAdminUsername();
+  if (normalizeAdminUsername(username) === normalizeAdminUsername(adminUsername)) {
+    return {
+      username: adminUsername,
+      role: "admin",
+      pages: [...navKeysForRole("admin")],
+    };
+  }
+
+  const staff = await loadStaffUsers();
+  const staffMatch = findStaffUser(staff, username);
+  if (staffMatch) {
+    return {
+      username: staffMatch.username,
+      role: staffMatch.role,
+      pages: staffMatch.pages,
+    };
+  }
+
+  if (staff.length > 0) return null;
+
+  const pages =
+    fallbackPages?.length ? fallbackPages : [...navKeysForRole(fallbackRole)];
+  return { username, role: fallbackRole, pages };
 }
 
 export async function updateAdminPassword(password: string) {
@@ -161,6 +257,7 @@ export async function listPublicSettings() {
     true;
 
   const branding = await getBrandingSettings();
+  const staffUsers = toPublicStaffUsers(await ensureDefaultStaffUsers());
 
   return {
     freepik_api_key: maskSecret(freepik),
@@ -173,6 +270,7 @@ export async function listPublicSettings() {
     printer_name: branding.printer_name,
     printer_host: branding.printer_host,
     booth_print_base_url: branding.booth_print_base_url,
+    staff_users: staffUsers,
     updated_at: {
       freepik_api_key: map.get("freepik_api_key")?.updated_at ?? null,
       event_name: map.get("event_name")?.updated_at ?? null,

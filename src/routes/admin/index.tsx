@@ -25,6 +25,7 @@ import { Label } from "@/components/ui/label";
 import type { DayBucket, NamedCount, StoreValueBucket } from "@/lib/admin-charts";
 import { formatQar, defaultRegistrationsFromDate, todayISODate } from "@/lib/registration";
 import { professionTitleById } from "@/lib/professions";
+import { useAdminSession } from "@/lib/admin-session";
 import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/admin/")({
@@ -59,6 +60,8 @@ const TOP_STORES_LIMIT = 10;
 
 function AdminDashboardPage() {
   const { t, locale } = useI18n();
+  const { pages } = useAdminSession();
+  const showApiTab = pages.includes("settings");
   const [from, setFrom] = useState(defaultRegistrationsFromDate);
   const [to, setTo] = useState(todayISODate);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -425,7 +428,7 @@ function AdminDashboardPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className={`grid gap-4 ${showApiTab ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
         <Link
           to="/admin/companies"
           className="rounded-3xl border border-border bg-secondary/30 p-4 hover:border-primary/40"
@@ -447,16 +450,18 @@ function AdminDashboardPage() {
           <p className="font-semibold">Photos</p>
           <p className="text-sm text-muted-foreground">{stats?.photo_sessions ?? 0} taken</p>
         </Link>
-        <Link
-          to="/admin/settings"
-          className="rounded-3xl border border-border bg-secondary/30 p-4 hover:border-primary/40"
-        >
-          <KeyRound className="mb-3 size-5 text-accent" />
-          <p className="font-semibold">API status</p>
-          <p className="text-sm text-muted-foreground">
-            {stats?.freepik_configured ? "Magnific connected" : "Key missing"}
-          </p>
-        </Link>
+        {showApiTab ? (
+          <Link
+            to="/admin/settings"
+            className="rounded-3xl border border-border bg-secondary/30 p-4 hover:border-primary/40"
+          >
+            <KeyRound className="mb-3 size-5 text-accent" />
+            <p className="font-semibold">API status</p>
+            <p className="text-sm text-muted-foreground">
+              {stats?.freepik_configured ? "Magnific connected" : "Key missing"}
+            </p>
+          </Link>
+        ) : null}
       </div>
     </div>
   );

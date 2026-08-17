@@ -1,5 +1,5 @@
 import { Link, Outlet, createFileRoute, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Building2,
   Camera,
@@ -11,6 +11,16 @@ import {
   PanelLeftOpen,
   Settings,
 } from "lucide-react";
+import {
+  canVisitAdminPath,
+  displayNameForRole,
+  homePathForRole,
+  navKeysForRole,
+  pagesCan,
+  type AdminNavKey,
+  type AdminRole,
+} from "@/lib/admin-roles";
+import { AdminSessionContext } from "@/lib/admin-session";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -43,6 +53,10 @@ function AdminLayout() {
   const { t } = useI18n();
   const [checking, setChecking] = useState(!isLogin);
   const [username, setUsername] = useState<string | null>(null);
+  const [role, setRole] = useState<AdminRole>("admin");
+  const [pages, setPages] = useState<AdminNavKey[]>([
+    ...navKeysForRole("admin"),
+  ]);
   const [collapsed, setCollapsed] = useState(false);
   const [sidebarReady, setSidebarReady] = useState(false);
 
@@ -66,8 +80,24 @@ function AdminLayout() {
         navigate({ to: "/admin/login" });
         return;
       }
-      const data = (await res.json()) as { username?: string };
-      setUsername(data.username ?? "admin");
+      const data = (await res.json()) as {
+        username?: string;
+        role?: AdminRole;
+        pages?: AdminNavKey[];
+        displayName?: string;
+        home?: string;
+      };
+      const nextRole =
+        data.role === "operation" || data.role === "dohamall" || data.role === "admin"
+          ? data.role
+          : "admin";
+      const nextPages =
+        Array.isArray(data.pages) && data.pages.length > 0
+          ? data.pages
+          : [...navKeysForRole(nextRole)];
+      setRole(nextRole);
+      setPages(nextPages);
+      setUsername(data.displayName || data.username || "admin");
       setChecking(false);
     })();
 
@@ -75,6 +105,13 @@ function AdminLayout() {
       cancelled = true;
     };
   }, [isLogin, navigate, pathname]);
+
+  useEffect(() => {
+    if (isLogin || checking) return;
+    if (!canVisitAdminPath(role, pathname, pages)) {
+      navigate({ to: homePathForRole(role, pages) });
+    }
+  }, [checking, isLogin, navigate, pathname, pages, role]);
 
   function toggleCollapsed() {
     setCollapsed((prev) => {
@@ -102,12 +139,21 @@ function AdminLayout() {
   }
 
   const nav = [
-    { to: "/admin", label: t("adminDashboard"), icon: LayoutDashboard, exact: true },
-    { to: "/admin/registrations", label: t("adminRegistrations"), icon: ClipboardList, exact: false },
-    { to: "/admin/photos", label: t("adminPhotos"), icon: Camera, exact: false },
-    { to: "/admin/companies", label: t("adminStores"), icon: Building2, exact: false },
-    { to: "/admin/settings", label: t("adminSettings"), icon: Settings, exact: false },
-  ] as const;
+    { to: "/admin", key: "dashboard" as const, label: t("adminDashboard"), icon: LayoutDashboard, exact: true },
+    { to: "/admin/registrations", key: "registrations" as const, label: t("adminRegistrations"), icon: ClipboardList, exact: false },
+    { to: "/admin/photos", key: "photos" as const, label: t("adminPhotos"), icon: Camera, exact: false },
+    { to: "/admin/companies", key: "stores" as const, label: t("adminStores"), icon: Building2, exact: false },
+    { to: "/admin/settings", key: "settings" as const, label: t("adminSettings"), icon: Settings, exact: false },
+  ].filter((item) => pagesCan(pages, item.key));
+
+  const session = useMemo(
+    () => ({
+      username: username ?? displayNameForRole(role, "admin"),
+      role,
+      pages,
+    }),
+    [pages, role, username],
+  );
 
   const itemClass = (active: boolean) =>
     cn(
@@ -122,6 +168,7 @@ function AdminLayout() {
   const collapseLabel = t("adminCollapse");
 
   return (
+    <AdminSessionContext.Provider value={session}>
     <div className="flex min-h-screen bg-background text-foreground">
       <aside
         className={cn(
@@ -228,5 +275,6 @@ function AdminLayout() {
         <Outlet />
       </main>
     </div>
+    </AdminSessionContext.Provider>
   );
 }

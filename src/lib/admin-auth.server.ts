@@ -1,4 +1,10 @@
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import {
+  navKeysForRole,
+  parseAdminRole,
+  type AdminNavKey,
+  type AdminRole,
+} from "@/lib/admin-roles";
 
 const COOKIE_NAME = "admin_session";
 const SESSION_TTL_MS = 1000 * 60 * 60 * 12; // 12 hours
@@ -44,6 +50,8 @@ export function verifyPassword(password: string, stored: string) {
 
 type SessionPayload = {
   sub: string;
+  role?: AdminRole;
+  pages?: AdminNavKey[];
   exp: number;
 };
 
@@ -73,9 +81,15 @@ function verifyToken(token: string): SessionPayload | null {
   }
 }
 
-export function createSessionCookie(username: string) {
+export function createSessionCookie(
+  username: string,
+  role: AdminRole,
+  pages?: readonly AdminNavKey[],
+) {
   const token = sign({
     sub: username,
+    role,
+    pages: pages?.length ? [...pages] : [...navKeysForRole(role)],
     exp: Date.now() + SESSION_TTL_MS,
   });
   const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
@@ -103,7 +117,34 @@ export function requireAdminSession(request: Request) {
   if (!session) {
     return { ok: false as const, response: json({ error: "Unauthorized" }, 401) };
   }
-  return { ok: true as const, session };
+  const role = parseAdminRole(session.role) ?? "admin";
+  const pages =
+    session.pages?.length ? session.pages : [...navKeysForRole(role)];
+  return { ok: true as const, session: { ...session, role, pages } };
+}
+
+export function requireAdminRole(request: Request, allowed: AdminRole[]) {
+  const auth = requireAdminSession(request);
+  if (!auth.ok) return auth;
+  if (!allowed.includes(auth.session.role)) {
+    return {
+      ok: false as const,
+      response: json({ error: "Forbidden" }, 403),
+    };
+  }
+  return auth;
+}
+
+export function requireAdminPage(request: Request, key: AdminNavKey) {
+  const auth = requireAdminSession(request);
+  if (!auth.ok) return auth;
+  if (!auth.session.pages.includes(key)) {
+    return {
+      ok: false as const,
+      response: json({ error: "Forbidden" }, 403),
+    };
+  }
+  return auth;
 }
 
 export function json(

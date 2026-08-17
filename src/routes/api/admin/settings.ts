@@ -1,13 +1,23 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { json, requireAdminSession } from "@/lib/admin-auth.server";
+import { json, requireAdminPage } from "@/lib/admin-auth.server";
 import { parseImageDataUrl, uploadPrivateImageAtPath } from "@/lib/image-upload";
 import {
+  getAdminUsername,
   listPublicSettings,
   normalizeBoothPrintBaseUrl,
   setSetting,
   updateAdminPassword,
 } from "@/lib/settings.server";
+import {
+  saveStaffUsersFromInput,
+  type StaffUserWriteInput,
+} from "@/lib/staff-users.server";
+import {
+  parseAdminRole,
+  type AdminNavKey,
+  type AdminRole,
+} from "@/lib/admin-roles";
 
 async function uploadMallLogo(raw: unknown) {
   const parsed = parseImageDataUrl(raw, "Doha Mall logo");
@@ -49,10 +59,14 @@ export const Route = createFileRoute("/api/admin/settings")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const auth = requireAdminSession(request);
+        const auth = requireAdminPage(request, "settings");
         if (!auth.ok) return auth.response;
         try {
           const settings = await listPublicSettings();
+          if (auth.session.role !== "admin") {
+            const { staff_users: _staffUsers, ...rest } = settings;
+            return json(rest);
+          }
           return json(settings);
         } catch (e) {
           const message = e instanceof Error ? e.message : String(e);
@@ -60,7 +74,7 @@ export const Route = createFileRoute("/api/admin/settings")({
         }
       },
       PUT: async ({ request }) => {
-        const auth = requireAdminSession(request);
+        const auth = requireAdminPage(request, "settings");
         if (!auth.ok) return auth.response;
 
         try {
@@ -74,6 +88,13 @@ export const Route = createFileRoute("/api/admin/settings")({
             booth_print_base_url?: string;
             doha_mall_logo_image?: string;
             clear_doha_mall_logo?: boolean;
+            staff_users?: Array<{
+              id?: string;
+              username?: string;
+              password?: string;
+              role?: AdminRole;
+              pages?: AdminNavKey[];
+            }>;
           };
 
           if (typeof body.event_name === "string") {
@@ -152,6 +173,39 @@ export const Route = createFileRoute("/api/admin/settings")({
           } else if (body.doha_mall_logo_image) {
             const logo = await uploadMallLogo(body.doha_mall_logo_image);
             if ("error" in logo) return json({ error: logo.error }, 502);
+          }
+
+          if (Array.isArray(body.staff_users)) {
+            if (auth.session.role !== "admin") {
+              return json(
+                { error: "Only the admin account can manage staff logins" },
+                403,
+              );
+            }
+            const inputs: StaffUserWriteInput[] = [];
+            for (const row of body.staff_users) {
+              const role = parseAdminRole(row.role);
+              if (!role) {
+                return json({ error: "Each staff user needs a valid role" }, 400);
+              }
+              inputs.push({
+                id: typeof row.id === "string" ? row.id : undefined,
+                username: typeof row.username === "string" ? row.username : "",
+                password:
+                  typeof row.password === "string" && row.password
+                    ? row.password
+                    : undefined,
+                role,
+                pages: Array.isArray(row.pages) ? row.pages : undefined,
+              });
+            }
+            const saved = await saveStaffUsersFromInput(
+              inputs,
+              await getAdminUsername(),
+            );
+            if ("error" in saved) {
+              return json({ error: saved.error }, 400);
+            }
           }
 
           const settings = await listPublicSettings();

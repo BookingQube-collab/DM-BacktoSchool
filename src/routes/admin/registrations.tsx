@@ -7,6 +7,7 @@ import {
   NamedCountDonutChart,
   StoreValueBarChart,
 } from "@/components/admin/AdminCharts";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -97,8 +98,8 @@ type DeleteDialog =
   | { type: "bulk"; scope: "filter" | "all" }
   | null;
 
-const selectClass =
-  "flex h-9 min-w-40 rounded-md border border-input bg-transparent px-3 py-1 text-sm";
+const filterPickerClass = "h-9 min-w-40 rounded-md px-3 text-sm";
+const editPickerClass = "h-9 w-full rounded-md px-3 text-sm";
 
 function AdminRegistrationsPage() {
   const { t } = useI18n();
@@ -374,6 +375,27 @@ function AdminRegistrationsPage() {
       storeId,
   );
 
+  const storeFilterOptions = [
+    { value: "", label: t("regAllStores") },
+    ...stores.map((s) => ({ value: s.id, label: s.name })),
+  ];
+  const nationalityFilterOptions = [
+    { value: "", label: t("regAllNationalities") },
+    ...nationalities.map((n) => ({ value: n, label: n })),
+  ];
+  const zoneFilterOptions = [
+    { value: "", label: t("regAllZones") },
+    ...zones.map((z) => ({ value: z, label: z })),
+  ];
+  const editStoreSelectOptions = editStoreOptions.map((s) => ({
+    value: s.id,
+    label: s.name,
+  }));
+  const editNationalitySelectOptions = editNationalityOptions.map((name) => ({
+    value: name,
+    label: name,
+  }));
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -437,54 +459,45 @@ function AdminRegistrationsPage() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="store">{t("commonStore")}</Label>
-            <select
+            <SearchableSelect
               id="store"
               value={storeId}
-              onChange={(e) => setStoreId(e.target.value)}
-              className={selectClass}
-            >
-              <option value="">{t("regAllStores")}</option>
-              {stores.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
+              onChange={setStoreId}
+              options={storeFilterOptions}
+              placeholder={t("regAllStores")}
+              searchPlaceholder={t("regSearchStore")}
+              emptyText={t("commonNoResults")}
+              className={filterPickerClass}
+            />
           </div>
         </div>
 
         <div className="flex flex-wrap items-end gap-3">
           <div className="space-y-2">
             <Label htmlFor="nationality">{t("commonNationality")}</Label>
-            <select
+            <SearchableSelect
               id="nationality"
               value={nationality}
-              onChange={(e) => setNationality(e.target.value)}
-              className={selectClass}
-            >
-              <option value="">{t("regAllNationalities")}</option>
-              {nationalities.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
+              onChange={setNationality}
+              options={nationalityFilterOptions}
+              placeholder={t("regAllNationalities")}
+              searchPlaceholder={t("registerSearchNationality")}
+              emptyText={t("commonNoResults")}
+              className={filterPickerClass}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="zone">{t("commonZone")}</Label>
-            <select
+            <SearchableSelect
               id="zone"
               value={zone}
-              onChange={(e) => setZone(e.target.value)}
-              className={selectClass}
-            >
-              <option value="">{t("regAllZones")}</option>
-              {zones.map((z) => (
-                <option key={z} value={z}>
-                  {z}
-                </option>
-              ))}
-            </select>
+              onChange={setZone}
+              options={zoneFilterOptions}
+              placeholder={t("regAllZones")}
+              searchPlaceholder={t("regSearchZone")}
+              emptyText={t("commonNoResults")}
+              className={filterPickerClass}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="min_value">{t("regMinValue")}</Label>
@@ -764,19 +777,17 @@ function AdminRegistrationsPage() {
                 <Label htmlFor="edit_nationality">
                   {t("commonNationality")}
                 </Label>
-                <select
+                <SearchableSelect
                   id="edit_nationality"
                   value={editForm.nationality}
-                  onChange={(e) => updateEdit("nationality", e.target.value)}
-                  className={`${selectClass} w-full`}
-                >
-                  <option value="">{t("registerSelectNationality")}</option>
-                  {editNationalityOptions.map((name) => (
-                    <option key={name} value={name}>
-                      {name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(name) => updateEdit("nationality", name)}
+                  options={editNationalitySelectOptions}
+                  placeholder={t("registerSelectNationality")}
+                  searchPlaceholder={t("registerSearchNationality")}
+                  emptyText={t("registerNoNationality")}
+                  className={editPickerClass}
+                  modal
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit_zone">{t("registerAddressZone")}</Label>
@@ -788,19 +799,17 @@ function AdminRegistrationsPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit_store">{t("commonStore")}</Label>
-                <select
+                <SearchableSelect
                   id="edit_store"
                   value={editForm.company_id}
-                  onChange={(e) => updateEdit("company_id", e.target.value)}
-                  className={`${selectClass} w-full`}
-                >
-                  <option value="">{t("registerErrSelectStore")}</option>
-                  {editStoreOptions.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(id) => updateEdit("company_id", id)}
+                  options={editStoreSelectOptions}
+                  placeholder={t("registerErrSelectStore")}
+                  searchPlaceholder={t("regSearchStore")}
+                  emptyText={t("commonNoResults")}
+                  className={editPickerClass}
+                  modal
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit_value">{t("registerTxnValue")}</Label>
