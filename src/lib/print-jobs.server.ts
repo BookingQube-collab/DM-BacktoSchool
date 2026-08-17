@@ -50,6 +50,26 @@ export async function getPrintJob(id: string): Promise<PrintJob | null> {
   return (data as PrintJob | null) ?? null;
 }
 
+/** Re-queue jobs left in "printing" after a worker crash / hung IPP. */
+const STALE_PRINTING_MS = 120_000;
+
+export async function reclaimStalePrintJobs(): Promise<number> {
+  const cutoff = new Date(Date.now() - STALE_PRINTING_MS).toISOString();
+  const { data, error } = await supabaseAdmin
+    .from("print_jobs")
+    .update({
+      status: "pending",
+      error: "reclaimed after stall",
+      updated_at: nowIso(),
+    })
+    .eq("status", "printing")
+    .lt("updated_at", cutoff)
+    .select("id");
+
+  if (error) throw new Error(error.message);
+  return data?.length ?? 0;
+}
+
 /** Claim the oldest pending job (optimistic lock via status=pending filter). */
 export async function claimNextPrintJob(): Promise<PrintJob | null> {
   const { data: pending, error: listError } = await supabaseAdmin

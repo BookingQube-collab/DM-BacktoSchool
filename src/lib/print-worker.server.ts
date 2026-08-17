@@ -6,6 +6,7 @@ import {
   claimNextPrintJob,
   markPrintJobDone,
   markPrintJobFailed,
+  reclaimStalePrintJobs,
 } from "@/lib/print-jobs.server";
 import {
   fetchPrintableImageBytes,
@@ -14,9 +15,27 @@ import {
 } from "@/lib/print.server";
 
 const POLL_MS = 2_500;
+/** Must finish before the tablet's ~90s poll so guests see done/failed, not a hang. */
+const JOB_TIMEOUT_MS = 70_000;
 
 let started = false;
 let ticking = false;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string) {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      },
+    );
+  });
+}
 
 async function processOneJob() {
   const job = await claimNextPrintJob();
@@ -24,10 +43,16 @@ async function processOneJob() {
 
   console.log(`[print-worker] printing job ${job.id}`);
   try {
-    const printerName = await resolvePrinterName();
-    await printPostcardImageBytes(
-      await fetchPrintableImageBytes(job.image_url),
-      printerName,
+    await withTimeout(
+      (async () => {
+        const printerName = await resolvePrinterName();
+        await printPostcardImageBytes(
+          await fetchPrintableImageBytes(job.image_url),
+          printerName,
+        );
+      })(),
+      JOB_TIMEOUT_MS,
+      "Print timed out on the booth PC — check SELPHY power, Wi‑Fi, and paper.",
     );
     await markPrintJobDone(job.id);
     console.log(`[print-worker] done job ${job.id}`);
@@ -46,6 +71,12 @@ async function tick() {
   if (ticking) return;
   ticking = true;
   try {
+    const reclaimed = await reclaimStalePrintJobs();
+    if (reclaimed > 0) {
+      console.warn(
+        `[print-worker] reclaimed ${reclaimed} stalled printing job(s)`,
+      );
+    }
     // Drain a few pending jobs per tick so a backlog clears without blocking forever.
     for (let i = 0; i < 3; i++) {
       await processOneJob();

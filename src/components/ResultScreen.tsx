@@ -12,7 +12,7 @@ const SELPHY_PRINTER_HINT = "Canon SELPHY CP1500";
  * Booth `/api/print` can take ~40s on SELPHY Wi‑Fi (IPP ack while printing).
  * Queue + worker can also take a few poll cycles — keep above the 60s overlay.
  */
-const SILENT_PRINT_TIMEOUT_MS = 75_000;
+const SILENT_PRINT_TIMEOUT_MS = 90_000;
 const PRINT_STATUS_POLL_MS = 2_000;
 /** Kids wait for physical SELPHY output after the job is accepted */
 const DESKTOP_PRINT_COUNTDOWN_SEC = 60;
@@ -39,12 +39,12 @@ function isBoothNetworkPrintError(raw: string): boolean {
 
 function guestPrintError(raw: string, hasBoothUrl: boolean): string {
   const m = raw.toLowerCase();
+  if (/booth worker|print queue|npm run dev/i.test(m)) {
+    return "Print queued but booth PC did not pick it up — keep npm run dev running on the Windows booth PC.";
+  }
   // Ambiguous client wait — do not claim the printer rejected the job.
   if (/taking longer than expected|may still be printing/i.test(m)) {
     return raw.length > 140 ? `${raw.slice(0, 137)}…` : raw;
-  }
-  if (/booth worker|print queue|npm run dev/i.test(m)) {
-    return "Print queued but booth PC did not pick it up — keep npm run dev running on the Windows booth PC.";
   }
   if (isBoothNetworkPrintError(m)) {
     return hasBoothUrl
@@ -104,21 +104,13 @@ function sleep(ms: number) {
 
 async function pollQueuedPrintJob(
   jobId: string,
-  signal: AbortSignal,
 ): Promise<{ printer_name?: string; method?: string }> {
   const deadline = Date.now() + SILENT_PRINT_TIMEOUT_MS;
   while (Date.now() < deadline) {
-    if (signal.aborted) {
-      throw new DOMException("Aborted", "AbortError");
-    }
     await sleep(PRINT_STATUS_POLL_MS);
-    if (signal.aborted) {
-      throw new DOMException("Aborted", "AbortError");
-    }
 
     const res = await fetch(
       `/api/print/status?id=${encodeURIComponent(jobId)}`,
-      { signal },
     );
     let payload: {
       ok?: boolean;
@@ -148,7 +140,7 @@ async function pollQueuedPrintJob(
   }
 
   throw new Error(
-    "Print is taking longer than expected. Check the SELPHY — it may still be printing. If not, ensure npm run dev is running on the booth PC, then retry.",
+    "Print queued but booth PC did not pick it up — keep npm run dev running on the Windows booth PC.",
   );
 }
 
@@ -192,7 +184,8 @@ async function silentPrintApi(
     }
 
     if (payload.queued && payload.jobId) {
-      return await pollQueuedPrintJob(payload.jobId, controller.signal);
+      window.clearTimeout(timer);
+      return await pollQueuedPrintJob(payload.jobId);
     }
 
     // Server accepted / printed immediately — never treat as "not ready".
