@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { PrintCountdownOverlay } from "@/components/PrintCountdownOverlay";
+import { guestPrintError, silentPrintApi } from "@/lib/print-client";
 import type { Profession } from "@/lib/professions";
 import { localizedProfessionTitle } from "@/lib/professions";
 import { useI18n } from "@/lib/i18n";
 import { CareerReaction } from "./CareerReaction";
 import { FutureIdCard } from "./FutureIdCard";
 
-/** Kids wait for physical SELPHY output after Android accepts the job */
+/** Canon SELPHY CP1500 postcard (KP/RP) — landscape 148×100 mm / 6×4" */
+const SELPHY_PRINTER_HINT = "Canon SELPHY CP1500";
+/** Kids wait for physical SELPHY output after the job is accepted */
 const DESKTOP_PRINT_COUNTDOWN_SEC = 60;
 
 type Props = {
@@ -18,6 +22,7 @@ type Props = {
 type Branding = {
   doha_mall_logo_url?: string;
   printer_name?: string;
+  booth_print_base_url?: string;
 };
 
 type PrintStatus = "idle" | "printing" | "done" | "error";
@@ -135,7 +140,6 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
     toast.success(t("resultToastSent"), {
       description: t("resultToastSentDesc"),
     });
-    // Same path as "PICK ANOTHER DREAM JOB!" → job selection (JobGrid).
     onRestart();
   };
 
@@ -150,6 +154,8 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
       return;
     }
 
+    const printerName = branding.printer_name?.trim() || SELPHY_PRINTER_HINT;
+    const boothPrintBaseUrl = branding.booth_print_base_url?.trim() || "";
     const generation = ++printGenerationRef.current;
     const stillCurrent = () =>
       mountedRef.current && printGenerationRef.current === generation;
@@ -158,10 +164,8 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
     setPrintStatus("printing");
 
     try {
-      // Tablet / Vercel: no booth PC. Open Android print sheet in this tap
-      // (must stay synchronous — any await before print() loses the gesture).
       const countdownDone = startPrintCountdown();
-      window.print();
+      await silentPrintApi(imageUrl, printerName, boothPrintBaseUrl);
       if (!stillCurrent()) return;
       await countdownDone;
       finishPrintSuccess(stillCurrent);
@@ -169,11 +173,10 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
       console.error(e);
       if (!stillCurrent()) return;
       dismissPrintOverlay();
-      const raw =
-        e instanceof Error ? e.message : t("resultPrintGeneric");
+      const raw = e instanceof Error ? e.message : t("resultPrintGeneric");
       setPrintStatus("error");
       toast.error(t("resultPrintFailed"), {
-        description: raw,
+        description: guestPrintError(raw),
         duration: 8000,
       });
       scheduleStatusIdle(3000);
@@ -199,11 +202,8 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
         <CareerReaction career={profession} onComplete={dismissBeat} />
       )}
 
-      {/* Full-bleed photo for the Android/system print sheet (SELPHY postcard). */}
-      <img src={imageUrl} alt="" className="print-photo" aria-hidden />
-
       <div className="mx-auto flex max-w-3xl flex-col items-center gap-8">
-        <div className="text-center print:hidden">
+        <div className="text-center">
           <p className="font-display text-sm uppercase tracking-[0.3em] text-accent">
             {t("resultMeetFuture")}
           </p>
@@ -214,15 +214,13 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
           </h2>
         </div>
 
-        <div className="print:hidden">
-          <FutureIdCard
-            profession={profession}
-            imageUrl={imageUrl}
-            mallLogoUrl={branding.doha_mall_logo_url || null}
-          />
-        </div>
+        <FutureIdCard
+          profession={profession}
+          imageUrl={imageUrl}
+          mallLogoUrl={branding.doha_mall_logo_url || null}
+        />
 
-        <div className="flex w-full max-w-md flex-col gap-3 print:hidden">
+        <div className="flex w-full max-w-md flex-col gap-3">
           <button
             type="button"
             onClick={() => void handlePrint()}
@@ -242,32 +240,7 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
         </div>
       </div>
 
-      {showPrintOverlay && (
-        <div
-          className="fixed inset-0 z-[200] flex items-center justify-center bg-[oklch(0.16_0.06_285_/0.82)] px-6 backdrop-blur-md print:hidden"
-          role="status"
-          aria-live="polite"
-          aria-busy="true"
-        >
-          <div className="flex max-w-md flex-col items-center text-center">
-            <p className="font-display text-sm uppercase tracking-[0.35em] text-accent">
-              {t("resultPrinting")}
-            </p>
-            <h3 className="mt-3 font-display text-3xl font-bold text-white md:text-4xl">
-              {t("resultPhotoPrinting")}
-            </h3>
-            <p
-              className="mt-8 font-display text-[7rem] font-bold leading-none tabular-nums text-primary drop-shadow-sm md:text-[8.5rem]"
-              aria-label={t("resultSecondsLeft", { count: countdownSec })}
-            >
-              {countdownSec}
-            </p>
-            <p className="mt-4 font-display text-base text-white/75 md:text-lg">
-              {t("resultHangTight")}
-            </p>
-          </div>
-        </div>
-      )}
+      {showPrintOverlay ? <PrintCountdownOverlay seconds={countdownSec} /> : null}
     </div>
   );
 }

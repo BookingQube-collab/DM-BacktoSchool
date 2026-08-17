@@ -399,9 +399,12 @@ function AdminSettingsPage() {
               autoComplete="off"
             />
             <p className="text-xs text-muted-foreground">
-              Guest Print is from the Android tablet browser on the Vercel
-              site — no Windows PC. Tablet and SELPHY must be on the same
-              Wi‑Fi. This URL is unused for that path.
+              Optional for tablets on the HTTPS Vercel site — Print uses a
+              Supabase job queue (no mixed-content block). Run{" "}
+              <code className="rounded bg-muted px-1">npm run booth:install</code>{" "}
+              once on the Windows booth PC so printing starts automatically.
+              Use this URL only when guests open the booth on the LAN HTTP site
+              for direct print.
             </p>
           </div>
           {detectedPrinters.length > 0 ? (
@@ -450,15 +453,19 @@ function AdminSettingsPage() {
           ) : null}
           <ol className="list-decimal space-y-1 pl-4 text-xs text-muted-foreground">
             <li>
-              Guests print from the Android tablet (Chrome) on the Vercel
-              site. Same Wi‑Fi as the SELPHY. Print opens Android’s printer
-              list — pick <strong>Canon SELPHY CP1500</strong>, postcard /
-              Hagaki / 4×6, then Print. No Windows PC required.
+              On the Windows PC that stays at the booth, run{" "}
+              <code className="rounded bg-muted px-1">
+                npm run booth:install
+              </code>{" "}
+              once. After that, power it on — Print is silent (countdown only,
+              no Android sheet). Same Wi‑Fi as the SELPHY. Tablets stay on
+              Vercel.
             </li>
             <li>
-              If SELPHY does not appear: install{" "}
-              <strong>Default Print Service</strong> or Canon’s print plugin,
-              keep the printer powered on, and retry Print.
+              Tablets on Vercel (HTTPS) Print via{" "}
+              <code className="rounded bg-muted px-1">/api/print</code> →
+              Supabase queue → booth worker → SELPHY. That prints the full
+              photo (same as before). No Android print dialog.
             </li>
             <li>
               Optional: set <strong>Booth print server URL</strong> if guests

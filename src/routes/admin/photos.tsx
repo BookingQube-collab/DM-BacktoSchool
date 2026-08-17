@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Printer, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { PrintCountdownOverlay } from "@/components/PrintCountdownOverlay";
 import {
   NamedCountDonutChart,
   PhotosByDayChart,
@@ -24,6 +24,7 @@ import type { DayBucket, NamedCount } from "@/lib/admin-charts";
 import { todayISODate } from "@/lib/registration";
 import { professionTitleById } from "@/lib/professions";
 import { useI18n } from "@/lib/i18n";
+import { followPrintPayload, guestPrintError } from "@/lib/print-client";
 
 export const Route = createFileRoute("/admin/photos")({
   component: AdminPhotosPage,
@@ -75,8 +76,59 @@ function AdminPhotosPage() {
   const [reprintErrorById, setReprintErrorById] = useState<
     Record<string, string>
   >({});
-  const [printImageUrl, setPrintImageUrl] = useState("");
-  const printImgRef = useRef<HTMLImageElement>(null);
+  const [reprintPrinterById, setReprintPrinterById] = useState<
+    Record<string, string>
+  >({});
+  const [showPrintOverlay, setShowPrintOverlay] = useState(false);
+  const [countdownSec, setCountdownSec] = useState(60);
+  const countdownIntervalRef = useRef<number | null>(null);
+  const countdownRemainingRef = useRef(0);
+  const countdownResolveRef = useRef<(() => void) | null>(null);
+
+  const clearCountdown = useCallback(() => {
+    if (countdownIntervalRef.current != null) {
+      window.clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+    const resolve = countdownResolveRef.current;
+    countdownResolveRef.current = null;
+    countdownRemainingRef.current = 0;
+    resolve?.();
+  }, []);
+
+  const dismissPrintOverlay = useCallback(() => {
+    clearCountdown();
+    setShowPrintOverlay(false);
+  }, [clearCountdown]);
+
+  const startPrintCountdown = useCallback(() => {
+    clearCountdown();
+    countdownRemainingRef.current = 60;
+    setCountdownSec(60);
+    setShowPrintOverlay(true);
+    const done = new Promise<void>((resolve) => {
+      countdownResolveRef.current = resolve;
+    });
+    countdownIntervalRef.current = window.setInterval(() => {
+      const next = countdownRemainingRef.current - 1;
+      countdownRemainingRef.current = next;
+      setCountdownSec(Math.max(0, next));
+      if (next <= 0) {
+        if (countdownIntervalRef.current != null) {
+          window.clearInterval(countdownIntervalRef.current);
+          countdownIntervalRef.current = null;
+        }
+        const resolve = countdownResolveRef.current;
+        countdownResolveRef.current = null;
+        resolve?.();
+      }
+    }, 1000);
+    return done;
+  }, [clearCountdown]);
+
+  useEffect(() => {
+    return () => clearCountdown();
+  }, [clearCountdown]);
 
   async function load(nextFrom = from, nextTo = to) {
     setLoading(true);
@@ -112,40 +164,59 @@ function AdminPhotosPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function reprint(sessionId: string, imageUrl: string) {
-    if (!imageUrl?.trim()) {
-      setReprintById((prev) => ({ ...prev, [sessionId]: "error" }));
-      setReprintErrorById((prev) => ({
-        ...prev,
-        [sessionId]: t("resultPhotoNotReady"),
-      }));
-      window.setTimeout(() => {
-        setReprintById((prev) => ({ ...prev, [sessionId]: "idle" }));
-      }, 8000);
-      return;
-    }
-
+  async function reprint(sessionId: string) {
     setReprintById((prev) => ({ ...prev, [sessionId]: "printing" }));
     setReprintErrorById((prev) => {
       const next = { ...prev };
       delete next[sessionId];
       return next;
     });
-
-    setPrintImageUrl(imageUrl);
-    const img = printImgRef.current;
-    if (img && img.getAttribute("src") !== imageUrl) {
-      img.src = imageUrl;
+    setReprintPrinterById((prev) => {
+      const next = { ...prev };
+      delete next[sessionId];
+      return next;
+    });
+    const countdownDone = startPrintCountdown();
+    try {
+      const res = await fetch("/api/admin/reprint", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        printer_name?: string;
+        queued?: boolean;
+        jobId?: string;
+      };
+      if (!res.ok) {
+        throw new Error(data.error || `Reprint failed (${res.status})`);
+      }
+      await followPrintPayload(data);
+      await countdownDone;
+      if (data.printer_name) {
+        setReprintPrinterById((prev) => ({
+          ...prev,
+          [sessionId]: data.printer_name!,
+        }));
+      }
+      setShowPrintOverlay(false);
+      setReprintById((prev) => ({ ...prev, [sessionId]: "done" }));
+      window.setTimeout(() => {
+        setReprintById((prev) => ({ ...prev, [sessionId]: "idle" }));
+      }, 3500);
+    } catch (e) {
+      dismissPrintOverlay();
+      const message = guestPrintError(
+        e instanceof Error ? e.message : t("photosReachFail"),
+      );
+      setReprintById((prev) => ({ ...prev, [sessionId]: "error" }));
+      setReprintErrorById((prev) => ({ ...prev, [sessionId]: message }));
+      window.setTimeout(() => {
+        setReprintById((prev) => ({ ...prev, [sessionId]: "idle" }));
+      }, 8000);
     }
-
-    // Same tablet path as guest Print — no booth PC. Stay synchronous so
-    // Android Chrome keeps the tap gesture for the system print sheet.
-    window.print();
-
-    setReprintById((prev) => ({ ...prev, [sessionId]: "done" }));
-    window.setTimeout(() => {
-      setReprintById((prev) => ({ ...prev, [sessionId]: "idle" }));
-    }, 3500);
   }
 
   function reprintLabel(state: ReprintState | undefined) {
@@ -158,9 +229,12 @@ function AdminPhotosPage() {
   function reprintStatusText(
     state: ReprintState,
     err: string | undefined,
+    printer: string | undefined,
   ): string | null {
     if (state === "printing") return t("photosSending");
-    if (state === "done") return t("photosSentPrinter");
+    if (state === "done") {
+      return printer ? t("photosSentTo", { printer }) : t("photosSentPrinter");
+    }
     if (err) return err;
     return null;
   }
@@ -211,19 +285,6 @@ function AdminPhotosPage() {
   }
 
   return (
-    <>
-      {typeof document !== "undefined"
-        ? createPortal(
-            <img
-              ref={printImgRef}
-              src={printImageUrl || undefined}
-              alt=""
-              className="print-photo"
-              aria-hidden
-            />,
-            document.body,
-          )
-        : null}
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -310,7 +371,12 @@ function AdminPhotosPage() {
               rows.map((row) => {
                 const state = reprintById[row.id] ?? "idle";
                 const reprintErr = reprintErrorById[row.id];
-                const statusText = reprintStatusText(state, reprintErr);
+                const reprintPrinter = reprintPrinterById[row.id];
+                const statusText = reprintStatusText(
+                  state,
+                  reprintErr,
+                  reprintPrinter,
+                );
                 return (
                   <tr key={row.id} className="border-t border-border align-top">
                     <td className="px-3 py-3">
@@ -345,8 +411,8 @@ function AdminPhotosPage() {
                           type="button"
                           size="sm"
                           variant={state === "error" ? "destructive" : "default"}
-                          disabled={state === "printing"}
-                          onClick={() => reprint(row.id, row.image_url)}
+                          disabled={state === "printing" || showPrintOverlay}
+                          onClick={() => void reprint(row.id)}
                         >
                           <Printer className="size-4" />
                           {reprintLabel(state)}
@@ -464,7 +530,7 @@ function AdminPhotosPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {showPrintOverlay ? <PrintCountdownOverlay seconds={countdownSec} /> : null}
     </div>
-    </>
   );
 }
