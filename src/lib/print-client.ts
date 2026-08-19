@@ -5,6 +5,13 @@ const PRINT_STATUS_POLL_MS = 2_000;
 /** Fail fast if the booth PC has not claimed the job (heartbeat missing). */
 const WORKER_MISS_MS = 12_000;
 
+const PRINT_ERR_BOOTH_OFF =
+  "Print queued but booth PC did not pick it up — keep the Windows booth PC powered on.";
+const PRINT_ERR_STILL_PRINTING =
+  "Print is taking longer than expected. Check the SELPHY — it may still be printing. If not, retry.";
+const PRINT_ERR_QUEUE_FAILED =
+  "Print queue failed — check SELPHY and that the Windows booth PC is powered on.";
+
 type PrintProgress = {
   onAccepted?: () => void;
 };
@@ -17,8 +24,12 @@ function sleep(ms: number) {
 
 export function guestPrintError(raw: string): string {
   const m = raw.toLowerCase();
-  if (/booth worker|print queue|npm run dev|booth print service/i.test(m)) {
-    return "Print queued but booth PC did not pick it up — keep the Windows booth PC powered on.";
+  if (
+    /did not pick it up|booth worker|npm run booth|npm run dev|booth print service/i.test(
+      m,
+    )
+  ) {
+    return PRINT_ERR_BOOTH_OFF;
   }
   if (/taking longer than expected|may still be printing/i.test(m)) {
     return raw.length > 140 ? `${raw.slice(0, 137)}…` : raw;
@@ -69,15 +80,14 @@ export async function pollQueuedPrintJob(
   const started = Date.now();
   const deadline = started + SILENT_PRINT_TIMEOUT_MS;
   let accepted = false;
+  let lastStatus = "";
   const markAccepted = () => {
     if (accepted) return;
     accepted = true;
     progress?.onAccepted?.();
   };
 
-  while (Date.now() < deadline) {
-    await sleep(PRINT_STATUS_POLL_MS);
-
+  while (true) {
     const res = await fetch(
       `/api/print/status?id=${encodeURIComponent(jobId)}`,
     );
@@ -97,6 +107,8 @@ export async function pollQueuedPrintJob(
       throw new Error(payload.error || `Print status failed (${res.status})`);
     }
 
+    lastStatus = payload.status || lastStatus;
+
     if (payload.status === "done") {
       markAccepted();
       return;
@@ -105,25 +117,22 @@ export async function pollQueuedPrintJob(
       markAccepted();
     }
     if (payload.status === "failed") {
-      throw new Error(
-        payload.error ||
-          "Print queue failed — check SELPHY and that the Windows booth PC is powered on.",
-      );
+      throw new Error(payload.error || PRINT_ERR_QUEUE_FAILED);
     }
-    if (
-      payload.status === "pending" &&
-      payload.worker_alive === false &&
-      Date.now() - started >= WORKER_MISS_MS
-    ) {
-      throw new Error(
-        "Print queued but booth PC did not pick it up — keep the Windows booth PC powered on.",
-      );
+    if (payload.status === "pending" && payload.worker_alive === false) {
+      if (Date.now() - started >= WORKER_MISS_MS) {
+        throw new Error(PRINT_ERR_BOOTH_OFF);
+      }
     }
+
+    if (Date.now() >= deadline) break;
+    await sleep(PRINT_STATUS_POLL_MS);
   }
 
-  throw new Error(
-    "Print queued but booth PC did not pick it up — keep the Windows booth PC powered on.",
-  );
+  if (lastStatus === "printing") {
+    throw new Error(PRINT_ERR_STILL_PRINTING);
+  }
+  throw new Error(PRINT_ERR_BOOTH_OFF);
 }
 
 type PrintPayload = {
@@ -132,6 +141,7 @@ type PrintPayload = {
   queued?: boolean;
   jobId?: string;
   printer_name?: string;
+  worker_alive?: boolean;
 };
 
 export async function followPrintPayload(
@@ -185,9 +195,7 @@ export async function silentPrintApi(
     await followPrintPayload(payload, progress);
   } catch (e) {
     if (e instanceof DOMException && e.name === "AbortError") {
-      throw new Error(
-        "Print is taking longer than expected. Check the SELPHY — it may still be printing. If not, retry.",
-      );
+      throw new Error(PRINT_ERR_STILL_PRINTING);
     }
     throw e instanceof Error ? e : new Error(String(e));
   } finally {

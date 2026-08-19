@@ -184,7 +184,9 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
     } catch (e) {
       console.error(e);
       if (!stillCurrent()) return;
+      // Close overlay immediately — never leave guests on a stuck 0 / spinner.
       dismissPrintOverlay();
+      setPrintPhase("sending");
       const raw = e instanceof Error ? e.message : t("resultPrintGeneric");
       setPrintStatus("error");
       toast.error(t("resultPrintFailed"), {

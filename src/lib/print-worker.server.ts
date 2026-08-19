@@ -16,17 +16,15 @@ import {
 import { setSetting } from "@/lib/settings.server";
 
 const POLL_MS = 2_500;
+/** Independent of job processing so Vercel fail-fast stays accurate during IPP. */
+const HEARTBEAT_MS = 8_000;
 /** Must finish before the tablet's ~90s poll so guests see done/failed, not a hang. */
 const JOB_TIMEOUT_MS = 70_000;
 
 let started = false;
 let ticking = false;
-let lastHeartbeatAt = 0;
 
 async function writeWorkerHeartbeat() {
-  const now = Date.now();
-  if (now - lastHeartbeatAt < 8_000) return;
-  lastHeartbeatAt = now;
   try {
     await setSetting("print_worker_heartbeat", new Date().toISOString());
   } catch (err) {
@@ -84,7 +82,6 @@ async function tick() {
   if (ticking) return;
   ticking = true;
   try {
-    await writeWorkerHeartbeat();
     const reclaimed = await reclaimStalePrintJobs();
     if (reclaimed > 0) {
       console.warn(
@@ -124,6 +121,10 @@ export function startPrintWorker() {
   console.log(
     `[print-worker] polling print_jobs every ${POLL_MS}ms (keep the booth PC on)`,
   );
+  void writeWorkerHeartbeat();
+  setInterval(() => {
+    void writeWorkerHeartbeat();
+  }, HEARTBEAT_MS);
   void tick();
   setInterval(() => {
     void tick();

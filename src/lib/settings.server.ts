@@ -52,6 +52,17 @@ export async function setSetting(key: SettingKey, value: string) {
   if (error) throw new Error(error.message);
 }
 
+/** Vercel /api/print/status fail-fast: booth worker writes this every ~8s. */
+const PRINT_WORKER_HEARTBEAT_MAX_AGE_MS = 45_000;
+
+export async function isPrintWorkerAlive(): Promise<boolean> {
+  const beat = (await getSetting("print_worker_heartbeat")).trim();
+  const beatMs = beat ? Date.parse(beat) : Number.NaN;
+  if (!Number.isFinite(beatMs)) return false;
+  const age = Date.now() - beatMs;
+  return age < PRINT_WORKER_HEARTBEAT_MAX_AGE_MS && age > -120_000;
+}
+
 export async function getAdminUsername() {
   const fromDb = await getSetting("admin_username");
   return fromDb || process.env.ADMIN_USERNAME || "admin";

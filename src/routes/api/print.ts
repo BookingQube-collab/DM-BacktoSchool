@@ -78,12 +78,15 @@ export const Route = createFileRoute("/api/print")({
               );
             }
             const job = await enqueuePrintJob(imageUrl);
+            const { isPrintWorkerAlive } = await import("@/lib/settings.server");
+            const worker_alive = await isPrintWorkerAlive();
             return json(
               {
                 ok: true,
                 queued: true,
                 jobId: job.id,
                 method: "queue",
+                worker_alive,
               },
               200,
               cors,

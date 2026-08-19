@@ -12,6 +12,7 @@ export function PrintCountdownOverlay({
   const { t } = useI18n();
   const sending = phase === "sending";
   const finishing = !sending && seconds <= 0;
+  const showSpinner = sending || finishing;
 
   return (
     <div
@@ -31,7 +32,7 @@ export function PrintCountdownOverlay({
               ? t("resultPrintFinishing")
               : t("resultPhotoPrinting")}
         </h3>
-        {sending ? (
+        {showSpinner ? (
           <div
             className="mt-10 h-16 w-16 animate-spin rounded-full border-4 border-white/25 border-t-primary"
             aria-hidden

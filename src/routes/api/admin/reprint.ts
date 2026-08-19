@@ -74,6 +74,8 @@ export const Route = createFileRoute("/api/admin/reprint")({
               return json({ error: "Photo session has no image to reprint" }, 400);
             }
             const job = await enqueuePrintJob(imageUrl);
+            const { isPrintWorkerAlive } = await import("@/lib/settings.server");
+            const worker_alive = await isPrintWorkerAlive();
             return json({
               ok: true,
               queued: true,
@@ -81,6 +83,7 @@ export const Route = createFileRoute("/api/admin/reprint")({
               session_id: session.id,
               profession_title: session.profession_title,
               method: "queue",
+              worker_alive,
             });
           }
 
