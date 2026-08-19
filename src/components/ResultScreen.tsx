@@ -34,6 +34,9 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
   const [printStatus, setPrintStatus] = useState<PrintStatus>("idle");
   const [showPrintOverlay, setShowPrintOverlay] = useState(false);
   const [countdownSec, setCountdownSec] = useState(DESKTOP_PRINT_COUNTDOWN_SEC);
+  const [printPhase, setPrintPhase] = useState<"sending" | "printing">(
+    "sending",
+  );
   const dismissBeat = useCallback(() => setShowBeat(false), []);
 
   const printBusyRef = useRef(false);
@@ -65,6 +68,7 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
     clearCountdown();
     countdownRemainingRef.current = DESKTOP_PRINT_COUNTDOWN_SEC;
     setCountdownSec(DESKTOP_PRINT_COUNTDOWN_SEC);
+    setPrintPhase("printing");
     setShowPrintOverlay(true);
 
     const done = new Promise<void>((resolve) => {
@@ -162,10 +166,18 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
 
     printBusyRef.current = true;
     setPrintStatus("printing");
+    setPrintPhase("sending");
+    setShowPrintOverlay(true);
+    setCountdownSec(DESKTOP_PRINT_COUNTDOWN_SEC);
 
     try {
-      const countdownDone = startPrintCountdown();
-      await silentPrintApi(imageUrl, printerName, boothPrintBaseUrl);
+      let countdownDone: Promise<void> = Promise.resolve();
+      await silentPrintApi(imageUrl, printerName, boothPrintBaseUrl, {
+        onAccepted: () => {
+          if (!stillCurrent()) return;
+          countdownDone = startPrintCountdown();
+        },
+      });
       if (!stillCurrent()) return;
       await countdownDone;
       finishPrintSuccess(stillCurrent);
@@ -240,7 +252,9 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
         </div>
       </div>
 
-      {showPrintOverlay ? <PrintCountdownOverlay seconds={countdownSec} /> : null}
+      {showPrintOverlay ? (
+        <PrintCountdownOverlay seconds={countdownSec} phase={printPhase} />
+      ) : null}
     </div>
   );
 }

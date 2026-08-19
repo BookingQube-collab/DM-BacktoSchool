@@ -27,7 +27,8 @@ export type SettingKey =
   | "doha_mall_logo_url"
   | "printer_name"
   | "printer_host"
-  | "booth_print_base_url";
+  | "booth_print_base_url"
+  | "print_worker_heartbeat";
 
 const SECRET_KEYS = new Set<SettingKey>(["freepik_api_key", "admin_password_hash"]);
 

@@ -3,7 +3,7 @@ import http from "node:http";
 import https from "node:https";
 import net from "node:net";
 import { mkdtemp, readFile, unlink, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { networkInterfaces, tmpdir } from "node:os";
 import { join } from "node:path";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getSetting, resolveDohaMallLogoUrl } from "@/lib/settings.server";
@@ -1315,6 +1315,79 @@ function probeTcpPort(
   });
 }
 
+function ipv4Prefix(ip: string): string | null {
+  if (!isLikelyLanIpv4(ip)) return null;
+  const parts = ip.split(".");
+  if (parts[0] === "169") return null;
+  return `${parts[0]}.${parts[1]}.${parts[2]}`;
+}
+
+function localLanIpv4Prefixes(): string[] {
+  const prefixes = new Set<string>();
+  for (const addrs of Object.values(networkInterfaces())) {
+    for (const a of addrs ?? []) {
+      const family = a.family as string | number;
+      if ((family !== "IPv4" && family !== 4) || a.internal) continue;
+      const prefix = ipv4Prefix(a.address);
+      if (prefix) prefixes.add(prefix);
+    }
+  }
+  return [...prefixes];
+}
+
+function localIpv4Set(): Set<string> {
+  const self = new Set<string>();
+  for (const addrs of Object.values(networkInterfaces())) {
+    for (const a of addrs ?? []) {
+      const family = a.family as string | number;
+      if ((family !== "IPv4" && family !== 4) || a.internal) continue;
+      self.add(a.address);
+    }
+  }
+  return self;
+}
+
+/** Drop Admin Printer IPs from a previous Wi‑Fi / DHCP subnet. */
+function preferredHostIfOnLan(host: string): string {
+  if (!host) return "";
+  if (!isLikelyLanIpv4(host)) return host;
+  const prefixes = localLanIpv4Prefixes();
+  if (!prefixes.length) return host;
+  const prefix = ipv4Prefix(host);
+  return prefix && prefixes.includes(prefix) ? host : "";
+}
+
+/** Last-resort: find anything speaking IPP on the booth PC's current /24. */
+async function scanLocalSubnetIppHosts(): Promise<string[]> {
+  const prefixes = localLanIpv4Prefixes();
+  const self = localIpv4Set();
+  const found: string[] = [];
+  const BATCH = 42;
+  for (const prefix of prefixes) {
+    const hosts: string[] = [];
+    for (let i = 1; i <= 254; i++) {
+      const host = `${prefix}.${i}`;
+      if (self.has(host)) continue;
+      hosts.push(host);
+    }
+    for (let i = 0; i < hosts.length; i += BATCH) {
+      const slice = hosts.slice(i, i + BATCH);
+      const hits = await Promise.all(
+        slice.map(async (host) =>
+          (await probeTcpPort(host, 631, 280)) ? host : null,
+        ),
+      );
+      for (const h of hits) {
+        if (h) found.push(h);
+      }
+    }
+  }
+  if (found.length) {
+    console.log(`[print] IPP :631 hosts on LAN: ${found.join(", ")}`);
+  }
+  return found;
+}
+
 async function firstReachableIppHost(
   hosts: string[],
 ): Promise<string | null> {
@@ -1349,7 +1422,9 @@ export async function resolvePrinterIppEndpoint(
   opts?: { force?: boolean; preferredHost?: string },
 ): Promise<IppEndpoint | null> {
   if (process.platform !== "win32") return null;
-  const preferredHost = normalizePrinterHost(opts?.preferredHost || "");
+  const preferredHost = preferredHostIfOnLan(
+    normalizePrinterHost(opts?.preferredHost || ""),
+  );
   const key = [
     printerName.trim().toLowerCase() || DEFAULT_PRINTER_NAME.toLowerCase(),
     preferredHost || "-",
@@ -1372,9 +1447,8 @@ export async function resolvePrinterIppEndpoint(
         return cached.endpoint;
       }
     } else if (cached.endpoint === null) {
-      // Don't cache-miss past an Admin Printer IP — DHCP / sleep can recover.
-      if (preferredHost) return endpointFromHost(preferredHost);
-      return null;
+      // Brief negative cache only — printer may wake or join Wi‑Fi.
+      if (Date.now() - cached.at < 8_000) return null;
     }
     // Stale cache (printer moved) — rediscover below.
   }
@@ -1500,7 +1574,10 @@ try {
       ...pnpIps,
     ].filter(Boolean);
 
-    const reachable = await firstReachableIppHost(orderedHosts);
+    let reachable = await firstReachableIppHost(orderedHosts);
+    if (!reachable) {
+      reachable = await firstReachableIppHost(await scanLocalSubnetIppHosts());
+    }
     if (reachable) {
       const matchingUrl = pickBestIppUrl(
         urls.filter((u) => {
@@ -1514,7 +1591,7 @@ try {
       );
       const url =
         matchingUrl ||
-        (await probeTcpPort(reachable, 631, 500)
+        ((await probeTcpPort(reachable, 631, 500))
           ? `http://${reachable}:631/ipp/print`
           : `https://${reachable}:443/ipp/print`);
       endpoint = {
@@ -1522,12 +1599,9 @@ try {
         ip: isLikelyLanIpv4(reachable) ? reachable : undefined,
         printerUri: url.replace(/^https:/i, "ipp:").replace(/^http:/i, "ipp:"),
       };
-    } else if (preferredHost) {
-      // Admin set an IP — use it even if probe failed (firewall quirks).
-      endpoint = endpointFromHost(preferredHost);
     }
   } catch {
-    endpoint = preferredHost ? endpointFromHost(preferredHost) : null;
+    endpoint = null;
   }
 
   ippEndpointCache.set(key, { endpoint, at: Date.now() });
@@ -1732,7 +1806,6 @@ async function printPostcardFileBytes(
           if (isIppConnectFailure(ippErr)) {
             const retry = await resolvePrinterIppEndpoint(resolved, {
               force: true,
-              preferredHost: preferredHost || undefined,
             });
             if (retry && retry.url !== endpoint.url) {
               const spoolInfo = await printJpegViaIpp(jpeg, retry);

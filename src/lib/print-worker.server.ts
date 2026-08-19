@@ -13,6 +13,7 @@ import {
   printPostcardImageBytes,
   resolvePrinterName,
 } from "@/lib/print.server";
+import { setSetting } from "@/lib/settings.server";
 
 const POLL_MS = 2_500;
 /** Must finish before the tablet's ~90s poll so guests see done/failed, not a hang. */
@@ -20,6 +21,18 @@ const JOB_TIMEOUT_MS = 70_000;
 
 let started = false;
 let ticking = false;
+let lastHeartbeatAt = 0;
+
+async function writeWorkerHeartbeat() {
+  const now = Date.now();
+  if (now - lastHeartbeatAt < 8_000) return;
+  lastHeartbeatAt = now;
+  try {
+    await setSetting("print_worker_heartbeat", new Date().toISOString());
+  } catch (err) {
+    console.error("[print-worker] heartbeat failed:", err);
+  }
+}
 
 function withTimeout<T>(promise: Promise<T>, ms: number, message: string) {
   return new Promise<T>((resolve, reject) => {
@@ -71,6 +84,7 @@ async function tick() {
   if (ticking) return;
   ticking = true;
   try {
+    await writeWorkerHeartbeat();
     const reclaimed = await reclaimStalePrintJobs();
     if (reclaimed > 0) {
       console.warn(

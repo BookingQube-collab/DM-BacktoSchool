@@ -81,6 +81,9 @@ function AdminPhotosPage() {
   >({});
   const [showPrintOverlay, setShowPrintOverlay] = useState(false);
   const [countdownSec, setCountdownSec] = useState(60);
+  const [printPhase, setPrintPhase] = useState<"sending" | "printing">(
+    "sending",
+  );
   const countdownIntervalRef = useRef<number | null>(null);
   const countdownRemainingRef = useRef(0);
   const countdownResolveRef = useRef<(() => void) | null>(null);
@@ -105,6 +108,7 @@ function AdminPhotosPage() {
     clearCountdown();
     countdownRemainingRef.current = 60;
     setCountdownSec(60);
+    setPrintPhase("printing");
     setShowPrintOverlay(true);
     const done = new Promise<void>((resolve) => {
       countdownResolveRef.current = resolve;
@@ -176,7 +180,10 @@ function AdminPhotosPage() {
       delete next[sessionId];
       return next;
     });
-    const countdownDone = startPrintCountdown();
+    setPrintPhase("sending");
+    setShowPrintOverlay(true);
+    setCountdownSec(60);
+    let countdownDone: Promise<void> = Promise.resolve();
     try {
       const res = await fetch("/api/admin/reprint", {
         method: "POST",
@@ -193,7 +200,11 @@ function AdminPhotosPage() {
       if (!res.ok) {
         throw new Error(data.error || `Reprint failed (${res.status})`);
       }
-      await followPrintPayload(data);
+      await followPrintPayload(data, {
+        onAccepted: () => {
+          countdownDone = startPrintCountdown();
+        },
+      });
       await countdownDone;
       if (data.printer_name) {
         setReprintPrinterById((prev) => ({
@@ -530,7 +541,9 @@ function AdminPhotosPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      {showPrintOverlay ? <PrintCountdownOverlay seconds={countdownSec} /> : null}
+      {showPrintOverlay ? (
+        <PrintCountdownOverlay seconds={countdownSec} phase={printPhase} />
+      ) : null}
     </div>
   );
 }

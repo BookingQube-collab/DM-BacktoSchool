@@ -18,6 +18,12 @@ export const Route = createFileRoute("/api/print/status")({
             return json({ error: "Print job not found" }, 404);
           }
 
+          const { getSetting } = await import("@/lib/settings.server");
+          const beat = (await getSetting("print_worker_heartbeat")).trim();
+          const beatMs = beat ? Date.parse(beat) : Number.NaN;
+          const worker_alive =
+            Number.isFinite(beatMs) && Date.now() - beatMs < 25_000;
+
           return json({
             ok: true,
             id: job.id,
@@ -25,6 +31,7 @@ export const Route = createFileRoute("/api/print/status")({
             error: job.error,
             created_at: job.created_at,
             updated_at: job.updated_at,
+            worker_alive,
           });
         } catch (e) {
           const message = e instanceof Error ? e.message : String(e);
