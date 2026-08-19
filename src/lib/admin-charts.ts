@@ -123,7 +123,7 @@ export function shortDateLabel(isoDate: string) {
 }
 
 export function truncateLabel(label: string, max = 18) {
-  const t = label.trim();
+  const t = (label ?? "").trim();
   if (t.length <= max) return t;
   return `${t.slice(0, max - 1)}…`;
 }

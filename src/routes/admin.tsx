@@ -74,31 +74,35 @@ function AdminLayout() {
     let cancelled = false;
     (async () => {
       setChecking(true);
-      const res = await fetch("/api/admin/auth", { credentials: "include" });
-      if (cancelled) return;
-      if (!res.ok) {
-        navigate({ to: "/admin/login" });
-        return;
+      try {
+        const res = await fetch("/api/admin/auth", { credentials: "include" });
+        if (cancelled) return;
+        if (!res.ok) {
+          navigate({ to: "/admin/login" });
+          return;
+        }
+        const data = (await res.json()) as {
+          username?: string;
+          role?: AdminRole;
+          pages?: AdminNavKey[];
+          displayName?: string;
+          home?: string;
+        };
+        const nextRole =
+          data.role === "operation" || data.role === "dohamall" || data.role === "admin"
+            ? data.role
+            : "admin";
+        const nextPages =
+          Array.isArray(data.pages) && data.pages.length > 0
+            ? data.pages
+            : [...navKeysForRole(nextRole)];
+        setRole(nextRole);
+        setPages(nextPages);
+        setUsername(data.displayName || data.username || "admin");
+        setChecking(false);
+      } catch {
+        if (!cancelled) navigate({ to: "/admin/login" });
       }
-      const data = (await res.json()) as {
-        username?: string;
-        role?: AdminRole;
-        pages?: AdminNavKey[];
-        displayName?: string;
-        home?: string;
-      };
-      const nextRole =
-        data.role === "operation" || data.role === "dohamall" || data.role === "admin"
-          ? data.role
-          : "admin";
-      const nextPages =
-        Array.isArray(data.pages) && data.pages.length > 0
-          ? data.pages
-          : [...navKeysForRole(nextRole)];
-      setRole(nextRole);
-      setPages(nextPages);
-      setUsername(data.displayName || data.username || "admin");
-      setChecking(false);
     })();
 
     return () => {
@@ -124,18 +128,6 @@ function AdminLayout() {
   async function logout() {
     await fetch("/api/admin/auth", { method: "DELETE", credentials: "include" });
     navigate({ to: "/admin/login" });
-  }
-
-  if (isLogin) {
-    return <Outlet />;
-  }
-
-  if (checking) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
-        <p className="font-sans text-muted-foreground">{t("adminChecking")}</p>
-      </div>
-    );
   }
 
   const nav = [
@@ -167,9 +159,23 @@ function AdminLayout() {
   const expandLabel = t("adminExpand");
   const collapseLabel = t("adminCollapse");
 
+  if (isLogin) {
+    return <Outlet />;
+  }
+
   return (
     <AdminSessionContext.Provider value={session}>
-    <div className="flex min-h-screen bg-background text-foreground">
+      {checking ? (
+        <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
+          <p className="font-sans text-muted-foreground">{t("adminChecking")}</p>
+        </div>
+      ) : null}
+      <div
+        className={cn(
+          "flex min-h-screen bg-background text-foreground",
+          checking && "hidden",
+        )}
+      >
       <aside
         className={cn(
           "sticky top-0 z-20 flex h-svh shrink-0 flex-col overflow-hidden border-r border-border bg-secondary/40",
@@ -274,7 +280,7 @@ function AdminLayout() {
       <main className="min-w-0 flex-1 p-6 md:p-8">
         <Outlet />
       </main>
-    </div>
+      </div>
     </AdminSessionContext.Provider>
   );
 }
