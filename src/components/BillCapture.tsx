@@ -126,18 +126,18 @@ export function BillCapture({
 
   if (previewUrl) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 landscape:space-y-3">
         <div className="overflow-hidden rounded-2xl border border-border bg-black/40">
           <img
             src={previewUrl}
             alt={t("billPreviewAlt")}
-            className="mx-auto max-h-[50vh] w-full object-contain"
+            className="mx-auto max-h-[50vh] w-full object-contain landscape:max-h-[min(42dvh,320px)]"
           />
         </div>
         <Button
           type="button"
           variant="secondary"
-          className="h-12 w-full text-base"
+          className="h-12 w-full text-base landscape:h-11"
           onClick={() => {
             onClear?.();
             setError(null);
@@ -150,9 +150,9 @@ export function BillCapture({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 landscape:grid landscape:grid-cols-[minmax(0,1fr)_minmax(12rem,16rem)] landscape:items-stretch landscape:gap-4 landscape:space-y-0">
       {cameraOn ? (
-        <div className="relative aspect-[3/4] max-h-[min(62vh,560px)] w-full overflow-hidden rounded-2xl border border-border bg-black">
+        <div className="relative aspect-[3/4] max-h-[min(62vh,560px)] w-full overflow-hidden rounded-2xl border border-border bg-black landscape:mx-auto landscape:max-h-[min(52dvh,420px)] landscape:max-w-[min(100%,22rem)]">
           <video
             ref={videoRef}
             playsInline
@@ -175,7 +175,7 @@ export function BillCapture({
                   ? t("billSwitchFront")
                   : t("billSwitchRear")
               }
-              className="absolute right-3 top-3 z-10 flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-black/55 text-white shadow-lg backdrop-blur-sm transition active:scale-95 disabled:opacity-40"
+              className="absolute end-3 top-3 z-10 flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-black/55 text-white shadow-lg backdrop-blur-sm transition active:scale-95 disabled:opacity-40 landscape:h-12 landscape:w-12"
             >
               <SwitchCamera className="h-7 w-7" strokeWidth={2.25} />
             </button>
@@ -185,7 +185,7 @@ export function BillCapture({
             <Button
               type="button"
               size="lg"
-              className="h-14 w-full text-lg"
+              className="h-14 w-full text-lg landscape:h-12 landscape:text-base"
               onClick={handleTake}
               disabled={!stream || swapping}
             >
@@ -194,21 +194,20 @@ export function BillCapture({
           </div>
         </div>
       ) : (
-        <div className="flex aspect-[3/4] max-h-[min(62vh,560px)] w-full items-center justify-center rounded-2xl border border-dashed border-border bg-secondary/30 px-6 text-center">
+        <div className="flex aspect-[3/4] max-h-[min(62vh,560px)] w-full items-center justify-center rounded-2xl border border-dashed border-border bg-secondary/30 px-6 text-center landscape:mx-auto landscape:max-h-[min(52dvh,420px)] landscape:max-w-[min(100%,22rem)]">
           <p className="text-sm text-muted-foreground md:text-base">
             {t("billHint")}
           </p>
         </div>
       )}
 
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
-
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 landscape:justify-end">
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
         {!cameraOn ? (
           <Button
             type="button"
             size="lg"
-            className="h-14 w-full text-lg"
+            className="h-14 w-full text-lg landscape:h-12 landscape:text-base"
             onClick={() => {
               setFacingMode("environment");
               setCameraOn(true);
@@ -221,7 +220,7 @@ export function BillCapture({
         <Button
           type="button"
           variant="secondary"
-          className="h-12 w-full text-base"
+          className="h-12 w-full text-base landscape:h-11"
           onClick={() => fileInputRef.current?.click()}
         >
           {t("billUpload")}

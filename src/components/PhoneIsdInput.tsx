@@ -84,7 +84,7 @@ export function PhoneIsdInput({ id, value, onChange, className }: PhoneIsdInputP
             role="combobox"
             aria-expanded={open}
             aria-label={t("registerDialCode")}
-            className="h-12 shrink-0 gap-1.5 rounded-xl border-input bg-transparent px-3 text-base font-normal shadow-sm hover:bg-secondary/60"
+            className="h-12 shrink-0 gap-1.5 rounded-xl border-input bg-transparent px-3 text-base font-normal shadow-sm hover:bg-secondary/60 landscape:h-11"
           >
             <span className="text-xl leading-none" aria-hidden>
               {selected.flag}
@@ -103,7 +103,7 @@ export function PhoneIsdInput({ id, value, onChange, className }: PhoneIsdInputP
               className="h-11 text-base"
               inputMode={vk.enabled ? "none" : undefined}
             />
-            <CommandList className="max-h-64">
+            <CommandList className="max-h-64 landscape:max-h-[min(36dvh,12rem)]">
               <CommandEmpty>{t("registerNoCountry")}</CommandEmpty>
               <CommandGroup>
                 {DIAL_CODES.map((c) => (
@@ -142,7 +142,7 @@ export function PhoneIsdInput({ id, value, onChange, className }: PhoneIsdInputP
         value={local}
         onChange={(e) => onLocalChange(e.target.value)}
         placeholder="55XXXXXX"
-        className="h-12 flex-1 rounded-xl px-4 text-base data-[vk-active=true]:ring-2 data-[vk-active=true]:ring-accent"
+        className="h-12 flex-1 scroll-mt-3 scroll-mb-[var(--vk-height,8rem)] rounded-xl px-4 text-base landscape:h-11 data-[vk-active=true]:ring-2 data-[vk-active=true]:ring-accent"
         {...localVk}
       />
     </div>

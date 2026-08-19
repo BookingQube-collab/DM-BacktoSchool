@@ -73,6 +73,17 @@ export function VirtualKeyboardProvider({
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [active]);
 
+  useEffect(() => {
+    if (!active) return;
+    const id = active.id;
+    const timer = window.setTimeout(() => {
+      const el = document.querySelector(`[data-vk-field="${CSS.escape(id)}"]`);
+      if (!(el instanceof HTMLElement)) return;
+      el.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [active]);
+
   const api = useMemo<VkApi>(
     () => ({
       enabled,
@@ -183,7 +194,7 @@ function KeyButton({
       type="button"
       aria-label={ariaLabel}
       className={cn(
-        "flex min-h-12 items-center justify-center rounded-xl border border-white/10 bg-white/10 px-1.5 text-base font-semibold text-foreground shadow-sm active:bg-accent/40",
+        "flex min-h-12 items-center justify-center rounded-xl border border-white/10 bg-white/10 px-1.5 text-base font-semibold text-foreground shadow-sm active:bg-accent/40 landscape:min-h-9 landscape:text-sm",
         wide ? "flex-[1.6]" : "flex-1",
         className,
       )}
@@ -199,6 +210,7 @@ function KeyButton({
 
 function VirtualKeyboardOverlay({ field, onHide }: { field: VkField; onHide: () => void }) {
   const { t, locale } = useI18n();
+  const overlayRef = useRef<HTMLDivElement>(null);
   const [shift, setShift] = useState(false);
   const [digits, setDigits] = useState(false);
   const [kbLang, setKbLang] = useState<Locale>(locale);
@@ -208,6 +220,22 @@ function VirtualKeyboardOverlay({ field, onHide }: { field: VkField; onHide: () 
     setShift(false);
     setDigits(false);
   }, [field.id, locale]);
+
+  useEffect(() => {
+    const el = overlayRef.current;
+    if (!el) return;
+    const root = document.documentElement;
+    const apply = () => {
+      root.style.setProperty("--vk-height", `${Math.ceil(el.getBoundingClientRect().height)}px`);
+    };
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      root.style.removeProperty("--vk-height");
+    };
+  }, []);
 
   function press(key: string) {
     const next = applyKey(field.getValue(), key, field.mode);
@@ -230,11 +258,12 @@ function VirtualKeyboardOverlay({ field, onHide }: { field: VkField; onHide: () 
 
   return (
     <div
+      ref={overlayRef}
       data-virtual-keyboard
       dir={showLetters && kbLang === "ar" ? "rtl" : "ltr"}
-      className="fixed inset-x-0 bottom-0 z-[80] border-t border-white/15 bg-secondary/95 px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_40px_rgba(0,0,0,0.35)] backdrop-blur-xl"
+      className="fixed inset-x-0 bottom-0 z-[80] max-h-[min(46dvh,22rem)] overflow-y-auto border-t border-white/15 bg-secondary/95 px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_40px_rgba(0,0,0,0.35)] backdrop-blur-xl landscape:max-h-[min(42dvh,18rem)] landscape:pt-1.5 landscape:pb-[max(0.45rem,env(safe-area-inset-bottom))]"
     >
-      <div className="mx-auto flex max-w-3xl items-center justify-between gap-2 pb-2">
+      <div className="mx-auto flex max-w-3xl items-center justify-between gap-2 pb-2 landscape:pb-1">
         <p className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
           <Keyboard className="h-4 w-4" />
           {t("settingsVkTitle")}
@@ -277,7 +306,7 @@ function VirtualKeyboardOverlay({ field, onHide }: { field: VkField; onHide: () 
           )}
         </div>
       ) : (
-        <div className="mx-auto flex max-w-3xl flex-col gap-1.5">
+        <div className="mx-auto flex max-w-3xl flex-col gap-1.5 landscape:gap-1">
           {showLetters ? (
             letterRows.map((row, i) => (
               <div key={i} className="flex gap-1.5">

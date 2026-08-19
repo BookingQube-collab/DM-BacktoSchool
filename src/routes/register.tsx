@@ -216,33 +216,47 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
   }
 
   const fieldClass =
-    "h-12 rounded-xl px-4 text-base data-[vk-active=true]:ring-2 data-[vk-active=true]:ring-accent";
+    "h-12 scroll-mt-3 scroll-mb-[var(--vk-height,8rem)] rounded-xl px-4 text-base landscape:h-11 data-[vk-active=true]:ring-2 data-[vk-active=true]:ring-accent";
+  const labelClass = "text-base landscape:text-sm";
+  const fieldWrapClass = "space-y-2 landscape:space-y-1";
 
   return (
-    <div className={cn("min-h-screen px-4 py-8 text-foreground", vk.activeId ? "pb-72" : "")}>
-      <div className="mx-auto w-full max-w-2xl">
-        <img
-          src="/smart-start-logo.png"
-          alt="Smart Start"
-          className="mb-5 h-auto w-[200px] max-w-full object-contain drop-shadow-lg md:w-[240px]"
-        />
-        <div className="mb-6 flex items-start justify-between gap-4">
-          <div>
-            <p className="font-display text-3xl font-bold md:text-4xl">{t("registerTitle")}</p>
-            <p className="mt-2 text-sm text-muted-foreground md:text-base">
-              {t("registerSubtitle")}
-            </p>
+    <div
+      data-register-page
+      className={cn(
+        "relative h-dvh max-h-dvh overflow-x-hidden overflow-y-scroll overscroll-y-contain text-foreground",
+        "px-4 pt-12 pb-8 md:px-6",
+        "landscape:px-6 landscape:pt-11 landscape:pb-3",
+        vk.activeId && "pb-[calc(var(--vk-height,18rem)+1rem)] landscape:pb-[calc(var(--vk-height,16rem)+0.75rem)]",
+      )}
+    >
+      <div className="mx-auto w-full max-w-2xl landscape:max-w-6xl">
+        <div className="mb-6 landscape:mb-3 landscape:flex landscape:items-center landscape:gap-5">
+          <img
+            src="/smart-start-logo.png"
+            alt="Smart Start"
+            className="mb-5 h-auto w-[200px] max-w-full object-contain drop-shadow-lg md:w-[240px] landscape:mb-0 landscape:w-[118px] md:landscape:w-[132px]"
+          />
+          <div className="flex min-w-0 flex-1 items-start justify-between gap-4 landscape:items-center">
+            <div className="min-w-0">
+              <p className="font-display text-3xl font-bold md:text-4xl landscape:text-2xl md:landscape:text-3xl">
+                {t("registerTitle")}
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground md:text-base landscape:hidden">
+                {t("registerSubtitle")}
+              </p>
+            </div>
+            <Link
+              to="/"
+              className="shrink-0 rounded-xl border border-border px-3 py-2 text-sm text-muted-foreground hover:bg-secondary landscape:py-1.5"
+            >
+              {t("registerPhotoBooth")}
+            </Link>
           </div>
-          <Link
-            to="/"
-            className="rounded-xl border border-border px-3 py-2 text-sm text-muted-foreground hover:bg-secondary"
-          >
-            {t("registerPhotoBooth")}
-          </Link>
         </div>
 
-        <div className="mb-5 rounded-3xl border border-border bg-secondary/45 p-4 shadow-xl backdrop-blur md:p-5">
-          <p className="mb-3 text-sm font-semibold text-muted-foreground">
+        <div className="mb-5 rounded-3xl border border-border bg-secondary/45 p-4 shadow-xl backdrop-blur md:p-5 landscape:mb-3 landscape:rounded-2xl landscape:p-3 md:landscape:p-3.5">
+          <p className="mb-3 text-sm font-semibold text-muted-foreground landscape:mb-1.5 landscape:text-xs">
             {t("registerStepOf", {
               step,
               label: t(STEP_KEYS[step - 1].key),
@@ -250,9 +264,9 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
           </p>
           <div className="flex gap-2">
             {STEP_KEYS.map((s) => (
-              <div key={s.n} className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <div key={s.n} className="flex min-w-0 flex-1 flex-col gap-1.5 landscape:gap-1">
                 <div
-                  className={`h-2 rounded-full transition-colors ${
+                  className={`h-2 rounded-full transition-colors landscape:h-1.5 ${
                     s.n <= step ? "bg-gradient-to-r from-primary to-accent" : "bg-border"
                   }`}
                 />
@@ -268,9 +282,9 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
           </div>
         </div>
 
-        <div className="space-y-5 rounded-3xl border border-border bg-secondary/45 p-5 shadow-xl backdrop-blur md:p-8">
+        <div className="space-y-5 rounded-3xl border border-border bg-secondary/45 p-5 shadow-xl backdrop-blur md:p-8 landscape:space-y-3 landscape:rounded-2xl landscape:p-4 md:landscape:p-5">
           {step === 1 ? (
-            <div className="space-y-5">
+            <div className="space-y-5 landscape:grid landscape:grid-cols-1 landscape:gap-4 landscape:space-y-0 lg:landscape:grid-cols-[minmax(0,1fr)_minmax(16rem,22rem)] lg:landscape:items-start">
               <StorePicker
                 featured={featured}
                 featuredSource={featuredSource}
@@ -278,8 +292,8 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
                 onSelect={(id) => update("company_id", id)}
                 loading={!storesReady}
               />
-              <div className="space-y-2">
-                <Label htmlFor="transaction_value" className="text-base">
+              <div className={fieldWrapClass}>
+                <Label htmlFor="transaction_value" className={labelClass}>
                   {t("registerTxnValue")}
                 </Label>
                 <Input
@@ -307,99 +321,90 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
           ) : null}
 
           {step === 3 ? (
-            <div className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="first_name" className="text-base">
-                    {t("registerFirstName")}
-                  </Label>
-                  <Input
-                    id="first_name"
-                    value={form.first_name}
-                    onChange={(e) => update("first_name", e.target.value)}
-                    autoComplete="given-name"
-                    className={fieldClass}
-                    {...firstNameVk}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="last_name" className="text-base">
-                    {t("registerLastName")}
-                  </Label>
-                  <Input
-                    id="last_name"
-                    value={form.last_name}
-                    onChange={(e) => update("last_name", e.target.value)}
-                    autoComplete="family-name"
-                    className={fieldClass}
-                    {...lastNameVk}
-                  />
-                </div>
+            <div className="grid gap-4 sm:grid-cols-2 landscape:grid-cols-3 landscape:gap-3">
+              <div className={fieldWrapClass}>
+                <Label htmlFor="first_name" className={labelClass}>
+                  {t("registerFirstName")}
+                </Label>
+                <Input
+                  id="first_name"
+                  value={form.first_name}
+                  onChange={(e) => update("first_name", e.target.value)}
+                  autoComplete="given-name"
+                  className={fieldClass}
+                  {...firstNameVk}
+                />
               </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-base">
-                    {t("registerEmail")}
-                  </Label>
-                  <Input
-                    id="email"
-                    type={vk.enabled ? "text" : "email"}
-                    value={form.email}
-                    onChange={(e) => update("email", e.target.value)}
-                    autoComplete="email"
-                    className={fieldClass}
-                    {...emailVk}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="mobile" className="text-base">
-                    {t("registerMobile")}
-                  </Label>
-                  <PhoneIsdInput
-                    key={phoneKey}
-                    id="mobile"
-                    value={form.mobile}
-                    onChange={(full) => update("mobile", full)}
-                  />
-                </div>
+              <div className={fieldWrapClass}>
+                <Label htmlFor="last_name" className={labelClass}>
+                  {t("registerLastName")}
+                </Label>
+                <Input
+                  id="last_name"
+                  value={form.last_name}
+                  onChange={(e) => update("last_name", e.target.value)}
+                  autoComplete="family-name"
+                  className={fieldClass}
+                  {...lastNameVk}
+                />
               </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="nationality" className="text-base">
-                    {t("commonNationality")}
-                  </Label>
-                  <NationalityPicker
-                    id="nationality"
-                    value={form.nationality}
-                    onChange={(name) => update("nationality", name)}
-                    onOpenChange={(open) => {
-                      if (open) vk.dismiss();
-                    }}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="address_zone" className="text-base">
-                    {t("registerAddressZone")}
-                  </Label>
-                  <SearchableSelect
-                    id="address_zone"
-                    value={form.address_zone}
-                    onChange={(area) => update("address_zone", area)}
-                    options={QATAR_AREA_OPTIONS}
-                    placeholder={t("registerSelectArea")}
-                    searchPlaceholder={t("registerSearchArea")}
-                    emptyText={t("registerNoArea")}
-                    onOpenChange={(open) => {
-                      if (open) vk.dismiss();
-                    }}
-                  />
-                </div>
+              <div className={fieldWrapClass}>
+                <Label htmlFor="email" className={labelClass}>
+                  {t("registerEmail")}
+                </Label>
+                <Input
+                  id="email"
+                  type={vk.enabled ? "text" : "email"}
+                  value={form.email}
+                  onChange={(e) => update("email", e.target.value)}
+                  autoComplete="email"
+                  className={fieldClass}
+                  {...emailVk}
+                />
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="transaction_date" className="text-base">
+              <div className={fieldWrapClass}>
+                <Label htmlFor="mobile" className={labelClass}>
+                  {t("registerMobile")}
+                </Label>
+                <PhoneIsdInput
+                  key={phoneKey}
+                  id="mobile"
+                  value={form.mobile}
+                  onChange={(full) => update("mobile", full)}
+                />
+              </div>
+              <div className={fieldWrapClass}>
+                <Label htmlFor="nationality" className={labelClass}>
+                  {t("commonNationality")}
+                </Label>
+                <NationalityPicker
+                  id="nationality"
+                  value={form.nationality}
+                  onChange={(name) => update("nationality", name)}
+                  onOpenChange={(open) => {
+                    if (open) vk.dismiss();
+                  }}
+                />
+              </div>
+              <div className={fieldWrapClass}>
+                <Label htmlFor="address_zone" className={labelClass}>
+                  {t("registerAddressZone")}
+                </Label>
+                <SearchableSelect
+                  id="address_zone"
+                  value={form.address_zone}
+                  onChange={(area) => update("address_zone", area)}
+                  options={QATAR_AREA_OPTIONS}
+                  placeholder={t("registerSelectArea")}
+                  searchPlaceholder={t("registerSearchArea")}
+                  emptyText={t("registerNoArea")}
+                  onOpenChange={(open) => {
+                    if (open) vk.dismiss();
+                  }}
+                />
+              </div>
+              <div className={cn(fieldWrapClass, "sm:col-span-2 landscape:col-span-1")}>
+                <Label htmlFor="transaction_date" className={labelClass}>
                   {t("registerTxnDate")}
                 </Label>
                 <Input
@@ -408,7 +413,7 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
                   value={form.transaction_date}
                   onChange={(e) => update("transaction_date", e.target.value)}
                   onFocus={() => vk.dismiss()}
-                  className="h-12 rounded-xl px-4 text-base"
+                  className="h-12 rounded-xl px-4 text-base landscape:h-11"
                 />
               </div>
             </div>
@@ -417,12 +422,17 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           {success ? <p className="text-sm text-accent">{success}</p> : null}
 
-          <div className="flex flex-col gap-3 pt-1 sm:flex-row">
+          <div
+            className={cn(
+              "sticky z-30 -mx-5 mt-1 flex flex-col gap-3 bg-gradient-to-t from-secondary from-65% to-transparent px-5 pt-3 sm:flex-row landscape:-mx-4 landscape:px-4 landscape:pt-2",
+            )}
+            style={{ bottom: vk.activeId ? "var(--vk-height, 0px)" : 0 }}
+          >
             {step > 1 ? (
               <Button
                 type="button"
                 variant="secondary"
-                className="h-12 flex-1 text-base"
+                className="h-12 flex-1 text-base landscape:h-11"
                 onClick={goBack}
                 disabled={loading}
               >
@@ -433,7 +443,7 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
               <Button
                 type="button"
                 size="lg"
-                className="h-12 flex-1 text-base"
+                className="h-12 flex-1 text-base landscape:h-11"
                 onClick={goNext}
                 disabled={!storesReady || !hasStores}
               >
@@ -443,7 +453,7 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
               <Button
                 type="button"
                 size="lg"
-                className="h-12 flex-1 text-base"
+                className="h-12 flex-1 text-base landscape:h-11"
                 onClick={() => void onRegister()}
                 disabled={loading || !storesReady || !hasStores}
               >

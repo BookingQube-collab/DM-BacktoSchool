@@ -49,17 +49,17 @@ function StoreCard({
       type="button"
       onClick={onSelect}
       className={cn(
-        "group flex shrink-0 flex-col overflow-hidden rounded-3xl border text-left transition",
-        compact ? "w-[7.5rem] sm:w-[8.5rem]" : "w-[8.5rem] sm:w-[9.5rem]",
+        "group flex shrink-0 flex-col overflow-hidden rounded-3xl border text-left transition landscape:rounded-2xl",
+        compact ? "w-[7.5rem] sm:w-[8.5rem]" : "w-[8.5rem] sm:w-[9.5rem] landscape:w-[6.75rem] sm:landscape:w-[7.25rem]",
         selected ? "border-accent ring-2 ring-accent/60" : "border-border hover:border-accent/50",
       )}
     >
-      <div className="aspect-square overflow-hidden bg-white p-2.5 sm:p-3">
+      <div className="aspect-square overflow-hidden bg-white p-2.5 sm:p-3 landscape:p-2">
         <StoreLogo store={store} />
       </div>
       <div
         className={cn(
-          "truncate px-2 py-2 text-center text-xs font-semibold sm:text-sm",
+          "truncate px-2 py-2 text-center text-xs font-semibold sm:text-sm landscape:py-1.5",
           selected ? "bg-accent/20 text-foreground" : "bg-secondary/60",
         )}
       >
@@ -150,13 +150,13 @@ export function StorePicker({
   const featuredHeading = featuredSource === "sales" ? t("pickerPopular") : t("pickerFeatured");
 
   return (
-    <div className="space-y-4">
-      <div ref={wrapRef} className="relative space-y-2">
-        <Label htmlFor="store_search" className="text-base">
+    <div className="space-y-4 landscape:space-y-2.5">
+      <div ref={wrapRef} className="relative space-y-2 landscape:space-y-1">
+        <Label htmlFor="store_search" className="text-base landscape:text-sm">
           {t("pickerSearchStore")}
         </Label>
         <div className="relative">
-          <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute start-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
           <Input
             id="store_search"
             type={vk.enabled ? "text" : "search"}
@@ -165,7 +165,7 @@ export function StorePicker({
               setQuery(e.target.value);
               setOpen(true);
             }}
-            className="h-12 rounded-xl pl-11 pr-4 text-base data-[vk-active=true]:ring-2 data-[vk-active=true]:ring-accent"
+            className="h-12 scroll-mt-3 scroll-mb-[var(--vk-height,8rem)] rounded-xl ps-11 pe-4 text-base landscape:h-11 data-[vk-active=true]:ring-2 data-[vk-active=true]:ring-accent"
             placeholder={t("pickerTypeStore")}
             autoComplete="off"
             {...searchVk}
@@ -185,7 +185,7 @@ export function StorePicker({
                 {t("pickerNoMatch", { query: query.trim() })}
               </p>
             ) : (
-              <ul className="max-h-64 overflow-y-auto py-1">
+              <ul className="max-h-64 overflow-y-auto py-1 landscape:max-h-[min(32dvh,12rem)]">
                 {suggestions.map((store) => (
                   <li key={store.id}>
                     <button
@@ -223,8 +223,8 @@ export function StorePicker({
         </div>
       ) : null}
 
-      <div className="space-y-2">
-        <Label className="text-base">{featuredHeading}</Label>
+      <div className="space-y-2 landscape:space-y-1">
+        <Label className="text-base landscape:text-sm">{featuredHeading}</Label>
         {loading ? (
           <p className="text-sm text-muted-foreground">{t("pickerLoading")}</p>
         ) : featured.length === 0 ? (
@@ -232,8 +232,8 @@ export function StorePicker({
             {t("pickerNoStores")}
           </p>
         ) : (
-          <div className="-mx-1 overflow-x-auto px-1 pb-2">
-            <div className="flex gap-3 md:gap-4">
+          <div className="-mx-1 overflow-x-auto px-1 pb-2 landscape:pb-1">
+            <div className="flex gap-3 md:gap-4 landscape:gap-2.5">
               {featured.map((store) => (
                 <StoreCard
                   key={store.id}
@@ -246,7 +246,7 @@ export function StorePicker({
           </div>
         )}
         {!loading && featured.length > 0 ? (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground landscape:hidden">
             {featuredSource === "sales" ? t("pickerRankedSales") : t("pickerTopBrands")}
           </p>
         ) : null}

@@ -65,18 +65,19 @@ export function SearchableSelect({
           role="combobox"
           aria-expanded={open}
           className={cn(
-            "h-12 w-full justify-between rounded-xl border-input bg-transparent px-4 text-base font-normal shadow-sm hover:bg-secondary/60 hover:text-foreground",
+            "h-12 w-full justify-between rounded-xl border-input bg-transparent px-4 text-base font-normal shadow-sm hover:bg-secondary/60 hover:text-foreground landscape:h-11",
             !selected && "text-muted-foreground",
             className,
           )}
         >
           <span className="min-w-0 truncate">{selected ? selected.label : placeholder}</span>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          <ChevronsUpDown className="ms-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent
         className="z-[100] w-[var(--radix-popover-trigger-width)] min-w-[16rem] rounded-xl border-border bg-popover p-0 text-popover-foreground shadow-xl"
         align="start"
+        collisionPadding={12}
       >
         <Command className="rounded-xl bg-popover text-popover-foreground">
           <CommandInput
@@ -84,7 +85,7 @@ export function SearchableSelect({
             className="h-11 text-base"
             inputMode={vk.enabled ? "none" : undefined}
           />
-          <CommandList className="max-h-64">
+          <CommandList className="max-h-64 landscape:max-h-[min(36dvh,12rem)]">
             <CommandEmpty>{emptyText}</CommandEmpty>
             <CommandGroup>
               {options.map((option, index) => (
