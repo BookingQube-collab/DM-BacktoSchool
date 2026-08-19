@@ -284,7 +284,7 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
 
         <div className="space-y-5 rounded-3xl border border-border bg-secondary/45 p-5 shadow-xl backdrop-blur md:p-8 landscape:flex landscape:min-h-0 landscape:flex-1 landscape:flex-col landscape:gap-2 landscape:space-y-0 landscape:rounded-2xl landscape:p-3 md:landscape:p-3.5">
           {step === 1 ? (
-            <div className="space-y-5 landscape:grid landscape:min-h-0 landscape:flex-1 landscape:grid-cols-1 landscape:gap-3 landscape:space-y-0 lg:landscape:grid-cols-[minmax(0,1fr)_minmax(16rem,22rem)] lg:landscape:items-start">
+            <div className="space-y-5 landscape:grid landscape:min-h-0 landscape:flex-1 landscape:grid-cols-1 landscape:gap-3 landscape:space-y-0 landscape:overflow-y-auto lg:landscape:grid-cols-[minmax(0,1fr)_minmax(16rem,22rem)] lg:landscape:items-start">
               <StorePicker
                 featured={featured}
                 featuredSource={featuredSource}
@@ -419,10 +419,11 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
           {success ? <p className="text-sm text-accent">{success}</p> : null}
 
           <div
+            data-vk-keep
             className={cn(
-              "sticky z-30 -mx-5 mt-auto flex flex-col gap-3 bg-gradient-to-t from-secondary from-65% to-transparent px-5 pt-3 sm:flex-row landscape:-mx-3 landscape:mt-auto landscape:gap-2 landscape:px-3 landscape:pt-2 landscape:pb-0.5",
+              "relative -mx-5 mt-4 flex shrink-0 flex-col gap-3 px-5 pt-3 sm:flex-row",
+              "landscape:-mx-3 landscape:mt-auto landscape:gap-2 landscape:px-3 landscape:pt-2 landscape:pb-0.5",
             )}
-            style={{ bottom: vk.activeId ? "var(--vk-height, 0px)" : 0 }}
           >
             {step > 1 ? (
               <Button
