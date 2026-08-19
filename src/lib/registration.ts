@@ -14,6 +14,9 @@ export type { NationalityOption, DialCodeOption } from "@/lib/countries";
 
 export const NATIONALITY_NAMES = NATIONALITIES.map((n) => n.name);
 
+/** Minimum bill amount (QAR) required to register or save a guest. */
+export const MIN_TRANSACTION_VALUE = 200;
+
 export type RegistrationInput = {
   first_name: string;
   last_name: string;
@@ -60,6 +63,8 @@ export function validateRegistration(body: Partial<RegistrationInput>) {
   if (!company_id) errors.push("Store name is required");
   if (!Number.isFinite(transaction_value) || transaction_value < 0) {
     errors.push("Transaction value must be a valid amount");
+  } else if (transaction_value < MIN_TRANSACTION_VALUE) {
+    errors.push(`Transaction value must be ${MIN_TRANSACTION_VALUE} QAR or more`);
   }
 
   return {

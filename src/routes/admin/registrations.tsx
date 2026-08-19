@@ -33,7 +33,12 @@ import type { NamedCount, StoreValueBucket } from "@/lib/admin-charts";
 import { NATIONALITIES } from "@/lib/countries";
 import { useI18n } from "@/lib/i18n";
 import { qatarAreaSelectOptions } from "@/lib/qatar-areas";
-import { defaultRegistrationsFromDate, formatQar, todayISODate } from "@/lib/registration";
+import {
+  defaultRegistrationsFromDate,
+  formatQar,
+  MIN_TRANSACTION_VALUE,
+  todayISODate,
+} from "@/lib/registration";
 
 export const Route = createFileRoute("/admin/registrations")({
   component: AdminRegistrationsPage,
@@ -278,7 +283,12 @@ function AdminRegistrationsPage() {
   function validateEdit(form: EditForm): string | null {
     if (!form.company_id) return t("registerErrSelectStore");
     const value = Number(form.transaction_value);
-    if (!Number.isFinite(value) || value < 0) return t("registerErrTxnValue");
+    if (!form.transaction_value.trim() || !Number.isFinite(value) || value < 0) {
+      return t("registerErrTxnValue");
+    }
+    if (value < MIN_TRANSACTION_VALUE) {
+      return t("registerErrTxnMin", { min: MIN_TRANSACTION_VALUE });
+    }
     if (!form.first_name.trim()) return t("registerErrFirstName");
     if (!form.last_name.trim()) return t("registerErrLastName");
     if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
@@ -784,7 +794,7 @@ function AdminRegistrationsPage() {
                 <Input
                   id="edit_value"
                   type="number"
-                  min={0}
+                  min={MIN_TRANSACTION_VALUE}
                   step="0.01"
                   value={editForm.transaction_value}
                   onChange={(e) => updateEdit("transaction_value", e.target.value)}

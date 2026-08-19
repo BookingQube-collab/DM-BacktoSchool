@@ -14,7 +14,7 @@ import {
   useVkFieldProps,
 } from "@/components/VirtualKeyboard";
 import { QATAR_AREA_OPTIONS } from "@/lib/qatar-areas";
-import { todayISODate } from "@/lib/registration";
+import { MIN_TRANSACTION_VALUE, todayISODate } from "@/lib/registration";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 
@@ -132,8 +132,11 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
     if (current === 1) {
       if (!form.company_id) return t("registerErrSelectStore");
       const value = Number(form.transaction_value);
-      if (!Number.isFinite(value) || value < 0) {
+      if (!form.transaction_value.trim() || !Number.isFinite(value) || value < 0) {
         return t("registerErrTxnValue");
+      }
+      if (value < MIN_TRANSACTION_VALUE) {
+        return t("registerErrTxnMin", { min: MIN_TRANSACTION_VALUE });
       }
       return null;
     }
@@ -282,7 +285,7 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
                 <Input
                   id="transaction_value"
                   type={vk.enabled ? "text" : "number"}
-                  min="0"
+                  min={MIN_TRANSACTION_VALUE}
                   step="0.01"
                   inputMode={vk.enabled ? "none" : "decimal"}
                   value={form.transaction_value}
