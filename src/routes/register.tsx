@@ -230,7 +230,7 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
         vk.activeId && "pb-[calc(var(--vk-height,18rem)+1rem)] landscape:pb-[calc(var(--vk-height,16rem)+0.75rem)]",
       )}
     >
-      <div className="mx-auto w-full max-w-2xl landscape:flex landscape:min-h-0 landscape:flex-1 landscape:flex-col landscape:max-w-6xl">
+      <div className="mx-auto w-full min-w-0 max-w-2xl landscape:flex landscape:min-h-0 landscape:flex-1 landscape:flex-col landscape:max-w-6xl">
         <div className="mb-6 landscape:mb-2 landscape:flex landscape:items-center landscape:gap-4">
           <img
             src="/smart-start-logo.png"
@@ -282,9 +282,9 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
           </div>
         </div>
 
-        <div className="space-y-5 rounded-3xl border border-border bg-secondary/45 p-5 shadow-xl backdrop-blur md:p-8 landscape:flex landscape:min-h-0 landscape:flex-1 landscape:flex-col landscape:gap-2 landscape:space-y-0 landscape:rounded-2xl landscape:p-3 md:landscape:p-3.5">
+        <div className="min-w-0 space-y-5 rounded-3xl border border-border bg-secondary/45 p-5 shadow-xl backdrop-blur md:p-8 landscape:flex landscape:min-h-0 landscape:flex-1 landscape:flex-col landscape:gap-2 landscape:space-y-0 landscape:rounded-2xl landscape:p-3 md:landscape:p-3.5">
           {step === 1 ? (
-            <div className="space-y-5 landscape:grid landscape:min-h-0 landscape:flex-1 landscape:grid-cols-1 landscape:gap-3 landscape:space-y-0 landscape:overflow-y-auto lg:landscape:grid-cols-[minmax(0,1fr)_minmax(16rem,22rem)] lg:landscape:items-start">
+            <div className="min-w-0 w-full space-y-5 landscape:grid landscape:min-h-0 landscape:flex-1 landscape:grid-cols-1 landscape:gap-3 landscape:space-y-0 lg:landscape:grid-cols-[minmax(0,1fr)_minmax(16rem,22rem)] lg:landscape:items-start">
               <StorePicker
                 featured={featured}
                 featuredSource={featuredSource}
@@ -292,7 +292,7 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
                 onSelect={(id) => update("company_id", id)}
                 loading={!storesReady}
               />
-              <div className={fieldWrapClass}>
+              <div className={cn(fieldWrapClass, "min-w-0")}>
                 <Label htmlFor="transaction_value" className={labelClass}>
                   {t("registerTxnValue")}
                 </Label>
@@ -421,15 +421,15 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
           <div
             data-vk-keep
             className={cn(
-              "relative -mx-5 mt-4 flex shrink-0 flex-col gap-3 px-5 pt-3 sm:flex-row",
-              "landscape:-mx-3 landscape:mt-auto landscape:gap-2 landscape:px-3 landscape:pt-2 landscape:pb-0.5",
+              "relative mt-4 flex w-full min-w-0 shrink-0 flex-col gap-3 self-stretch pt-3 sm:flex-row sm:items-stretch",
+              "landscape:mt-auto landscape:gap-2 landscape:pt-2 landscape:pb-0.5",
             )}
           >
             {step > 1 ? (
               <Button
                 type="button"
                 variant="secondary"
-                className="h-12 flex-1 text-base landscape:h-11"
+                className="h-12 w-full min-w-0 flex-1 text-base landscape:h-11"
                 onClick={goBack}
                 disabled={loading}
               >
@@ -440,7 +440,7 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
               <Button
                 type="button"
                 size="lg"
-                className="h-12 flex-1 text-base landscape:h-11"
+                className="h-12 w-full min-w-0 flex-1 px-4 text-base landscape:h-11"
                 onClick={goNext}
                 disabled={!storesReady || !hasStores}
               >
@@ -450,7 +450,7 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
               <Button
                 type="button"
                 size="lg"
-                className="h-12 flex-1 text-base landscape:h-11"
+                className="h-12 w-full min-w-0 flex-1 px-4 text-base landscape:h-11"
                 onClick={() => void onRegister()}
                 disabled={loading || !storesReady || !hasStores}
               >

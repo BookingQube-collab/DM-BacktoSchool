@@ -133,6 +133,9 @@ export function StorePicker({
 
   function selectStore(store: Store) {
     vk.dismiss();
+    (document.activeElement instanceof HTMLElement ? document.activeElement : null)?.blur();
+    const page = document.querySelector("[data-register-page]");
+    if (page instanceof HTMLElement) page.scrollLeft = 0;
     onSelect(store.id);
     setPickedStore(featured.some((s) => s.id === store.id) ? null : store);
     setQuery("");
@@ -150,12 +153,12 @@ export function StorePicker({
   const featuredHeading = featuredSource === "sales" ? t("pickerPopular") : t("pickerFeatured");
 
   return (
-    <div className="space-y-4 landscape:space-y-2.5">
-      <div ref={wrapRef} className="relative space-y-2 landscape:space-y-1">
+    <div className="min-w-0 max-w-full space-y-4 landscape:space-y-2.5">
+      <div ref={wrapRef} className="relative min-w-0 space-y-2 landscape:space-y-1">
         <Label htmlFor="store_search" className="text-base landscape:text-sm">
           {t("pickerSearchStore")}
         </Label>
-        <div className="relative">
+        <div className="relative min-w-0">
           <Search className="pointer-events-none absolute start-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
           <Input
             id="store_search"
@@ -165,7 +168,7 @@ export function StorePicker({
               setQuery(e.target.value);
               setOpen(true);
             }}
-            className="h-12 scroll-mt-3 scroll-mb-[var(--vk-height,8rem)] rounded-xl ps-11 pe-4 text-base landscape:h-11 data-[vk-active=true]:ring-2 data-[vk-active=true]:ring-accent"
+            className="h-12 w-full scroll-mt-3 scroll-mb-[var(--vk-height,8rem)] rounded-xl ps-11 pe-4 text-base landscape:h-11 data-[vk-active=true]:ring-2 data-[vk-active=true]:ring-accent"
             placeholder={t("pickerTypeStore")}
             autoComplete="off"
             {...searchVk}
@@ -177,7 +180,7 @@ export function StorePicker({
         </div>
 
         {open && query.trim().length > 0 ? (
-          <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-2xl border border-border bg-popover shadow-xl">
+          <div className="absolute inset-x-0 z-20 mt-1 max-w-full overflow-hidden rounded-2xl border border-border bg-popover shadow-xl">
             {searching ? (
               <p className="px-4 py-3 text-sm text-muted-foreground">{t("pickerSearching")}</p>
             ) : suggestions.length === 0 ? (
@@ -223,7 +226,7 @@ export function StorePicker({
         </div>
       ) : null}
 
-      <div className="space-y-2 landscape:space-y-1">
+      <div className="min-w-0 space-y-2 landscape:space-y-1">
         <Label className="text-base landscape:text-sm">{featuredHeading}</Label>
         {loading ? (
           <p className="text-sm text-muted-foreground">{t("pickerLoading")}</p>
@@ -232,8 +235,8 @@ export function StorePicker({
             {t("pickerNoStores")}
           </p>
         ) : (
-          <div className="-mx-1 overflow-x-auto px-1 pb-2 landscape:pb-1">
-            <div className="flex gap-3 md:gap-4 landscape:gap-2.5">
+          <div className="min-w-0 max-w-full overflow-x-auto overscroll-x-contain pb-2 landscape:pb-1">
+            <div className="flex w-max max-w-none gap-3 md:gap-4 landscape:gap-2.5">
               {featured.map((store) => (
                 <StoreCard
                   key={store.id}

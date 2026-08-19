@@ -75,11 +75,22 @@ export function VirtualKeyboardProvider({
   }, [active]);
 
   useEffect(() => {
+    const page = document.querySelector("[data-register-page]");
+    if (page instanceof HTMLElement) page.scrollLeft = 0;
     if (!active) return;
     const id = active.id;
     const timer = window.setTimeout(() => {
       const el = document.querySelector(`[data-vk-field="${CSS.escape(id)}"]`);
       if (!(el instanceof HTMLElement)) return;
+      const scroller = el.closest("[data-register-page]");
+      if (scroller instanceof HTMLElement) {
+        const parentRect = scroller.getBoundingClientRect();
+        const targetRect = el.getBoundingClientRect();
+        const delta =
+          targetRect.top + targetRect.height / 2 - (parentRect.top + parentRect.height / 2);
+        scroller.scrollTo({ top: scroller.scrollTop + delta, left: 0, behavior: "smooth" });
+        return;
+      }
       el.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
     }, 80);
     return () => window.clearTimeout(timer);
