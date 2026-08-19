@@ -226,20 +226,20 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
       className={cn(
         "relative h-dvh max-h-dvh overflow-x-hidden overflow-y-scroll overscroll-y-contain text-foreground",
         "px-4 pt-12 pb-8 md:px-6",
-        "landscape:px-6 landscape:pt-11 landscape:pb-3",
+        "landscape:flex landscape:flex-col landscape:px-5 landscape:pt-3 landscape:pb-2",
         vk.activeId && "pb-[calc(var(--vk-height,18rem)+1rem)] landscape:pb-[calc(var(--vk-height,16rem)+0.75rem)]",
       )}
     >
-      <div className="mx-auto w-full max-w-2xl landscape:max-w-6xl">
-        <div className="mb-6 landscape:mb-3 landscape:flex landscape:items-center landscape:gap-5">
+      <div className="mx-auto w-full max-w-2xl landscape:flex landscape:min-h-0 landscape:flex-1 landscape:flex-col landscape:max-w-6xl">
+        <div className="mb-6 landscape:mb-2 landscape:flex landscape:items-center landscape:gap-4">
           <img
             src="/smart-start-logo.png"
             alt="Smart Start"
-            className="mb-5 h-auto w-[200px] max-w-full object-contain drop-shadow-lg md:w-[240px] landscape:mb-0 landscape:w-[118px] md:landscape:w-[132px]"
+            className="mb-5 h-auto w-[200px] max-w-full object-contain drop-shadow-lg md:w-[240px] landscape:mb-0 landscape:w-[96px] md:landscape:w-[108px]"
           />
           <div className="flex min-w-0 flex-1 items-start justify-between gap-4 landscape:items-center">
             <div className="min-w-0">
-              <p className="font-display text-3xl font-bold md:text-4xl landscape:text-2xl md:landscape:text-3xl">
+              <p className="font-display text-3xl font-bold md:text-4xl landscape:text-xl md:landscape:text-2xl">
                 {t("registerTitle")}
               </p>
               <p className="mt-2 text-sm text-muted-foreground md:text-base landscape:hidden">
@@ -255,7 +255,7 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
           </div>
         </div>
 
-        <div className="mb-5 rounded-3xl border border-border bg-secondary/45 p-4 shadow-xl backdrop-blur md:p-5 landscape:mb-3 landscape:rounded-2xl landscape:p-3 md:landscape:p-3.5">
+        <div className="mb-5 rounded-3xl border border-border bg-secondary/45 p-4 shadow-xl backdrop-blur md:p-5 landscape:mb-2 landscape:rounded-2xl landscape:p-2.5 md:landscape:p-3">
           <p className="mb-3 text-sm font-semibold text-muted-foreground landscape:mb-1.5 landscape:text-xs">
             {t("registerStepOf", {
               step,
@@ -271,7 +271,7 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
                   }`}
                 />
                 <span
-                  className={`truncate text-xs md:text-sm ${
+                  className={`truncate text-xs md:text-sm landscape:hidden ${
                     s.n === step ? "font-semibold text-foreground" : "text-muted-foreground"
                   }`}
                 >
@@ -282,9 +282,9 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
           </div>
         </div>
 
-        <div className="space-y-5 rounded-3xl border border-border bg-secondary/45 p-5 shadow-xl backdrop-blur md:p-8 landscape:space-y-3 landscape:rounded-2xl landscape:p-4 md:landscape:p-5">
+        <div className="space-y-5 rounded-3xl border border-border bg-secondary/45 p-5 shadow-xl backdrop-blur md:p-8 landscape:flex landscape:min-h-0 landscape:flex-1 landscape:flex-col landscape:gap-2 landscape:space-y-0 landscape:rounded-2xl landscape:p-3 md:landscape:p-3.5">
           {step === 1 ? (
-            <div className="space-y-5 landscape:grid landscape:grid-cols-1 landscape:gap-4 landscape:space-y-0 lg:landscape:grid-cols-[minmax(0,1fr)_minmax(16rem,22rem)] lg:landscape:items-start">
+            <div className="space-y-5 landscape:grid landscape:min-h-0 landscape:flex-1 landscape:grid-cols-1 landscape:gap-3 landscape:space-y-0 lg:landscape:grid-cols-[minmax(0,1fr)_minmax(16rem,22rem)] lg:landscape:items-start">
               <StorePicker
                 featured={featured}
                 featuredSource={featuredSource}
@@ -313,15 +313,17 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
           ) : null}
 
           {step === 2 ? (
-            <BillCapture
-              previewUrl={receiptImage}
-              onCaptured={setReceiptImage}
-              onClear={() => setReceiptImage(null)}
-            />
+            <div className="landscape:min-h-0 landscape:flex-1">
+              <BillCapture
+                previewUrl={receiptImage}
+                onCaptured={setReceiptImage}
+                onClear={() => setReceiptImage(null)}
+              />
+            </div>
           ) : null}
 
           {step === 3 ? (
-            <div className="grid gap-4 sm:grid-cols-2 landscape:grid-cols-3 landscape:gap-3">
+            <div className="grid gap-4 sm:grid-cols-2 landscape:min-h-0 landscape:flex-1 landscape:grid-cols-3 landscape:content-start landscape:gap-2.5">
               <div className={fieldWrapClass}>
                 <Label htmlFor="first_name" className={labelClass}>
                   {t("registerFirstName")}
@@ -381,9 +383,6 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
                   id="nationality"
                   value={form.nationality}
                   onChange={(name) => update("nationality", name)}
-                  onOpenChange={(open) => {
-                    if (open) vk.dismiss();
-                  }}
                 />
               </div>
               <div className={fieldWrapClass}>
@@ -398,9 +397,6 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
                   placeholder={t("registerSelectArea")}
                   searchPlaceholder={t("registerSearchArea")}
                   emptyText={t("registerNoArea")}
-                  onOpenChange={(open) => {
-                    if (open) vk.dismiss();
-                  }}
                 />
               </div>
               <div className={cn(fieldWrapClass, "sm:col-span-2 landscape:col-span-1")}>
@@ -424,7 +420,7 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
 
           <div
             className={cn(
-              "sticky z-30 -mx-5 mt-1 flex flex-col gap-3 bg-gradient-to-t from-secondary from-65% to-transparent px-5 pt-3 sm:flex-row landscape:-mx-4 landscape:px-4 landscape:pt-2",
+              "sticky z-30 -mx-5 mt-auto flex flex-col gap-3 bg-gradient-to-t from-secondary from-65% to-transparent px-5 pt-3 sm:flex-row landscape:-mx-3 landscape:mt-auto landscape:gap-2 landscape:px-3 landscape:pt-2 landscape:pb-0.5",
             )}
             style={{ bottom: vk.activeId ? "var(--vk-height, 0px)" : 0 }}
           >

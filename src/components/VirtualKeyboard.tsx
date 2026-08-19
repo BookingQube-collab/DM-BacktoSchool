@@ -67,6 +67,7 @@ export function VirtualKeyboardProvider({
       if (!target) return;
       if (target.closest("[data-virtual-keyboard]")) return;
       if (target.closest("[data-vk-field]")) return;
+      if (target.closest("[data-vk-keep]")) return;
       setActive(null);
     }
     document.addEventListener("pointerdown", onPointerDown);
@@ -147,6 +148,80 @@ export function useVkFieldProps({
   };
 }
 
+/** Keep a combobox popover open while tapping the on-screen keyboard. */
+export function vkPopoverGuardProps(enabled: boolean) {
+  if (!enabled) return {};
+  const keepIfKeyboard = (event: { target: EventTarget | null; preventDefault: () => void }) => {
+    const target = event.target;
+    if (target instanceof Element && target.closest("[data-virtual-keyboard]")) {
+      event.preventDefault();
+    }
+  };
+  return {
+    "data-vk-keep": "",
+    onPointerDownOutside: keepIfKeyboard,
+    onFocusOutside: keepIfKeyboard,
+    onInteractOutside: keepIfKeyboard,
+  };
+}
+
+/** Letters keyboard bound to a combobox search/filter (Nationality, Location). */
+export function useVkComboboxSearch(id: string) {
+  const vk = useVirtualKeyboard();
+  const { enabled, activeId, activate: activateField, dismiss } = vk;
+  const [search, setSearch] = useState("");
+  const searchRef = useRef(search);
+  searchRef.current = search;
+
+  const activate = useCallback(() => {
+    if (!enabled) return;
+    activateField({
+      id,
+      mode: "text",
+      getValue: () => searchRef.current,
+      setValue: setSearch,
+    });
+  }, [activateField, enabled, id]);
+
+  const onOpenChange = useCallback(
+    (open: boolean) => {
+      if (open) {
+        setSearch("");
+        if (enabled) {
+          window.setTimeout(() => activate(), 0);
+        }
+        return;
+      }
+      setSearch("");
+      if (activeId === id) dismiss();
+    },
+    [activate, activeId, dismiss, enabled, id],
+  );
+
+  const inputProps = vk.enabled
+    ? {
+        value: search,
+        onValueChange: setSearch,
+        readOnly: true as const,
+        inputMode: "none" as const,
+        autoComplete: "off",
+        "data-vk-field": id,
+        "data-vk-active": vk.activeId === id ? "true" : "false",
+        onFocus: activate,
+      }
+    : {};
+
+  return {
+    vk,
+    searchId: id,
+    search,
+    activate,
+    onOpenChange,
+    inputProps,
+    popoverProps: vkPopoverGuardProps(vk.enabled),
+  };
+}
+
 const EN_TOP = ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"];
 const EN_MID = ["a", "s", "d", "f", "g", "h", "j", "k", "l"];
 const EN_BOT = ["z", "x", "c", "v", "b", "n", "m"];
@@ -158,6 +233,7 @@ const EMAIL_SYMBOLS = ["@", ".", "_", "-", "+"];
 
 function applyKey(current: string, key: string, mode: VkMode): string {
   if (key === "backspace") return current.slice(0, -1);
+  if (key === ".com") return mode === "email" ? current + ".com" : current;
   const ch = key === "space" ? " " : key;
   if (mode === "numeric") {
     return /^\d$/.test(ch) ? current + ch : current;
@@ -261,7 +337,7 @@ function VirtualKeyboardOverlay({ field, onHide }: { field: VkField; onHide: () 
       ref={overlayRef}
       data-virtual-keyboard
       dir={showLetters && kbLang === "ar" ? "rtl" : "ltr"}
-      className="fixed inset-x-0 bottom-0 z-[80] max-h-[min(46dvh,22rem)] overflow-y-auto border-t border-white/15 bg-secondary/95 px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_40px_rgba(0,0,0,0.35)] backdrop-blur-xl landscape:max-h-[min(42dvh,18rem)] landscape:pt-1.5 landscape:pb-[max(0.45rem,env(safe-area-inset-bottom))]"
+      className="fixed inset-x-0 bottom-0 z-[110] max-h-[min(46dvh,22rem)] overflow-y-auto border-t border-white/15 bg-secondary/95 px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_40px_rgba(0,0,0,0.35)] backdrop-blur-xl landscape:max-h-[min(42dvh,18rem)] landscape:pt-1.5 landscape:pb-[max(0.45rem,env(safe-area-inset-bottom))]"
     >
       <div className="mx-auto flex max-w-3xl items-center justify-between gap-2 pb-2 landscape:pb-1">
         <p className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
@@ -345,6 +421,12 @@ function VirtualKeyboardOverlay({ field, onHide }: { field: VkField; onHide: () 
                   ))}
                   <KeyButton
                     wide
+                    className="flex-[2] bg-accent/25 text-accent-foreground"
+                    label=".com"
+                    onPress={() => press(".com")}
+                  />
+                  <KeyButton
+                    wide
                     label={<Delete className="h-5 w-5" />}
                     ariaLabel={t("vkBackspace")}
                     onPress={() => press("backspace")}
@@ -368,6 +450,12 @@ function VirtualKeyboardOverlay({ field, onHide }: { field: VkField; onHide: () 
               {EMAIL_SYMBOLS.map((k) => (
                 <KeyButton key={k} label={k} onPress={() => press(k)} />
               ))}
+              <KeyButton
+                wide
+                className="flex-[2] bg-accent/25 text-accent-foreground"
+                label=".com"
+                onPress={() => press(".com")}
+              />
             </div>
           ) : null}
 
@@ -397,6 +485,14 @@ function VirtualKeyboardOverlay({ field, onHide }: { field: VkField; onHide: () 
               label={t("vkSpace")}
               onPress={() => press("space")}
             />
+            {field.mode === "email" ? (
+              <KeyButton
+                wide
+                className="bg-accent/25 text-accent-foreground"
+                label=".com"
+                onPress={() => press(".com")}
+              />
+            ) : null}
             <KeyButton wide label={t("vkDone")} onPress={onHide} />
           </div>
         </div>

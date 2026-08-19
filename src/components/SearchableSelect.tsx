@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { useVirtualKeyboard } from "@/components/VirtualKeyboard";
+import { useVkComboboxSearch } from "@/components/VirtualKeyboard";
 
 export type SearchableSelectOption = {
   value: string;
@@ -45,7 +45,8 @@ export function SearchableSelect({
   onOpenChange,
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false);
-  const vk = useVirtualKeyboard();
+  const searchId = id ? `${id}-search` : "searchable-select-search";
+  const { vk, inputProps, popoverProps, onOpenChange: onVkOpen } = useVkComboboxSearch(searchId);
   const selected = options.find((option) => option.value === value);
 
   return (
@@ -53,6 +54,7 @@ export function SearchableSelect({
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
+        onVkOpen(next);
         onOpenChange?.(next);
       }}
       modal={modal}
@@ -64,6 +66,7 @@ export function SearchableSelect({
           variant="outline"
           role="combobox"
           aria-expanded={open}
+          data-vk-field={vk.enabled ? searchId : undefined}
           className={cn(
             "h-12 w-full justify-between rounded-xl border-input bg-transparent px-4 text-base font-normal shadow-sm hover:bg-secondary/60 hover:text-foreground landscape:h-11",
             !selected && "text-muted-foreground",
@@ -78,12 +81,13 @@ export function SearchableSelect({
         className="z-[100] w-[var(--radix-popover-trigger-width)] min-w-[16rem] rounded-xl border-border bg-popover p-0 text-popover-foreground shadow-xl"
         align="start"
         collisionPadding={12}
+        {...popoverProps}
       >
         <Command className="rounded-xl bg-popover text-popover-foreground">
           <CommandInput
             placeholder={searchPlaceholder}
             className="h-11 text-base"
-            inputMode={vk.enabled ? "none" : undefined}
+            {...inputProps}
           />
           <CommandList className="max-h-64 landscape:max-h-[min(36dvh,12rem)]">
             <CommandEmpty>{emptyText}</CommandEmpty>
@@ -95,6 +99,8 @@ export function SearchableSelect({
                   onSelect={() => {
                     onChange(option.value);
                     setOpen(false);
+                    onVkOpen(false);
+                    onOpenChange?.(false);
                   }}
                   className="cursor-pointer gap-3 rounded-lg px-3 py-3 text-base text-popover-foreground data-[selected=true]:bg-accent/25 data-[selected=true]:text-popover-foreground"
                 >

@@ -426,7 +426,7 @@ export const en = {
   settingsVkTitle: "On-screen keyboard (registration tablet)",
   settingsVkEnable: "Enable on-screen keyboard",
   settingsVkHint:
-    "When on, guests type with a tablet keyboard instead of the Android keyboard. Phone uses digits; names use letters; email uses letters and symbols such as @ . _ - +.",
+    "When on, guests type with a tablet keyboard instead of the Android keyboard. Phone uses digits; names use letters; email uses letters, @ . _ - +, and a .com key. Nationality and location search use letters.",
   settingsDetectedOnPc: "Detected on this PC",
   settingsReady: "ready",
   settingsWorkOffline: "Work Offline",
@@ -919,7 +919,7 @@ export const ar: Record<keyof typeof en, string> = {
   settingsVkTitle: "لوحة مفاتيح على الشاشة (جهاز التسجيل)",
   settingsVkEnable: "تفعيل لوحة المفاتيح على الشاشة",
   settingsVkHint:
-    "عند التفعيل، يكتب الضيوف بلوحة المفاتيح على الجهاز بدل لوحة أندرويد. الجوال أرقام فقط؛ الأسماء حروف؛ البريد حروف ورموز مثل @ . _ - +.",
+    "عند التفعيل، يكتب الضيوف بلوحة المفاتيح على الجهاز بدل لوحة أندرويد. الجوال أرقام فقط؛ الأسماء حروف؛ البريد حروف ورموز مثل @ . _ - + ومفتاح .com. البحث عن الجنسية والموقع يستخدم الحروف.",
   settingsDetectedOnPc: "المكتشف على هذا الجهاز",
   settingsReady: "جاهزة",
   settingsWorkOffline: "عمل دون اتصال",

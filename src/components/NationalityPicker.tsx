@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { NATIONALITIES, type NationalityOption } from "@/lib/countries";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
-import { useVirtualKeyboard } from "@/components/VirtualKeyboard";
+import { useVkComboboxSearch } from "@/components/VirtualKeyboard";
 
 type NationalityPickerProps = {
   id?: string;
@@ -32,7 +32,8 @@ export function NationalityPicker({
 }: NationalityPickerProps) {
   const [open, setOpen] = useState(false);
   const { t } = useI18n();
-  const vk = useVirtualKeyboard();
+  const searchId = id ? `${id}-search` : "nationality-search";
+  const { vk, inputProps, popoverProps, onOpenChange: onVkOpen } = useVkComboboxSearch(searchId);
   const selected: NationalityOption | undefined = NATIONALITIES.find((n) => n.name === value);
 
   return (
@@ -40,6 +41,7 @@ export function NationalityPicker({
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
+        onVkOpen(next);
         onOpenChange?.(next);
       }}
     >
@@ -50,6 +52,7 @@ export function NationalityPicker({
           variant="outline"
           role="combobox"
           aria-expanded={open}
+          data-vk-field={vk.enabled ? searchId : undefined}
           className={cn(
             "h-12 w-full justify-between rounded-xl border-input bg-transparent px-4 text-base font-normal shadow-sm hover:bg-secondary/60 landscape:h-11",
             !selected && "text-muted-foreground",
@@ -70,15 +73,16 @@ export function NationalityPicker({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-[var(--radix-popover-trigger-width)] rounded-xl border-border bg-popover p-0 text-popover-foreground shadow-xl"
+        className="z-[100] w-[var(--radix-popover-trigger-width)] rounded-xl border-border bg-popover p-0 text-popover-foreground shadow-xl"
         align="start"
         collisionPadding={12}
+        {...popoverProps}
       >
         <Command className="rounded-xl bg-popover text-popover-foreground">
           <CommandInput
             placeholder={t("registerSearchNationality")}
             className="h-11 text-base"
-            inputMode={vk.enabled ? "none" : undefined}
+            {...inputProps}
           />
           <CommandList className="max-h-64 landscape:max-h-[min(36dvh,12rem)]">
             <CommandEmpty>{t("registerNoNationality")}</CommandEmpty>
@@ -90,6 +94,8 @@ export function NationalityPicker({
                   onSelect={() => {
                     onChange(n.name);
                     setOpen(false);
+                    onVkOpen(false);
+                    onOpenChange?.(false);
                   }}
                   className="cursor-pointer gap-3 rounded-lg px-3 py-3 text-base data-[selected=true]:bg-accent/25"
                 >
