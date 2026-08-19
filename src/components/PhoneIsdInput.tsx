@@ -69,7 +69,7 @@ export function PhoneIsdInput({ id, value, onChange, className }: PhoneIsdInputP
   });
 
   return (
-    <div className={cn("flex gap-2", className)}>
+    <div className={cn("flex h-12 w-full gap-2 landscape:h-14", className)}>
       <Popover
         open={open}
         onOpenChange={(next) => {
@@ -84,7 +84,7 @@ export function PhoneIsdInput({ id, value, onChange, className }: PhoneIsdInputP
             role="combobox"
             aria-expanded={open}
             aria-label={t("registerDialCode")}
-            className="h-12 shrink-0 gap-1.5 rounded-xl border-input bg-transparent px-3 text-base font-normal shadow-sm hover:bg-secondary/60 landscape:h-11"
+            className="h-full shrink-0 gap-1.5 rounded-xl border-input bg-transparent px-3 text-base font-normal shadow-sm hover:bg-secondary/60 landscape:text-lg"
           >
             <span className="text-xl leading-none" aria-hidden>
               {selected.flag}
@@ -142,7 +142,7 @@ export function PhoneIsdInput({ id, value, onChange, className }: PhoneIsdInputP
         value={local}
         onChange={(e) => onLocalChange(e.target.value)}
         placeholder="55XXXXXX"
-        className="h-12 flex-1 scroll-mt-3 scroll-mb-[var(--vk-height,8rem)] rounded-xl px-4 text-base landscape:h-11 data-[vk-active=true]:ring-2 data-[vk-active=true]:ring-accent"
+        className="h-full flex-1 scroll-mt-3 scroll-mb-[var(--vk-height,8rem)] rounded-xl px-4 text-base md:text-base landscape:text-lg data-[vk-active=true]:ring-2 data-[vk-active=true]:ring-accent"
         {...localVk}
       />
     </div>

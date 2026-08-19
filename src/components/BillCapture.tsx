@@ -137,7 +137,7 @@ export function BillCapture({
         <Button
           type="button"
           variant="secondary"
-          className="h-12 w-full text-base landscape:h-11"
+          className="h-12 w-full text-base landscape:h-12"
           onClick={() => {
             onClear?.();
             setError(null);
@@ -220,7 +220,7 @@ export function BillCapture({
         <Button
           type="button"
           variant="secondary"
-          className="h-12 w-full text-base landscape:h-11"
+          className="h-12 w-full text-base landscape:h-12"
           onClick={() => fileInputRef.current?.click()}
         >
           {t("billUpload")}

@@ -54,7 +54,7 @@ export function NationalityPicker({
           aria-expanded={open}
           data-vk-field={vk.enabled ? searchId : undefined}
           className={cn(
-            "h-12 w-full justify-between rounded-xl border-input bg-transparent px-4 text-base font-normal shadow-sm hover:bg-secondary/60 landscape:h-11",
+            "h-12 w-full justify-between rounded-xl border-input bg-transparent px-4 text-base font-normal shadow-sm hover:bg-secondary/60 landscape:h-14 landscape:text-lg",
             !selected && "text-muted-foreground",
             className,
           )}

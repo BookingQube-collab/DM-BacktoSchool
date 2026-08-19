@@ -155,7 +155,7 @@ export function StorePicker({
   return (
     <div className="min-w-0 max-w-full space-y-4 landscape:space-y-2.5">
       <div ref={wrapRef} className="relative min-w-0 space-y-2 landscape:space-y-1">
-        <Label htmlFor="store_search" className="text-base landscape:text-sm">
+        <Label htmlFor="store_search" className="text-base landscape:text-base">
           {t("pickerSearchStore")}
         </Label>
         <div className="relative min-w-0">
@@ -168,7 +168,7 @@ export function StorePicker({
               setQuery(e.target.value);
               setOpen(true);
             }}
-            className="h-12 w-full scroll-mt-3 scroll-mb-[var(--vk-height,8rem)] rounded-xl ps-11 pe-4 text-base landscape:h-11 data-[vk-active=true]:ring-2 data-[vk-active=true]:ring-accent"
+            className="h-12 w-full scroll-mt-3 scroll-mb-[var(--vk-height,8rem)] rounded-xl ps-11 pe-4 text-base md:text-base landscape:h-14 landscape:text-lg data-[vk-active=true]:ring-2 data-[vk-active=true]:ring-accent"
             placeholder={t("pickerTypeStore")}
             autoComplete="off"
             {...searchVk}
@@ -227,7 +227,7 @@ export function StorePicker({
       ) : null}
 
       <div className="min-w-0 space-y-2 landscape:space-y-1">
-        <Label className="text-base landscape:text-sm">{featuredHeading}</Label>
+        <Label className="text-base">{featuredHeading}</Label>
         {loading ? (
           <p className="text-sm text-muted-foreground">{t("pickerLoading")}</p>
         ) : featured.length === 0 ? (

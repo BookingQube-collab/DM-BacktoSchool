@@ -216,9 +216,16 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
   }
 
   const fieldClass =
-    "h-12 scroll-mt-3 scroll-mb-[var(--vk-height,8rem)] rounded-xl px-4 text-base landscape:h-11 data-[vk-active=true]:ring-2 data-[vk-active=true]:ring-accent";
-  const labelClass = "text-base landscape:text-sm";
-  const fieldWrapClass = "space-y-2 landscape:space-y-1";
+    "h-12 scroll-mt-3 scroll-mb-[var(--vk-height,8rem)] rounded-xl px-4 text-base md:text-base landscape:h-14 landscape:text-lg data-[vk-active=true]:ring-2 data-[vk-active=true]:ring-accent";
+  const step3FieldClass = cn(
+    fieldClass,
+    "landscape:h-auto landscape:min-h-14 landscape:flex-1",
+  );
+  const step3ControlClass =
+    "landscape:h-full landscape:min-h-14 landscape:flex-1 landscape:text-lg";
+  const labelClass = "shrink-0 text-base landscape:text-base md:landscape:text-lg";
+  const fieldWrapClass = "flex flex-col gap-2";
+  const step3WrapClass = cn(fieldWrapClass, "landscape:h-full");
 
   return (
     <div
@@ -227,7 +234,8 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
         "relative h-dvh max-h-dvh overflow-x-hidden overflow-y-scroll overscroll-y-contain text-foreground",
         "px-4 pt-12 pb-8 md:px-6",
         "landscape:flex landscape:flex-col landscape:px-5 landscape:pt-3 landscape:pb-2",
-        vk.activeId && "pb-[calc(var(--vk-height,18rem)+1rem)] landscape:pb-[calc(var(--vk-height,16rem)+0.75rem)]",
+        vk.activeId &&
+          "pb-[calc(var(--vk-height,18rem)+1rem)] landscape:pb-[calc(var(--vk-height,16rem)+1.25rem)]",
       )}
     >
       <div className="mx-auto w-full min-w-0 max-w-2xl landscape:flex landscape:min-h-0 landscape:flex-1 landscape:flex-col landscape:max-w-6xl">
@@ -282,9 +290,9 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
           </div>
         </div>
 
-        <div className="min-w-0 space-y-5 rounded-3xl border border-border bg-secondary/45 p-5 shadow-xl backdrop-blur md:p-8 landscape:flex landscape:min-h-0 landscape:flex-1 landscape:flex-col landscape:gap-2 landscape:space-y-0 landscape:rounded-2xl landscape:p-3 md:landscape:p-3.5">
+        <div className="min-w-0 space-y-5 rounded-3xl border border-border bg-secondary/45 p-5 shadow-xl backdrop-blur md:p-8 landscape:flex landscape:min-h-0 landscape:flex-1 landscape:flex-col landscape:gap-3 landscape:space-y-0 landscape:rounded-2xl landscape:p-4 md:landscape:p-5">
           {step === 1 ? (
-            <div className="min-w-0 w-full space-y-5 landscape:grid landscape:min-h-0 landscape:flex-1 landscape:grid-cols-1 landscape:gap-3 landscape:space-y-0 lg:landscape:grid-cols-[minmax(0,1fr)_minmax(16rem,22rem)] lg:landscape:items-start">
+            <div className="min-w-0 w-full space-y-5 landscape:grid landscape:min-h-0 landscape:flex-1 landscape:grid-cols-1 landscape:gap-4 landscape:space-y-0 lg:landscape:grid-cols-[minmax(0,1fr)_minmax(16rem,22rem)] lg:landscape:items-start">
               <StorePicker
                 featured={featured}
                 featuredSource={featuredSource}
@@ -323,8 +331,8 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
           ) : null}
 
           {step === 3 ? (
-            <div className="grid gap-4 sm:grid-cols-2 landscape:min-h-0 landscape:flex-1 landscape:grid-cols-3 landscape:content-start landscape:gap-2.5">
-              <div className={fieldWrapClass}>
+            <div className="grid gap-4 sm:grid-cols-2 landscape:min-h-min landscape:flex-1 landscape:grid-cols-3 landscape:auto-rows-fr landscape:items-stretch landscape:gap-x-5 landscape:gap-y-4">
+              <div className={step3WrapClass}>
                 <Label htmlFor="first_name" className={labelClass}>
                   {t("registerFirstName")}
                 </Label>
@@ -333,11 +341,11 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
                   value={form.first_name}
                   onChange={(e) => update("first_name", e.target.value)}
                   autoComplete="given-name"
-                  className={fieldClass}
+                  className={step3FieldClass}
                   {...firstNameVk}
                 />
               </div>
-              <div className={fieldWrapClass}>
+              <div className={step3WrapClass}>
                 <Label htmlFor="last_name" className={labelClass}>
                   {t("registerLastName")}
                 </Label>
@@ -346,11 +354,11 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
                   value={form.last_name}
                   onChange={(e) => update("last_name", e.target.value)}
                   autoComplete="family-name"
-                  className={fieldClass}
+                  className={step3FieldClass}
                   {...lastNameVk}
                 />
               </div>
-              <div className={fieldWrapClass}>
+              <div className={step3WrapClass}>
                 <Label htmlFor="email" className={labelClass}>
                   {t("registerEmail")}
                 </Label>
@@ -360,11 +368,11 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
                   value={form.email}
                   onChange={(e) => update("email", e.target.value)}
                   autoComplete="email"
-                  className={fieldClass}
+                  className={step3FieldClass}
                   {...emailVk}
                 />
               </div>
-              <div className={fieldWrapClass}>
+              <div className={step3WrapClass}>
                 <Label htmlFor="mobile" className={labelClass}>
                   {t("registerMobile")}
                 </Label>
@@ -373,9 +381,10 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
                   id="mobile"
                   value={form.mobile}
                   onChange={(full) => update("mobile", full)}
+                  className={step3ControlClass}
                 />
               </div>
-              <div className={fieldWrapClass}>
+              <div className={step3WrapClass}>
                 <Label htmlFor="nationality" className={labelClass}>
                   {t("commonNationality")}
                 </Label>
@@ -383,9 +392,10 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
                   id="nationality"
                   value={form.nationality}
                   onChange={(name) => update("nationality", name)}
+                  className={step3ControlClass}
                 />
               </div>
-              <div className={fieldWrapClass}>
+              <div className={step3WrapClass}>
                 <Label htmlFor="address_zone" className={labelClass}>
                   {t("registerAddressZone")}
                 </Label>
@@ -397,9 +407,10 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
                   placeholder={t("registerSelectArea")}
                   searchPlaceholder={t("registerSearchArea")}
                   emptyText={t("registerNoArea")}
+                  className={step3ControlClass}
                 />
               </div>
-              <div className={cn(fieldWrapClass, "sm:col-span-2 landscape:col-span-1")}>
+              <div className={cn(step3WrapClass, "sm:col-span-2 landscape:col-span-1")}>
                 <Label htmlFor="transaction_date" className={labelClass}>
                   {t("registerTxnDate")}
                 </Label>
@@ -409,7 +420,7 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
                   value={form.transaction_date}
                   onChange={(e) => update("transaction_date", e.target.value)}
                   onFocus={() => vk.dismiss()}
-                  className="h-12 rounded-xl px-4 text-base landscape:h-11"
+                  className={step3FieldClass}
                 />
               </div>
             </div>
@@ -422,14 +433,14 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
             data-vk-keep
             className={cn(
               "relative mt-4 flex w-full min-w-0 shrink-0 flex-col gap-3 self-stretch pt-3 sm:flex-row sm:items-stretch",
-              "landscape:mt-auto landscape:gap-2 landscape:pt-2 landscape:pb-0.5",
+              "landscape:mt-auto landscape:gap-3 landscape:pt-3 landscape:pb-0.5",
             )}
           >
             {step > 1 ? (
               <Button
                 type="button"
                 variant="secondary"
-                className="h-12 w-full min-w-0 flex-1 text-base landscape:h-11"
+                className="h-12 w-full min-w-0 flex-1 text-base landscape:h-12 landscape:text-lg"
                 onClick={goBack}
                 disabled={loading}
               >
@@ -440,7 +451,7 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
               <Button
                 type="button"
                 size="lg"
-                className="h-12 w-full min-w-0 flex-1 px-4 text-base landscape:h-11"
+                className="h-12 w-full min-w-0 flex-1 px-4 text-base landscape:h-12 landscape:text-lg"
                 onClick={goNext}
                 disabled={!storesReady || !hasStores}
               >
@@ -450,7 +461,7 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
               <Button
                 type="button"
                 size="lg"
-                className="h-12 w-full min-w-0 flex-1 px-4 text-base landscape:h-11"
+                className="h-12 w-full min-w-0 flex-1 px-4 text-base landscape:h-12 landscape:text-lg"
                 onClick={() => void onRegister()}
                 disabled={loading || !storesReady || !hasStores}
               >
