@@ -1,23 +1,19 @@
-/**
- * Tablet print — the browser sends the career postcard image to the SELPHY.
- * Vercel cannot reach the printer on LAN; HTTPS tablets must not enqueue
- * print_jobs or call an HTTP booth PC URL (mixed content).
- */
+/** Guest/admin tablet print — Vercel queues; booth PC worker silent-prints the photo. */
 
 export const SILENT_PRINT_TIMEOUT_MS = 90_000;
-const IMAGE_READY_MS = 20_000;
-const FETCH_BLOB_MS = 8_000;
-const PRINT_CLEANUP_MS = 90_000;
+const PRINT_STATUS_POLL_MS = 2_000;
+/** Fail fast if the booth PC has not claimed the job (heartbeat missing). */
+const WORKER_MISS_MS = 12_000;
 
-const PRINT_ERR_PHOTO =
-  "Photo not ready — wait for the transform to finish, then retry.";
-const PRINT_ERR_LOAD = "Print page did not load. Check the photo, then retry.";
-const PRINT_ERR_PRINTER =
-  "Printer not ready — check SELPHY power, paper, and that it is on the same Wi‑Fi as this tablet.";
+const PRINT_ERR_BOOTH_OFF =
+  "Print queued but booth PC did not pick it up — keep the Windows booth PC powered on.";
+const PRINT_ERR_STILL_PRINTING =
+  "Print is taking longer than expected. Check the SELPHY — it may still be printing. If not, retry.";
+const PRINT_ERR_QUEUE_FAILED =
+  "Print queue failed — check SELPHY and that the Windows booth PC is powered on.";
 
 type PrintProgress = {
   onAccepted?: () => void;
-  onReady?: () => void;
 };
 
 function sleep(ms: number) {
@@ -26,248 +22,183 @@ function sleep(ms: number) {
   });
 }
 
-function escapeHtmlAttr(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;")
-    .replace(/</g, "&lt;");
-}
-
 export function guestPrintError(raw: string): string {
   const m = raw.toLowerCase();
   if (
-    /photo not ready|too small|empty|could not download|cors|did not load/i.test(
+    /did not pick it up|booth worker|npm run booth|npm run dev|booth print service/i.test(
       m,
     )
   ) {
-    return PRINT_ERR_PHOTO;
+    return PRINT_ERR_BOOTH_OFF;
   }
-  if (/print page did not load|print failed/i.test(m)) {
+  if (/taking longer than expected|may still be printing/i.test(m)) {
     return raw.length > 140 ? `${raw.slice(0, 137)}…` : raw;
   }
   if (
-    /not reachable|could not reach selphy|selphy wi‑?fi|selphy wifi|offline|work offline|paused|timed out|not ready/i.test(
+    /booth computer network|requires the app server|is the booth server running|win32|failed to fetch|networkerror|load failed|mixed content|blocked:mixed/i.test(
       m,
     )
   ) {
-    return PRINT_ERR_PRINTER;
+    return "Print needs the Windows booth PC powered on so it can send photos to the SELPHY.";
+  }
+  if (/not reachable|could not reach selphy|selphy not reachable|selphy wi‑?fi|selphy wifi/i.test(m)) {
+    return "Printer not ready — check SELPHY power and Wi‑Fi (same network as the booth PC).";
   }
   if (/printer not found:|pick a detected printer/i.test(m)) {
-    return "Printer not listed — on the Android sheet, tap Canon SELPHY CP1500 (same Wi‑Fi as this tablet).";
+    return "Printer name not found — ask staff to set it in Admin → Settings.";
+  }
+  if (/timed out|not ready|offline|work offline|paused/i.test(m)) {
+    return "Printer not ready — check power, connection, and paper.";
+  }
+  if (/photo|too small|empty|could not download|cors/i.test(m)) {
+    return "Photo not ready — wait for the transform to finish, then retry.";
   }
   const cut = raw.split(/\s+Available:/i)[0]?.trim() || raw;
   return cut.length > 120 ? `${cut.slice(0, 117)}…` : cut;
 }
 
-function postcardPrintDocument(src: string): string {
-  return `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title></title>
-<style>
-@page { size: 148mm 100mm; margin: 0; }
-html, body {
-  margin: 0;
-  padding: 0;
-  width: 148mm;
-  height: 100mm;
-  background: #ffffff;
-  overflow: hidden;
-  -webkit-print-color-adjust: exact;
-  print-color-adjust: exact;
-}
-img {
-  display: block;
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 148mm;
-  height: 100mm;
-  max-width: none;
-  max-height: none;
-  object-fit: cover;
-  object-position: center;
-  border: 0;
-}
-</style>
-</head>
-<body>
-<img src="${escapeHtmlAttr(src)}" alt="" />
-</body>
-</html>`;
-}
-
-async function resolvePrintableSrc(
-  imageUrl: string,
-): Promise<{ src: string; revoke?: () => void }> {
-  const controller = new AbortController();
-  const timer = window.setTimeout(() => controller.abort(), FETCH_BLOB_MS);
-  try {
-    const res = await fetch(imageUrl, {
-      mode: "cors",
-      credentials: "omit",
-      signal: controller.signal,
-    });
-    if (!res.ok) throw new Error("fetch failed");
-    const blob = await res.blob();
-    if (blob.size < 2_048) throw new Error("too small");
-    const src = URL.createObjectURL(blob);
-    return { src, revoke: () => URL.revokeObjectURL(src) };
-  } catch {
-    return { src: imageUrl };
-  } finally {
-    window.clearTimeout(timer);
-  }
-}
-
-function waitForImage(img: HTMLImageElement, timeoutMs: number): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const timer = window.setTimeout(() => {
-      reject(new Error(PRINT_ERR_PHOTO));
-    }, timeoutMs);
-    const done = (ok: boolean) => {
-      window.clearTimeout(timer);
-      if (ok) resolve();
-      else reject(new Error(PRINT_ERR_PHOTO));
-    };
-    if (img.complete && img.naturalWidth > 0) {
-      done(true);
-      return;
-    }
-    img.addEventListener("load", () => done(true), { once: true });
-    img.addEventListener("error", () => done(false), { once: true });
-  });
-}
-
 /**
- * Print only the career postcard raster (imageUrl / blob) from the tablet.
- * Isolated document so Chrome/Android does not print booth UI, QR, or chrome.
+ * Avoid mixed content: HTTPS tablet must not fetch http://192.168… booth URL.
+ * Use same-origin `/api/print` (Vercel queues; booth worker prints).
  */
-export async function printPostcardFromTablet(
-  imageUrl: string,
-  progress?: PrintProgress,
-): Promise<void> {
-  const url = imageUrl.trim();
-  if (!url) throw new Error(PRINT_ERR_PHOTO);
-  if (typeof window === "undefined" || typeof document === "undefined") {
-    throw new Error("Print can only run on the tablet website.");
-  }
-
-  const resolved = await resolvePrintableSrc(url);
-  const html = postcardPrintDocument(resolved.src);
-
-  const iframe = document.createElement("iframe");
-  iframe.className = "tablet-print-frame";
-  iframe.setAttribute("aria-hidden", "true");
-  iframe.setAttribute("title", "Print postcard");
-  iframe.style.cssText =
-    "position:fixed;right:0;bottom:0;width:148mm;height:100mm;border:0;opacity:0;pointer-events:none;z-index:-1;";
-
-  const fallbackImg = document.createElement("img");
-  fallbackImg.className = "print-photo";
-  fallbackImg.alt = "";
-  fallbackImg.src = resolved.src;
-
-  let cleaned = false;
-  const cleanup = () => {
-    if (cleaned) return;
-    cleaned = true;
-    document.documentElement.classList.remove("tablet-print-active");
-    iframe.remove();
-    fallbackImg.remove();
-    resolved.revoke?.();
-  };
-
-  document.documentElement.classList.add("tablet-print-active");
-  document.body.appendChild(fallbackImg);
-
-  try {
-    const iframeReady = new Promise<void>((resolve, reject) => {
-      const timer = window.setTimeout(
-        () => reject(new Error(PRINT_ERR_LOAD)),
-        IMAGE_READY_MS,
-      );
-      iframe.addEventListener("load", () => {
-        if (!iframe.contentDocument?.querySelector("img")) return;
-        window.clearTimeout(timer);
-        resolve();
-      });
-    });
-    iframe.srcdoc = html;
-    document.body.appendChild(iframe);
-    await iframeReady;
-
-    const frameDoc = iframe.contentDocument;
-    const frameWin = iframe.contentWindow;
-    if (!frameDoc || !frameWin) throw new Error(PRINT_ERR_LOAD);
-
-    const img = frameDoc.querySelector("img");
-    if (!img) throw new Error(PRINT_ERR_LOAD);
-    await waitForImage(img, IMAGE_READY_MS);
-    try {
-      await img.decode();
-    } catch {
-      /* decode is optional */
-    }
-    await sleep(60);
-
-    const markReady = () => {
-      progress?.onReady?.();
-      progress?.onAccepted?.();
-    };
-
-    try {
-      frameWin.focus();
-      frameWin.print();
-    } catch {
-      window.print();
-    }
-    markReady();
-
-    const after = () => cleanup();
-    frameWin.addEventListener("afterprint", after, { once: true });
-    window.addEventListener("afterprint", after, { once: true });
-    window.setTimeout(cleanup, PRINT_CLEANUP_MS);
-  } catch (e) {
-    cleanup();
-    throw e instanceof Error ? e : new Error(String(e));
-  }
-}
-
-/** HTTPS tablets ignore LAN booth URLs (mixed content). Always same-origin. */
-export function resolvePrintApiUrl(_boothPrintBaseUrl: string): string {
+export function resolvePrintApiUrl(boothPrintBaseUrl: string): string {
+  const base = boothPrintBaseUrl.trim().replace(/\/+$/, "");
   const pageIsHttps =
     typeof window !== "undefined" && window.location.protocol === "https:";
-  if (pageIsHttps) return "/api/print";
-  const base = _boothPrintBaseUrl.trim().replace(/\/+$/, "");
+  const boothIsHttp = /^http:\/\//i.test(base);
+
+  if (pageIsHttps && boothIsHttp) {
+    return "/api/print";
+  }
   return base ? `${base}/api/print` : "/api/print";
 }
 
-/**
- * Legacy Windows booth queue client — unused by HTTPS tablet Print/Reprint.
- * Left for local `npm run booth` IPP if a PC is ever used again.
- */
+export async function pollQueuedPrintJob(
+  jobId: string,
+  progress?: PrintProgress,
+): Promise<void> {
+  const started = Date.now();
+  const deadline = started + SILENT_PRINT_TIMEOUT_MS;
+  let accepted = false;
+  let lastStatus = "";
+  const markAccepted = () => {
+    if (accepted) return;
+    accepted = true;
+    progress?.onAccepted?.();
+  };
+
+  while (true) {
+    const res = await fetch(
+      `/api/print/status?id=${encodeURIComponent(jobId)}`,
+    );
+    let payload: {
+      ok?: boolean;
+      status?: string;
+      error?: string;
+      worker_alive?: boolean;
+    } = {};
+    try {
+      payload = (await res.json()) as typeof payload;
+    } catch {
+      /* non-JSON */
+    }
+
+    if (!res.ok) {
+      throw new Error(payload.error || `Print status failed (${res.status})`);
+    }
+
+    lastStatus = payload.status || lastStatus;
+
+    if (payload.status === "done") {
+      markAccepted();
+      return;
+    }
+    if (payload.status === "printing") {
+      markAccepted();
+    }
+    if (payload.status === "failed") {
+      throw new Error(payload.error || PRINT_ERR_QUEUE_FAILED);
+    }
+    if (payload.status === "pending" && payload.worker_alive === false) {
+      if (Date.now() - started >= WORKER_MISS_MS) {
+        throw new Error(PRINT_ERR_BOOTH_OFF);
+      }
+    }
+
+    if (Date.now() >= deadline) break;
+    await sleep(PRINT_STATUS_POLL_MS);
+  }
+
+  if (lastStatus === "printing") {
+    throw new Error(PRINT_ERR_STILL_PRINTING);
+  }
+  throw new Error(PRINT_ERR_BOOTH_OFF);
+}
+
+type PrintPayload = {
+  ok?: boolean;
+  error?: string;
+  queued?: boolean;
+  jobId?: string;
+  printer_name?: string;
+  worker_alive?: boolean;
+};
+
 export async function followPrintPayload(
-  payload: { queued?: boolean; jobId?: string },
+  payload: PrintPayload,
   progress?: PrintProgress,
 ): Promise<void> {
   if (payload.queued && payload.jobId) {
-    throw new Error(
-      "Cloud print queue is not used. Print the photo from this tablet instead.",
-    );
+    await pollQueuedPrintJob(payload.jobId, progress);
+    return;
   }
-  progress?.onReady?.();
   progress?.onAccepted?.();
 }
 
 export async function silentPrintApi(
   imageUrl: string,
-  _printerName: string,
-  _boothPrintBaseUrl: string,
+  printerName: string,
+  boothPrintBaseUrl: string,
   progress?: PrintProgress,
 ): Promise<void> {
-  await printPostcardFromTablet(imageUrl, progress);
+  const controller = new AbortController();
+  const timer = window.setTimeout(
+    () => controller.abort(),
+    SILENT_PRINT_TIMEOUT_MS,
+  );
+  try {
+    const res = await fetch(resolvePrintApiUrl(boothPrintBaseUrl), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        imageUrl,
+        printer_name: printerName,
+      }),
+      signal: controller.signal,
+    });
+
+    let payload: PrintPayload = {};
+    try {
+      payload = (await res.json()) as PrintPayload;
+    } catch {
+      /* non-JSON */
+    }
+
+    if (!res.ok) {
+      throw new Error(
+        payload.error ||
+          `Print request failed (${res.status}). Is the booth server running on this PC?`,
+      );
+    }
+
+    window.clearTimeout(timer);
+    await followPrintPayload(payload, progress);
+  } catch (e) {
+    if (e instanceof DOMException && e.name === "AbortError") {
+      throw new Error(PRINT_ERR_STILL_PRINTING);
+    }
+    throw e instanceof Error ? e : new Error(String(e));
+  } finally {
+    window.clearTimeout(timer);
+  }
 }
