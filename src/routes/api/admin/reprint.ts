@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { json, requireAdminSession } from "@/lib/admin-auth.server";
-import { enqueuePrintJob } from "@/lib/print-jobs.server";
 import {
   fetchPrintableImageBytes,
   printPostcardImageBytes,
@@ -60,8 +59,8 @@ export const Route = createFileRoute("/api/admin/reprint")({
           if (error) return json({ error: error.message }, 500);
           if (!session) return json({ error: "Photo session not found" }, 404);
 
-          // Vercel / tablet Admin: queue the stored photo for the booth worker
-          // (same silent SELPHY print as guest Print — no Android sheet).
+          // Vercel / tablet Admin: return the photo URL so the browser prints it
+          // (same tablet image path as guest Print — no print_jobs / laptop).
           if (!isWindowsBooth()) {
             let imageUrl = session.image_url?.trim() || "";
             if (session.image_path?.trim()) {
@@ -73,17 +72,12 @@ export const Route = createFileRoute("/api/admin/reprint")({
             if (!imageUrl) {
               return json({ error: "Photo session has no image to reprint" }, 400);
             }
-            const job = await enqueuePrintJob(imageUrl);
-            const { isPrintWorkerAlive } = await import("@/lib/settings.server");
-            const worker_alive = await isPrintWorkerAlive();
             return json({
               ok: true,
-              queued: true,
-              jobId: job.id,
+              method: "tablet",
+              imageUrl,
               session_id: session.id,
               profession_title: session.profession_title,
-              method: "queue",
-              worker_alive,
             });
           }
 

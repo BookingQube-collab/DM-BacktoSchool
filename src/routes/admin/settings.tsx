@@ -347,16 +347,10 @@ function AdminSettingsPage() {
             placeholder="Canon SELPHY CP1500"
           />
           <p className="text-xs text-muted-foreground">
-            Target queue for silent booth Print and Admin → Photos Reprint.
-            Matching is case-insensitive (e.g. SELPHY / CP1500 / Evolis).
-            Canon SELPHY CP1500 may appear as USB (Canon driver) or Wi‑Fi
-            (Microsoft IPP/WSD). Wi‑Fi SELPHY prints via direct IPP when the
-            printer is on the same network — keep{" "}
-            <strong>Canon SELPHY CP1500</strong> selected for photo prints.
-            Evolis Primacy 2 is for CR80 card printing only.
+            {t("settingsPrinterHint")}
           </p>
           <div className="space-y-2">
-            <Label htmlFor="printer_host">Printer IP (Wi‑Fi SELPHY)</Label>
+            <Label htmlFor="printer_host">{t("settingsPrinterIp")}</Label>
             <Input
               id="printer_host"
               value={printerHost}
@@ -366,29 +360,28 @@ function AdminSettingsPage() {
               autoComplete="off"
             />
             <p className="text-xs text-muted-foreground">
-              Optional. Use when Windows still lists an old SELPHY address after
-              DHCP changed. Leave blank to auto-detect (ARP + live IPP probe).
+              {t("settingsPrinterIpHint")}
               {detectedSelphyIp ? (
                 <>
                   {" "}
-                  Detected now:{" "}
+                  {t("settingsDetectedNow")}{" "}
                   <button
                     type="button"
                     className="font-medium text-foreground underline-offset-2 hover:underline"
                     onClick={() => setPrinterHost(detectedSelphyIp)}
-                    title="Use detected IP"
+                    title={t("settingsUseDetectedIp")}
                   >
                     {detectedSelphyIp}
                   </button>
                 </>
               ) : (
-                " No live SELPHY IP detected yet — power on the printer on the booth Wi‑Fi."
+                t("settingsNoSelphyIp")
               )}
             </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="booth_print_base_url">
-              Booth print server URL (optional)
+              {t("settingsBoothUrl")}
             </Label>
             <Input
               id="booth_print_base_url"
@@ -399,12 +392,7 @@ function AdminSettingsPage() {
               autoComplete="off"
             />
             <p className="text-xs text-muted-foreground">
-              Optional for tablets on the HTTPS Vercel site — Print uses a
-              Supabase job queue (no mixed-content block). Run{" "}
-              <code className="rounded bg-muted px-1">npm run booth:install</code>{" "}
-              once on the Windows booth PC so printing starts automatically.
-              Use this URL only when guests open the booth on the LAN HTTP site
-              for direct print.
+              {t("settingsBoothUrlHint")}
             </p>
           </div>
           {detectedPrinters.length > 0 ? (
@@ -452,38 +440,12 @@ function AdminSettingsPage() {
             </p>
           ) : null}
           <ol className="list-decimal space-y-1 pl-4 text-xs text-muted-foreground">
-            <li>
-              On the Windows PC that stays at the booth, run{" "}
-              <code className="rounded bg-muted px-1">
-                npm run booth:install
-              </code>{" "}
-              once. After that, power it on — Print is silent (countdown only,
-              no Android sheet). Same Wi‑Fi as the SELPHY. Tablets stay on
-              Vercel.
-            </li>
-            <li>
-              Tablets on Vercel (HTTPS) Print via{" "}
-              <code className="rounded bg-muted px-1">/api/print</code> →
-              Supabase queue → booth worker → SELPHY. That prints the full
-              photo (same as before). No Android print dialog.
-            </li>
-            <li>
-              Optional: set <strong>Booth print server URL</strong> if guests
-              use the LAN HTTP booth site and you want an explicit direct target
-              (e.g. http://192.168.18.87:8080). HTTPS pages never call an HTTP
-              booth URL from the browser (mixed content).
-            </li>
-            <li>
-              USB: install the manufacturer driver (Canon SELPHY or Evolis).
-              Wi‑Fi SELPHY: power on, same Wi‑Fi as this booth PC. Set Printer
-              IP above if auto-detect picks a stale address.
-            </li>
-            <li>
-              If Wi‑Fi SELPHY still fails: run Canon SELPHY Wi‑Fi setup / SELPHY
-              PRINT so a non‑WSD queue appears. Evolis Primacy 2 stays available
-              for CR80 card reprints only.
-            </li>
-            <li>Optional fullscreen booth Chrome shortcut:</li>
+            <li>{t("settingsStep1")}</li>
+            <li>{t("settingsStep2")}</li>
+            <li>{t("settingsStep3")}</li>
+            <li>{t("settingsStep4")}</li>
+            <li>{t("settingsStep5")}</li>
+            <li>{t("settingsStep6")}</li>
           </ol>
           <code className="block break-all rounded-md bg-muted px-3 py-2 text-xs">
             {kioskHint}

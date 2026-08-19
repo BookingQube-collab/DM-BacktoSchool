@@ -46,7 +46,7 @@ export function PrintCountdownOverlay({
           </p>
         )}
         <p className="mt-4 font-display text-base text-white/75 md:text-lg">
-          {t("resultHangTight")}
+          {sending ? t("resultPrintStaffHint") : t("resultHangTight")}
         </p>
       </div>
     </div>

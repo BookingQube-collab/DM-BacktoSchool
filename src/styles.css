@@ -154,8 +154,8 @@
 }
 
 @media print {
-  /* Android/Chrome print sheet: one full-bleed postcard. Avoid visibility:hidden
-     on body * — that made the SELPHY preview blank on tablets. */
+  /* Android/Chrome: full-bleed postcard only. Avoid visibility:hidden on body *
+     — that made the SELPHY preview blank on tablets. */
   @page {
     size: 148mm 100mm;
     margin: 0;
@@ -170,6 +170,12 @@
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     overflow: hidden !important;
+  }
+  html.tablet-print-active body > *:not(.print-photo):not(.tablet-print-frame) {
+    display: none !important;
+  }
+  html.tablet-print-active .tablet-print-frame {
+    display: none !important;
   }
   .print-photo {
     display: block !important;

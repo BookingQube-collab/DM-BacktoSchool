@@ -24,7 +24,7 @@ import type { DayBucket, NamedCount } from "@/lib/admin-charts";
 import { todayISODate } from "@/lib/registration";
 import { professionTitleById } from "@/lib/professions";
 import { useI18n } from "@/lib/i18n";
-import { followPrintPayload, guestPrintError } from "@/lib/print-client";
+import { guestPrintError, printPostcardFromTablet } from "@/lib/print-client";
 
 export const Route = createFileRoute("/admin/photos")({
   component: AdminPhotosPage,
@@ -194,14 +194,20 @@ function AdminPhotosPage() {
       const data = (await res.json().catch(() => ({}))) as {
         error?: string;
         printer_name?: string;
-        queued?: boolean;
-        jobId?: string;
+        imageUrl?: string;
+        method?: string;
       };
       if (!res.ok) {
         throw new Error(data.error || `Reprint failed (${res.status})`);
       }
-      await followPrintPayload(data, {
-        onAccepted: () => {
+      const rowUrl =
+        rows.find((row) => row.id === sessionId)?.image_url?.trim() || "";
+      const photoUrl = data.imageUrl?.trim() || rowUrl;
+      if (!photoUrl) {
+        throw new Error("Photo session has no image to reprint");
+      }
+      await printPostcardFromTablet(photoUrl, {
+        onReady: () => {
           countdownDone = startPrintCountdown();
         },
       });

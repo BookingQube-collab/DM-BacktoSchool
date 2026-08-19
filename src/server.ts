@@ -3,7 +3,8 @@ import "./lib/error-capture";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 
-// Windows booth only: poll Supabase print_jobs and silent-print (Vercel tablets enqueue).
+// Windows booth only: unused IPP worker if someone runs `npm run booth` locally.
+// HTTPS tablets print the photo in the browser — Vercel cannot reach the SELPHY.
 if (typeof process !== "undefined" && process.platform === "win32") {
   void import("./lib/print-worker.server")
     .then((m) => m.startPrintWorker())

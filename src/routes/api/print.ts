@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { json } from "@/lib/admin-auth.server";
-import { enqueuePrintJob } from "@/lib/print-jobs.server";
 import {
   fetchPrintableImageBytes,
   printPostcardImageBytes,
@@ -65,30 +64,14 @@ export const Route = createFileRoute("/api/print")({
             );
           }
 
-          // Vercel / non-Windows: enqueue for the booth worker (avoids mixed content).
+          // Vercel cannot reach the SELPHY on LAN. Tablets print in the browser.
           if (!isWindowsBooth()) {
-            if (!imageUrl) {
-              return json(
-                {
-                  error:
-                    "imageUrl is required when printing from the cloud (queue). Open the booth PC on Windows for data-URL prints.",
-                },
-                400,
-                cors,
-              );
-            }
-            const job = await enqueuePrintJob(imageUrl);
-            const { isPrintWorkerAlive } = await import("@/lib/settings.server");
-            const worker_alive = await isPrintWorkerAlive();
             return json(
               {
-                ok: true,
-                queued: true,
-                jobId: job.id,
-                method: "queue",
-                worker_alive,
+                error:
+                  "Print from this tablet — the website sends the photo to the SELPHY. Cloud servers cannot reach the printer.",
               },
-              200,
+              400,
               cors,
             );
           }
