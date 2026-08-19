@@ -107,11 +107,7 @@ function AdminLoginPage() {
           </div>
           {error ? (
             <p className="text-sm text-destructive">{error}</p>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              {t("adminLoginDefault")}
-            </p>
-          )}
+          ) : null}
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? t("adminSigningIn") : t("adminSignIn")}
           </Button>

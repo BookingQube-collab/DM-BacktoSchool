@@ -234,7 +234,6 @@ export const en = {
   adminSignIn: "Sign in",
   adminSigningIn: "Signing in…",
   adminLoginFailed: "Login failed",
-  adminLoginDefault: "Operation: operation / operation123 · Doha Mall: dohamall / dohamall123",
 
   dashTitle: "Dashboard",
   dashSubtitle: "Monitor daily registrations and store transaction activity.",
@@ -731,7 +730,6 @@ export const ar: Record<keyof typeof en, string> = {
   adminSignIn: "تسجيل الدخول",
   adminSigningIn: "جاري الدخول…",
   adminLoginFailed: "فشل تسجيل الدخول",
-  adminLoginDefault: "تشغيل: operation / operation123 · دوحة مول: dohamall / dohamall123",
 
   dashTitle: "لوحة المعلومات",
   dashSubtitle: "متابعة التسجيلات اليومية ونشاط معاملات المتاجر.",
