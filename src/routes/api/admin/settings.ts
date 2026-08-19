@@ -9,15 +9,8 @@ import {
   setSetting,
   updateAdminPassword,
 } from "@/lib/settings.server";
-import {
-  saveStaffUsersFromInput,
-  type StaffUserWriteInput,
-} from "@/lib/staff-users.server";
-import {
-  parseAdminRole,
-  type AdminNavKey,
-  type AdminRole,
-} from "@/lib/admin-roles";
+import { saveStaffUsersFromInput, type StaffUserWriteInput } from "@/lib/staff-users.server";
+import { parseAdminRole, type AdminNavKey, type AdminRole } from "@/lib/admin-roles";
 
 async function uploadMallLogo(raw: unknown) {
   const parsed = parseImageDataUrl(raw, "Doha Mall logo");
@@ -86,6 +79,7 @@ export const Route = createFileRoute("/api/admin/settings")({
             printer_name?: string;
             printer_host?: string;
             booth_print_base_url?: string;
+            virtual_keyboard_enabled?: boolean;
             doha_mall_logo_image?: string;
             clear_doha_mall_logo?: boolean;
             staff_users?: Array<{
@@ -122,16 +116,10 @@ export const Route = createFileRoute("/api/admin/settings")({
           if (typeof body.printer_host === "string") {
             const host = body.printer_host.trim();
             // Allow empty (clear) or a simple IPv4 / hostname.
-            if (
-              host &&
-              !/^(?:\d{1,3}(?:\.\d{1,3}){3}|[a-z0-9][a-z0-9._-]{0,62})$/i.test(
-                host,
-              )
-            ) {
+            if (host && !/^(?:\d{1,3}(?:\.\d{1,3}){3}|[a-z0-9][a-z0-9._-]{0,62})$/i.test(host)) {
               return json(
                 {
-                  error:
-                    "Printer IP must be an IPv4 address (e.g. 192.168.18.108) or leave blank",
+                  error: "Printer IP must be an IPv4 address (e.g. 192.168.18.108) or leave blank",
                 },
                 400,
               );
@@ -156,6 +144,12 @@ export const Route = createFileRoute("/api/admin/settings")({
               await setSetting("booth_print_base_url", normalized);
             }
           }
+          if (typeof body.virtual_keyboard_enabled === "boolean") {
+            await setSetting(
+              "virtual_keyboard_enabled",
+              body.virtual_keyboard_enabled ? "true" : "false",
+            );
+          }
 
           if (body.clear_doha_mall_logo) {
             const existingPath = (
@@ -177,10 +171,7 @@ export const Route = createFileRoute("/api/admin/settings")({
 
           if (Array.isArray(body.staff_users)) {
             if (auth.session.role !== "admin") {
-              return json(
-                { error: "Only the admin account can manage staff logins" },
-                403,
-              );
+              return json({ error: "Only the admin account can manage staff logins" }, 403);
             }
             const inputs: StaffUserWriteInput[] = [];
             for (const row of body.staff_users) {
@@ -192,17 +183,12 @@ export const Route = createFileRoute("/api/admin/settings")({
                 id: typeof row.id === "string" ? row.id : undefined,
                 username: typeof row.username === "string" ? row.username : "",
                 password:
-                  typeof row.password === "string" && row.password
-                    ? row.password
-                    : undefined,
+                  typeof row.password === "string" && row.password ? row.password : undefined,
                 role,
                 pages: Array.isArray(row.pages) ? row.pages : undefined,
               });
             }
-            const saved = await saveStaffUsersFromInput(
-              inputs,
-              await getAdminUsername(),
-            );
+            const saved = await saveStaffUsersFromInput(inputs, await getAdminUsername());
             if ("error" in saved) {
               return json({ error: saved.error }, 400);
             }

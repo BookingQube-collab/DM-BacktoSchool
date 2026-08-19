@@ -53,7 +53,7 @@ export function validateRegistration(body: Partial<RegistrationInput>) {
     errors.push("Valid mobile number is required");
   }
   if (!nationality) errors.push("Nationality is required");
-  if (!address_zone) errors.push("Address zone number is required");
+  if (!address_zone) errors.push("Location is required");
   if (!transaction_date || Number.isNaN(Date.parse(transaction_date))) {
     errors.push("Transaction date is required");
   }
@@ -110,8 +110,6 @@ export function shiftISODate(isoDate: string, days: number) {
 }
 
 /** Default admin lookback so older booth-day receipts still appear on open. */
-export function defaultRegistrationsFromDate(
-  timeZone: string = BOOTH_TIME_ZONE,
-) {
+export function defaultRegistrationsFromDate(timeZone: string = BOOTH_TIME_ZONE) {
   return shiftISODate(todayISODate(timeZone), -30);
 }

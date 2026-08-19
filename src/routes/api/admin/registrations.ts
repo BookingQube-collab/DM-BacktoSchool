@@ -6,11 +6,7 @@ import {
   deleteGuestsFiltered,
   guestSearchOrFilter,
 } from "@/lib/admin-delete.server";
-import {
-  aggregateNamedCounts,
-  type NamedCount,
-  type StoreValueBucket,
-} from "@/lib/admin-charts";
+import { aggregateNamedCounts, type NamedCount, type StoreValueBucket } from "@/lib/admin-charts";
 import {
   defaultRegistrationsFromDate,
   todayISODate,
@@ -70,9 +66,7 @@ function applyGuestFilters(
     maxValue: number | null;
   },
 ) {
-  let q = query
-    .gte("transaction_date", opts.from)
-    .lte("transaction_date", opts.to);
+  let q = query.gte("transaction_date", opts.from).lte("transaction_date", opts.to);
 
   if (opts.storeId) q = q.eq("company_id", opts.storeId);
   if (opts.nationality) q = q.eq("nationality", opts.nationality);
@@ -106,9 +100,7 @@ function mapRegistration(row: GuestListRow) {
   };
 }
 
-function buildAggregates(
-  registrations: ReturnType<typeof mapRegistration>[],
-): {
+function buildAggregates(registrations: ReturnType<typeof mapRegistration>[]): {
   total_value: number;
   by_store: StoreValueBucket[];
   by_nationality: NamedCount[];
@@ -138,9 +130,7 @@ function buildAggregates(
   return {
     total_value: registrations.reduce((s, r) => s + r.transaction_value, 0),
     by_store,
-    by_nationality: aggregateNamedCounts(
-      registrations.map((r) => r.nationality),
-    ),
+    by_nationality: aggregateNamedCounts(registrations.map((r) => r.nationality)),
     by_zone: aggregateNamedCounts(registrations.map((r) => r.address_zone)),
   };
 }
@@ -155,10 +145,7 @@ export const Route = createFileRoute("/api/admin/registrations")({
         try {
           const url = new URL(request.url);
           const today = todayISODate();
-          const from = parseDateParam(
-            url.searchParams.get("from"),
-            defaultRegistrationsFromDate(),
-          );
+          const from = parseDateParam(url.searchParams.get("from"), defaultRegistrationsFromDate());
           const to = parseDateParam(url.searchParams.get("to"), today);
           const format = url.searchParams.get("format");
           const storeId = url.searchParams.get("store_id");
@@ -196,9 +183,7 @@ export const Route = createFileRoute("/api/admin/registrations")({
 
           const [listResult, totalResult, facetsResult] = await Promise.all([
             listQuery,
-            supabaseAdmin
-              .from("guests")
-              .select("id", { count: "exact", head: true }),
+            supabaseAdmin.from("guests").select("id", { count: "exact", head: true }),
             facetsQuery,
           ]);
 
@@ -211,23 +196,17 @@ export const Route = createFileRoute("/api/admin/registrations")({
           }
 
           const totalGuests = totalResult.count ?? 0;
-          const registrations = ((listResult.data ?? []) as GuestListRow[]).map(
-            mapRegistration,
-          );
+          const registrations = ((listResult.data ?? []) as GuestListRow[]).map(mapRegistration);
           const aggregates = buildAggregates(registrations);
 
           const nationalities = [
             ...new Set(
-              (facetsResult.data ?? [])
-                .map((r) => (r.nationality ?? "").trim())
-                .filter(Boolean),
+              (facetsResult.data ?? []).map((r) => (r.nationality ?? "").trim()).filter(Boolean),
             ),
           ].sort((a, b) => a.localeCompare(b));
           const zones = [
             ...new Set(
-              (facetsResult.data ?? [])
-                .map((r) => (r.address_zone ?? "").trim())
-                .filter(Boolean),
+              (facetsResult.data ?? []).map((r) => (r.address_zone ?? "").trim()).filter(Boolean),
             ),
           ].sort((a, b) => a.localeCompare(b));
 
@@ -239,7 +218,7 @@ export const Route = createFileRoute("/api/admin/registrations")({
               "Email",
               "Mobile",
               "Nationality",
-              "Address Zone",
+              "Location",
               "Store Name",
               "Transaction Value",
               "Receipt URL",
@@ -315,9 +294,7 @@ export const Route = createFileRoute("/api/admin/registrations")({
           const { errors, data } = validateRegistration({
             ...body,
             transaction_value:
-              body.transaction_value === undefined
-                ? undefined
-                : Number(body.transaction_value),
+              body.transaction_value === undefined ? undefined : Number(body.transaction_value),
           });
           if (errors.length) return json({ error: errors[0], errors }, 400);
 
@@ -391,12 +368,8 @@ export const Route = createFileRoute("/api/admin/registrations")({
             const q = url.searchParams.get("q");
             const nationality = url.searchParams.get("nationality");
             const zone = url.searchParams.get("zone");
-            const minValue = parseOptionalNumber(
-              url.searchParams.get("min_value"),
-            );
-            const maxValue = parseOptionalNumber(
-              url.searchParams.get("max_value"),
-            );
+            const minValue = parseOptionalNumber(url.searchParams.get("min_value"));
+            const maxValue = parseOptionalNumber(url.searchParams.get("max_value"));
             const result = await deleteGuestsFiltered({
               from,
               to,
@@ -410,10 +383,7 @@ export const Route = createFileRoute("/api/admin/registrations")({
             return json({ ok: true, from, to, ...result });
           }
 
-          return json(
-            { error: "Provide id, or scope=filter / scope=all" },
-            400,
-          );
+          return json({ error: "Provide id, or scope=filter / scope=all" }, 400);
         } catch (e) {
           const message = e instanceof Error ? e.message : String(e);
           return json({ error: message }, 500);

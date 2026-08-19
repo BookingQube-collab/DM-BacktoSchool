@@ -28,7 +28,8 @@ export type SettingKey =
   | "printer_name"
   | "printer_host"
   | "booth_print_base_url"
-  | "print_worker_heartbeat";
+  | "print_worker_heartbeat"
+  | "virtual_keyboard_enabled";
 
 const SECRET_KEYS = new Set<SettingKey>(["freepik_api_key", "admin_password_hash"]);
 
@@ -68,10 +69,7 @@ export async function getAdminUsername() {
   return fromDb || process.env.ADMIN_USERNAME || "admin";
 }
 
-export async function verifyAdminCredentials(
-  username: string,
-  password: string,
-) {
+export async function verifyAdminCredentials(username: string, password: string) {
   const expectedUsername = await getAdminUsername();
   if (username !== expectedUsername) return false;
 
@@ -157,8 +155,7 @@ export async function resolveAdminSessionUser(
 
   if (staff.length > 0) return null;
 
-  const pages =
-    fallbackPages?.length ? fallbackPages : [...navKeysForRole(fallbackRole)];
+  const pages = fallbackPages?.length ? fallbackPages : [...navKeysForRole(fallbackRole)];
   return { username, role: fallbackRole, pages };
 }
 
@@ -172,6 +169,15 @@ export async function getFreepikApiKey() {
   // Prefer a clean Magnific/Freepik key (typically starts with FPS_ or MS).
   const candidate = fromDb || fromEnv;
   return candidate.replace(/\s+/g, "").trim();
+}
+
+export function parseEnabledSetting(value: string): boolean {
+  const v = value.trim().toLowerCase();
+  return v === "true" || v === "1" || v === "yes" || v === "on";
+}
+
+export async function isVirtualKeyboardEnabled(): Promise<boolean> {
+  return parseEnabledSetting(await getSetting("virtual_keyboard_enabled"));
 }
 
 export function maskSecret(value: string) {
@@ -233,18 +239,17 @@ export function normalizeBoothPrintBaseUrl(raw: string): string {
 
 export async function getBrandingSettings() {
   const logo = await resolveDohaMallLogoUrl();
-  const printerName =
-    (await getSetting("printer_name")).trim() || DEFAULT_PRINTER_NAME;
+  const printerName = (await getSetting("printer_name")).trim() || DEFAULT_PRINTER_NAME;
   const printerHost = (await getSetting("printer_host")).trim();
-  const boothPrintBaseUrl = normalizeBoothPrintBaseUrl(
-    await getSetting("booth_print_base_url"),
-  );
+  const boothPrintBaseUrl = normalizeBoothPrintBaseUrl(await getSetting("booth_print_base_url"));
+  const virtualKeyboardEnabled = await isVirtualKeyboardEnabled();
   return {
     doha_mall_logo_path: logo.path,
     doha_mall_logo_url: logo.url,
     printer_name: printerName,
     printer_host: printerHost,
     booth_print_base_url: boothPrintBaseUrl,
+    virtual_keyboard_enabled: virtualKeyboardEnabled,
   };
 }
 
@@ -259,14 +264,10 @@ export async function listPublicSettings() {
   const map = new Map((data ?? []).map((row) => [row.key, row]));
 
   const freepik = map.get("freepik_api_key")?.value || process.env.FREEPIK_API_KEY || "";
-  const eventName =
-    map.get("event_name")?.value ||
-    "Future Me — E3 Career Photo Booth";
+  const eventName = map.get("event_name")?.value || "Future Me — E3 Career Photo Booth";
   const username = map.get("admin_username")?.value || process.env.ADMIN_USERNAME || "admin";
   const hasPassword =
-    Boolean(map.get("admin_password_hash")?.value) ||
-    Boolean(process.env.ADMIN_PASSWORD) ||
-    true;
+    Boolean(map.get("admin_password_hash")?.value) || Boolean(process.env.ADMIN_PASSWORD) || true;
 
   const branding = await getBrandingSettings();
   const staffUsers = toPublicStaffUsers(await ensureDefaultStaffUsers());
@@ -282,6 +283,7 @@ export async function listPublicSettings() {
     printer_name: branding.printer_name,
     printer_host: branding.printer_host,
     booth_print_base_url: branding.booth_print_base_url,
+    virtual_keyboard_enabled: branding.virtual_keyboard_enabled,
     staff_users: staffUsers,
     updated_at: {
       freepik_api_key: map.get("freepik_api_key")?.updated_at ?? null,
@@ -291,6 +293,7 @@ export async function listPublicSettings() {
       printer_name: map.get("printer_name")?.updated_at ?? null,
       printer_host: map.get("printer_host")?.updated_at ?? null,
       booth_print_base_url: map.get("booth_print_base_url")?.updated_at ?? null,
+      virtual_keyboard_enabled: map.get("virtual_keyboard_enabled")?.updated_at ?? null,
     },
   };
 }

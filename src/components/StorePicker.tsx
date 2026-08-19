@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
+import { useVirtualKeyboard, useVkFieldProps } from "@/components/VirtualKeyboard";
 
 export type Store = { id: string; name: string; logo_url: string | null };
 
@@ -50,9 +51,7 @@ function StoreCard({
       className={cn(
         "group flex shrink-0 flex-col overflow-hidden rounded-3xl border text-left transition",
         compact ? "w-[7.5rem] sm:w-[8.5rem]" : "w-[8.5rem] sm:w-[9.5rem]",
-        selected
-          ? "border-accent ring-2 ring-accent/60"
-          : "border-border hover:border-accent/50",
+        selected ? "border-accent ring-2 ring-accent/60" : "border-border hover:border-accent/50",
       )}
     >
       <div className="aspect-square overflow-hidden bg-white p-2.5 sm:p-3">
@@ -84,10 +83,19 @@ export function StorePicker({
   const [pickedStore, setPickedStore] = useState<Store | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const { t } = useI18n();
+  const vk = useVirtualKeyboard();
+  const searchVk = useVkFieldProps({
+    id: "store_search",
+    mode: "text",
+    value: query,
+    onChange: (next) => {
+      setQuery(next);
+      setOpen(true);
+    },
+  });
 
   const inFeatured = featured.some((s) => s.id === selectedId);
-  const offFeaturedStore =
-    selectedId && !inFeatured ? pickedStore : null;
+  const offFeaturedStore = selectedId && !inFeatured ? pickedStore : null;
 
   useEffect(() => {
     const q = query.trim();
@@ -101,9 +109,7 @@ export function StorePicker({
     const timer = window.setTimeout(() => {
       void (async () => {
         try {
-          const res = await fetch(
-            `/api/register?q=${encodeURIComponent(q)}`,
-          );
+          const res = await fetch(`/api/register?q=${encodeURIComponent(q)}`);
           const data = await res.json();
           if (res.ok) {
             setSuggestions((data.stores as Store[]) ?? []);
@@ -126,6 +132,7 @@ export function StorePicker({
   }, []);
 
   function selectStore(store: Store) {
+    vk.dismiss();
     onSelect(store.id);
     setPickedStore(featured.some((s) => s.id === store.id) ? null : store);
     setQuery("");
@@ -140,8 +147,7 @@ export function StorePicker({
     setSuggestions([]);
   }
 
-  const featuredHeading =
-    featuredSource === "sales" ? t("pickerPopular") : t("pickerFeatured");
+  const featuredHeading = featuredSource === "sales" ? t("pickerPopular") : t("pickerFeatured");
 
   return (
     <div className="space-y-4">
@@ -153,25 +159,27 @@ export function StorePicker({
           <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
           <Input
             id="store_search"
-            type="search"
+            type={vk.enabled ? "text" : "search"}
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
               setOpen(true);
             }}
-            onFocus={() => setOpen(true)}
-            className="h-12 rounded-xl pl-11 pr-4 text-base"
+            className="h-12 rounded-xl pl-11 pr-4 text-base data-[vk-active=true]:ring-2 data-[vk-active=true]:ring-accent"
             placeholder={t("pickerTypeStore")}
             autoComplete="off"
+            {...searchVk}
+            onFocus={(e) => {
+              searchVk.onFocus?.(e);
+              setOpen(true);
+            }}
           />
         </div>
 
         {open && query.trim().length > 0 ? (
           <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-2xl border border-border bg-popover shadow-xl">
             {searching ? (
-              <p className="px-4 py-3 text-sm text-muted-foreground">
-                {t("pickerSearching")}
-              </p>
+              <p className="px-4 py-3 text-sm text-muted-foreground">{t("pickerSearching")}</p>
             ) : suggestions.length === 0 ? (
               <p className="px-4 py-3 text-sm text-muted-foreground">
                 {t("pickerNoMatch", { query: query.trim() })}
@@ -188,9 +196,7 @@ export function StorePicker({
                       <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white p-1.5">
                         <StoreLogo store={store} />
                       </div>
-                      <span className="min-w-0 truncate text-base font-medium">
-                        {store.name}
-                      </span>
+                      <span className="min-w-0 truncate text-base font-medium">{store.name}</span>
                     </button>
                   </li>
                 ))}
@@ -202,15 +208,9 @@ export function StorePicker({
 
       {offFeaturedStore ? (
         <div className="space-y-2">
-          <p className="text-sm font-semibold text-muted-foreground">
-            {t("pickerSelectedStore")}
-          </p>
+          <p className="text-sm font-semibold text-muted-foreground">{t("pickerSelectedStore")}</p>
           <div className="flex items-start gap-3">
-            <StoreCard
-              store={offFeaturedStore}
-              selected
-              onSelect={() => {}}
-            />
+            <StoreCard store={offFeaturedStore} selected onSelect={() => {}} />
             <button
               type="button"
               onClick={clearSelection}
@@ -247,9 +247,7 @@ export function StorePicker({
         )}
         {!loading && featured.length > 0 ? (
           <p className="text-xs text-muted-foreground">
-            {featuredSource === "sales"
-              ? t("pickerRankedSales")
-              : t("pickerTopBrands")}
+            {featuredSource === "sales" ? t("pickerRankedSales") : t("pickerTopBrands")}
           </p>
         ) : null}
       </div>

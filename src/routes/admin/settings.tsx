@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,6 +46,7 @@ type Settings = {
   printer_name: string;
   printer_host: string;
   booth_print_base_url: string;
+  virtual_keyboard_enabled?: boolean;
   staff_users?: PublicStaffUser[];
 };
 
@@ -60,6 +62,7 @@ function AdminSettingsPage() {
   const [printerName, setPrinterName] = useState("");
   const [printerHost, setPrinterHost] = useState("");
   const [boothPrintBaseUrl, setBoothPrintBaseUrl] = useState("");
+  const [virtualKeyboardEnabled, setVirtualKeyboardEnabled] = useState(false);
   const [detectedSelphyIp, setDetectedSelphyIp] = useState<string | null>(null);
   const [detectedPrinters, setDetectedPrinters] = useState<
     {
@@ -92,12 +95,11 @@ function AdminSettingsPage() {
     setPrinterName(s.printer_name || "Canon SELPHY CP1500");
     setPrinterHost(s.printer_host || "");
     setBoothPrintBaseUrl(s.booth_print_base_url || "");
+    setVirtualKeyboardEnabled(Boolean(s.virtual_keyboard_enabled));
     setLogoPreview(s.doha_mall_logo_url || null);
     setPendingLogo(null);
     setClearLogo(false);
-    setStaffRows(
-      (s.staff_users ?? []).map((user) => ({ ...user, password: "" })),
-    );
+    setStaffRows((s.staff_users ?? []).map((user) => ({ ...user, password: "" })));
   }
 
   async function loadPrinters() {
@@ -174,6 +176,7 @@ function AdminSettingsPage() {
         printer_name: printerName,
         printer_host: printerHost.trim(),
         booth_print_base_url: boothPrintBaseUrl.trim(),
+        virtual_keyboard_enabled: virtualKeyboardEnabled,
       };
       if (freepik && !freepik.includes("•")) {
         body.freepik_api_key = freepik;
@@ -213,9 +216,7 @@ function AdminSettingsPage() {
   }
 
   function updateStaff(id: string, patch: Partial<StaffFormRow>) {
-    setStaffRows((rows) =>
-      rows.map((row) => (row.id === id ? { ...row, ...patch } : row)),
-    );
+    setStaffRows((rows) => rows.map((row) => (row.id === id ? { ...row, ...patch } : row)));
   }
 
   function changeStaffRole(id: string, nextRole: AdminRole) {
@@ -280,20 +281,15 @@ function AdminSettingsPage() {
       <form onSubmit={onSave} className="mt-8 space-y-5">
         <div className="space-y-2">
           <Label htmlFor="event_name">Event name</Label>
-          <Input
-            id="event_name"
-            value={eventName}
-            onChange={(e) => setEventName(e.target.value)}
-          />
+          <Input id="event_name" value={eventName} onChange={(e) => setEventName(e.target.value)} />
         </div>
 
         <div className="space-y-3 rounded-xl border border-border p-4">
           <div>
             <Label>Doha Mall logo</Label>
             <p className="mt-1 text-xs text-muted-foreground">
-              Shown on the Future ID card and print. Use a PNG/WebP with a
-              transparent background (not a black box). Re-upload if an older
-              save flattened the logo to black.
+              Shown on the Future ID card and print. Use a PNG/WebP with a transparent background
+              (not a black box). Re-upload if an older save flattened the logo to black.
             </p>
           </div>
           {logoPreview ? (
@@ -346,9 +342,7 @@ function AdminSettingsPage() {
             onChange={(e) => setPrinterName(e.target.value)}
             placeholder="Canon SELPHY CP1500"
           />
-          <p className="text-xs text-muted-foreground">
-            {t("settingsPrinterHint")}
-          </p>
+          <p className="text-xs text-muted-foreground">{t("settingsPrinterHint")}</p>
           <div className="space-y-2">
             <Label htmlFor="printer_host">{t("settingsPrinterIp")}</Label>
             <Input
@@ -380,9 +374,7 @@ function AdminSettingsPage() {
             </p>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="booth_print_base_url">
-              {t("settingsBoothUrl")}
-            </Label>
+            <Label htmlFor="booth_print_base_url">{t("settingsBoothUrl")}</Label>
             <Input
               id="booth_print_base_url"
               value={boothPrintBaseUrl}
@@ -391,15 +383,11 @@ function AdminSettingsPage() {
               inputMode="url"
               autoComplete="off"
             />
-            <p className="text-xs text-muted-foreground">
-              {t("settingsBoothUrlHint")}
-            </p>
+            <p className="text-xs text-muted-foreground">{t("settingsBoothUrlHint")}</p>
           </div>
           {detectedPrinters.length > 0 ? (
             <div className="rounded-md bg-muted/60 px-3 py-2 text-xs">
-              <p className="font-medium text-foreground">
-                Detected on this PC
-              </p>
+              <p className="font-medium text-foreground">Detected on this PC</p>
               <ul className="mt-1 max-h-36 space-y-1 overflow-y-auto">
                 {detectedPrinters.map((p) => (
                   <li key={p.name}>
@@ -414,15 +402,9 @@ function AdminSettingsPage() {
                     <span className="text-muted-foreground">
                       {" "}
                       —{" "}
-                      {p.ready
-                        ? "ready"
-                        : p.workOffline
-                          ? "Work Offline"
-                          : p.status || "not ready"}
+                      {p.ready ? "ready" : p.workOffline ? "Work Offline" : p.status || "not ready"}
                       {p.driverName ? ` · ${p.driverName}` : ""}
-                      {/evolis/i.test(p.name)
-                        ? " · card printer (CR80)"
-                        : ""}
+                      {/evolis/i.test(p.name) ? " · card printer (CR80)" : ""}
                       {p.softDriver ||
                       /ipp class driver|microsoft ipp|^wsd/i.test(
                         `${p.driverName || ""} ${p.portName || ""}`,
@@ -435,9 +417,7 @@ function AdminSettingsPage() {
               </ul>
             </div>
           ) : printersHint ? (
-            <p className="text-xs text-amber-700 dark:text-amber-400">
-              {printersHint}
-            </p>
+            <p className="text-xs text-amber-700 dark:text-amber-400">{printersHint}</p>
           ) : null}
           <ol className="list-decimal space-y-1 pl-4 text-xs text-muted-foreground">
             <li>{t("settingsStep1")}</li>
@@ -447,9 +427,23 @@ function AdminSettingsPage() {
             <li>{t("settingsStep5")}</li>
             <li>{t("settingsStep6")}</li>
           </ol>
-          <code className="block break-all rounded-md bg-muted px-3 py-2 text-xs">
-            {kioskHint}
-          </code>
+          <code className="block break-all rounded-md bg-muted px-3 py-2 text-xs">{kioskHint}</code>
+        </div>
+
+        <div className="space-y-3 rounded-xl border border-border p-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <Label htmlFor="virtual_keyboard_enabled">{t("settingsVkTitle")}</Label>
+              <p className="mt-1 text-xs text-muted-foreground">{t("settingsVkHint")}</p>
+            </div>
+            <Switch
+              id="virtual_keyboard_enabled"
+              checked={virtualKeyboardEnabled}
+              onCheckedChange={setVirtualKeyboardEnabled}
+              aria-label={t("settingsVkEnable")}
+            />
+          </div>
+          <p className="text-sm font-medium">{t("settingsVkEnable")}</p>
         </div>
 
         <div className="space-y-2">
@@ -497,18 +491,12 @@ function AdminSettingsPage() {
         {canManageStaff ? (
           <div className="space-y-4 rounded-xl border border-border p-4">
             <div>
-              <h2 className="font-display text-lg font-semibold">
-                {t("settingsStaffTitle")}
-              </h2>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {t("settingsStaffSubtitle")}
-              </p>
+              <h2 className="font-display text-lg font-semibold">{t("settingsStaffTitle")}</h2>
+              <p className="mt-1 text-xs text-muted-foreground">{t("settingsStaffSubtitle")}</p>
             </div>
             <div className="space-y-4">
               {staffRows.map((row) => {
-                const builtin = (BUILTIN_STAFF_IDS as readonly string[]).includes(
-                  row.id,
-                );
+                const builtin = (BUILTIN_STAFF_IDS as readonly string[]).includes(row.id);
                 return (
                   <div
                     key={row.id}
@@ -516,9 +504,7 @@ function AdminSettingsPage() {
                   >
                     <div className="flex items-start justify-between gap-2">
                       <p className="text-sm font-semibold">
-                        {builtin
-                          ? roleLabel(row.role)
-                          : row.username || t("settingsStaffAdd")}
+                        {builtin ? roleLabel(row.role) : row.username || t("settingsStaffAdd")}
                       </p>
                       {!builtin ? (
                         <Button
@@ -538,9 +524,7 @@ function AdminSettingsPage() {
                       <Input
                         id={`staff_username_${row.id}`}
                         value={row.username}
-                        onChange={(e) =>
-                          updateStaff(row.id, { username: e.target.value })
-                        }
+                        onChange={(e) => updateStaff(row.id, { username: e.target.value })}
                         autoComplete="off"
                       />
                     </div>
@@ -552,9 +536,7 @@ function AdminSettingsPage() {
                         id={`staff_password_${row.id}`}
                         type="password"
                         value={row.password}
-                        onChange={(e) =>
-                          updateStaff(row.id, { password: e.target.value })
-                        }
+                        onChange={(e) => updateStaff(row.id, { password: e.target.value })}
                         placeholder={t("settingsStaffPasswordKeep")}
                         autoComplete="new-password"
                       />
@@ -568,9 +550,7 @@ function AdminSettingsPage() {
                       </p>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor={`staff_role_${row.id}`}>
-                        {t("settingsStaffRole")}
-                      </Label>
+                      <Label htmlFor={`staff_role_${row.id}`}>{t("settingsStaffRole")}</Label>
                       <select
                         id={`staff_role_${row.id}`}
                         value={row.role}
@@ -580,19 +560,13 @@ function AdminSettingsPage() {
                         }}
                         className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                       >
-                        <option value="operation">
-                          {roleLabel("operation")}
-                        </option>
-                        <option value="dohamall">
-                          {roleLabel("dohamall")}
-                        </option>
+                        <option value="operation">{roleLabel("operation")}</option>
+                        <option value="dohamall">{roleLabel("dohamall")}</option>
                         <option value="admin">{roleLabel("admin")}</option>
                       </select>
                     </div>
                     <fieldset className="space-y-2">
-                      <legend className="text-sm font-medium">
-                        {t("settingsStaffPages")}
-                      </legend>
+                      <legend className="text-sm font-medium">{t("settingsStaffPages")}</legend>
                       <div className="grid gap-2 sm:grid-cols-2">
                         {ADMIN_NAV_KEYS.map((key) => {
                           const checkboxId = `staff_${row.id}_${key}`;
@@ -635,12 +609,9 @@ function AdminSettingsPage() {
 
       <section className="mt-12 space-y-4 rounded-3xl border border-destructive/40 bg-destructive/5 p-5">
         <div>
-          <h2 className="font-display text-xl font-semibold text-destructive">
-            Danger zone
-          </h2>
+          <h2 className="font-display text-xl font-semibold text-destructive">Danger zone</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            Deletes all registrations and photos. Does not remove stores or
-            settings.
+            Deletes all registrations and photos. Does not remove stores or settings.
           </p>
         </div>
         <div className="space-y-2">
@@ -674,9 +645,9 @@ function AdminSettingsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Remove all event data?</AlertDialogTitle>
             <AlertDialogDescription>
-              This permanently deletes every guest registration and Future ID
-              photo (including receipt and photo files in storage). Stores, mall
-              logo, printer settings, and admin login are kept.
+              This permanently deletes every guest registration and Future ID photo (including
+              receipt and photo files in storage). Stores, mall logo, printer settings, and admin
+              login are kept.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

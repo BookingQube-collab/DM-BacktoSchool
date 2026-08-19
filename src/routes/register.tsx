@@ -3,11 +3,19 @@ import { useEffect, useState } from "react";
 import { BillCapture } from "@/components/BillCapture";
 import { NationalityPicker } from "@/components/NationalityPicker";
 import { PhoneIsdInput } from "@/components/PhoneIsdInput";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { StorePicker, type Store } from "@/components/StorePicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  VirtualKeyboardProvider,
+  useVirtualKeyboard,
+  useVkFieldProps,
+} from "@/components/VirtualKeyboard";
+import { QATAR_AREA_OPTIONS } from "@/lib/qatar-areas";
 import { todayISODate } from "@/lib/registration";
+import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/register")({
@@ -35,11 +43,20 @@ const emptyForm = {
 };
 
 function RegisterPage() {
-  const { t } = useI18n();
-  const [featured, setFeatured] = useState<Store[]>([]);
-  const [featuredSource, setFeaturedSource] = useState<"sales" | "top_brands">(
-    "top_brands",
+  const [vkEnabled, setVkEnabled] = useState(false);
+  return (
+    <VirtualKeyboardProvider enabled={vkEnabled}>
+      <RegisterForm onVkEnabled={setVkEnabled} />
+    </VirtualKeyboardProvider>
   );
+}
+
+function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void }) {
+  const { t } = useI18n();
+  const vk = useVirtualKeyboard();
+  const dismissKeyboard = vk.dismiss;
+  const [featured, setFeatured] = useState<Store[]>([]);
+  const [featuredSource, setFeaturedSource] = useState<"sales" | "top_brands">("top_brands");
   const [storesReady, setStoresReady] = useState(false);
   const [hasStores, setHasStores] = useState(false);
   const [form, setForm] = useState(emptyForm);
@@ -51,6 +68,31 @@ function RegisterPage() {
   /** Remount phone ISD control after each successful registration. */
   const [phoneKey, setPhoneKey] = useState(0);
 
+  const txnVk = useVkFieldProps({
+    id: "transaction_value",
+    mode: "decimal",
+    value: form.transaction_value,
+    onChange: (value) => update("transaction_value", value),
+  });
+  const firstNameVk = useVkFieldProps({
+    id: "first_name",
+    mode: "name",
+    value: form.first_name,
+    onChange: (value) => update("first_name", value),
+  });
+  const lastNameVk = useVkFieldProps({
+    id: "last_name",
+    mode: "name",
+    value: form.last_name,
+    onChange: (value) => update("last_name", value),
+  });
+  const emailVk = useVkFieldProps({
+    id: "email",
+    mode: "email",
+    value: form.email,
+    onChange: (value) => update("email", value),
+  });
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -59,17 +101,20 @@ function RegisterPage() {
       if (cancelled) return;
       if (res.ok) {
         setFeatured((data.featured as Store[]) ?? []);
-        setFeaturedSource(
-          data.featured_source === "sales" ? "sales" : "top_brands",
-        );
+        setFeaturedSource(data.featured_source === "sales" ? "sales" : "top_brands");
         setHasStores(Number(data.total_stores) > 0);
         setStoresReady(true);
+        onVkEnabled(Boolean(data.virtual_keyboard_enabled));
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [onVkEnabled]);
+
+  useEffect(() => {
+    dismissKeyboard();
+  }, [step, dismissKeyboard]);
 
   function update<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -80,6 +125,7 @@ function RegisterPage() {
     setReceiptImage(null);
     setStep(1);
     setPhoneKey((k) => k + 1);
+    vk.dismiss();
   }
 
   function validateStep(current: Step): string | null {
@@ -117,11 +163,13 @@ function RegisterPage() {
     }
     setError(null);
     setSuccess(null);
+    vk.dismiss();
     setStep((s) => Math.min(3, s + 1) as Step);
   }
 
   function goBack() {
     setError(null);
+    vk.dismiss();
     setStep((s) => Math.max(1, s - 1) as Step);
   }
 
@@ -164,8 +212,11 @@ function RegisterPage() {
     }
   }
 
+  const fieldClass =
+    "h-12 rounded-xl px-4 text-base data-[vk-active=true]:ring-2 data-[vk-active=true]:ring-accent";
+
   return (
-    <div className="min-h-screen px-4 py-8 text-foreground">
+    <div className={cn("min-h-screen px-4 py-8 text-foreground", vk.activeId ? "pb-72" : "")}>
       <div className="mx-auto w-full max-w-2xl">
         <img
           src="/smart-start-logo.png"
@@ -174,9 +225,7 @@ function RegisterPage() {
         />
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
-            <p className="font-display text-3xl font-bold md:text-4xl">
-              {t("registerTitle")}
-            </p>
+            <p className="font-display text-3xl font-bold md:text-4xl">{t("registerTitle")}</p>
             <p className="mt-2 text-sm text-muted-foreground md:text-base">
               {t("registerSubtitle")}
             </p>
@@ -201,16 +250,12 @@ function RegisterPage() {
               <div key={s.n} className="flex min-w-0 flex-1 flex-col gap-1.5">
                 <div
                   className={`h-2 rounded-full transition-colors ${
-                    s.n <= step
-                      ? "bg-gradient-to-r from-primary to-accent"
-                      : "bg-border"
+                    s.n <= step ? "bg-gradient-to-r from-primary to-accent" : "bg-border"
                   }`}
                 />
                 <span
                   className={`truncate text-xs md:text-sm ${
-                    s.n === step
-                      ? "font-semibold text-foreground"
-                      : "text-muted-foreground"
+                    s.n === step ? "font-semibold text-foreground" : "text-muted-foreground"
                   }`}
                 >
                   {t(s.key)}
@@ -236,14 +281,15 @@ function RegisterPage() {
                 </Label>
                 <Input
                   id="transaction_value"
-                  type="number"
+                  type={vk.enabled ? "text" : "number"}
                   min="0"
                   step="0.01"
-                  inputMode="decimal"
+                  inputMode={vk.enabled ? "none" : "decimal"}
                   value={form.transaction_value}
                   onChange={(e) => update("transaction_value", e.target.value)}
-                  className="h-12 rounded-xl px-4 text-base"
+                  className={fieldClass}
                   placeholder={t("registerTxnPlaceholder")}
+                  {...txnVk}
                 />
               </div>
             </div>
@@ -269,7 +315,8 @@ function RegisterPage() {
                     value={form.first_name}
                     onChange={(e) => update("first_name", e.target.value)}
                     autoComplete="given-name"
-                    className="h-12 rounded-xl px-4 text-base"
+                    className={fieldClass}
+                    {...firstNameVk}
                   />
                 </div>
                 <div className="space-y-2">
@@ -281,7 +328,8 @@ function RegisterPage() {
                     value={form.last_name}
                     onChange={(e) => update("last_name", e.target.value)}
                     autoComplete="family-name"
-                    className="h-12 rounded-xl px-4 text-base"
+                    className={fieldClass}
+                    {...lastNameVk}
                   />
                 </div>
               </div>
@@ -293,11 +341,12 @@ function RegisterPage() {
                   </Label>
                   <Input
                     id="email"
-                    type="email"
+                    type={vk.enabled ? "text" : "email"}
                     value={form.email}
                     onChange={(e) => update("email", e.target.value)}
                     autoComplete="email"
-                    className="h-12 rounded-xl px-4 text-base"
+                    className={fieldClass}
+                    {...emailVk}
                   />
                 </div>
                 <div className="space-y-2">
@@ -322,18 +371,26 @@ function RegisterPage() {
                     id="nationality"
                     value={form.nationality}
                     onChange={(name) => update("nationality", name)}
+                    onOpenChange={(open) => {
+                      if (open) vk.dismiss();
+                    }}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="address_zone" className="text-base">
                     {t("registerAddressZone")}
                   </Label>
-                  <Input
+                  <SearchableSelect
                     id="address_zone"
                     value={form.address_zone}
-                    onChange={(e) => update("address_zone", e.target.value)}
-                    placeholder={t("registerZonePlaceholder")}
-                    className="h-12 rounded-xl px-4 text-base"
+                    onChange={(area) => update("address_zone", area)}
+                    options={QATAR_AREA_OPTIONS}
+                    placeholder={t("registerSelectArea")}
+                    searchPlaceholder={t("registerSearchArea")}
+                    emptyText={t("registerNoArea")}
+                    onOpenChange={(open) => {
+                      if (open) vk.dismiss();
+                    }}
                   />
                 </div>
               </div>
@@ -347,6 +404,7 @@ function RegisterPage() {
                   type="date"
                   value={form.transaction_date}
                   onChange={(e) => update("transaction_date", e.target.value)}
+                  onFocus={() => vk.dismiss()}
                   className="h-12 rounded-xl px-4 text-base"
                 />
               </div>

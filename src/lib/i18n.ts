@@ -47,13 +47,12 @@ export const en = {
   commonDeleteFailed: "Delete failed",
   commonStore: "Store",
   commonNationality: "Nationality",
-  commonZone: "Zone",
+  commonZone: "Location",
 
   notFoundTitle: "Page not found",
   notFoundBody: "The page you're looking for doesn't exist or has been moved.",
   errorTitle: "This page didn't load",
-  errorBody:
-    "Something went wrong on our end. You can try refreshing or head back home.",
+  errorBody: "Something went wrong on our end. You can try refreshing or head back home.",
 
   fullscreenEnter: "Enter fullscreen",
   fullscreenExit: "Exit fullscreen",
@@ -65,8 +64,7 @@ export const en = {
   boothSmile: "Look straight ahead and smile.",
   boothTakePhoto: "Take photo",
   boothPickDifferent: "Pick a different job",
-  boothCameraError:
-    "Could not access camera. Please allow camera access and try again.",
+  boothCameraError: "Could not access camera. Please allow camera access and try again.",
   boothCaptureError: "Could not capture photo",
   boothDidntWork: "That didn't work",
   boothSomethingWrong: "Something went wrong",
@@ -90,20 +88,17 @@ export const en = {
   resultSecondsLeft: "{count} seconds remaining",
   resultPrintSending: "Starting print…",
   resultPrintSendingHint: "Preparing your photo for the printer",
-  resultPrintStaffHint:
-    "Staff: if a print sheet appears, tap Canon SELPHY CP1500",
+  resultPrintStaffHint: "Staff: if a print sheet appears, tap Canon SELPHY CP1500",
   resultPrintFinishing: "Almost ready — finishing the print",
   resultToastSent: "Sent to printer",
   resultToastSentDesc:
     "Collect the postcard when it finishes. If Android asked, tap Canon SELPHY CP1500.",
-  resultPhotoNotReady:
-    "Photo not ready — wait for the transform to finish, then retry.",
+  resultPhotoNotReady: "Photo not ready — wait for the transform to finish, then retry.",
   resultPrintGeneric: "Print failed. Try again.",
   printErrTimeout:
     "Print is taking longer than expected. Check the SELPHY — it may still be printing. If not, retry.",
   printErrWorker: "Print failed. Check the photo and retry.",
-  printErrNetworkHttps:
-    "Print failed. Stay on the Vercel website (HTTPS) and retry.",
+  printErrNetworkHttps: "Print failed. Stay on the Vercel website (HTTPS) and retry.",
   printErrNetwork:
     "Print failed. Check that this tablet and the SELPHY are on the same Wi‑Fi, then retry.",
   printErrPrinterName:
@@ -162,8 +157,10 @@ export const en = {
   registerLastName: "Last name",
   registerEmail: "Email",
   registerMobile: "Mobile",
-  registerAddressZone: "Address zone number",
-  registerZonePlaceholder: "e.g. 45",
+  registerAddressZone: "Location",
+  registerSelectArea: "Select location",
+  registerSearchArea: "Search location…",
+  registerNoArea: "No location found.",
   registerTxnDate: "Transaction date",
   registerRegister: "Register",
   registerErrSelectStore: "Select a store",
@@ -174,7 +171,7 @@ export const en = {
   registerErrEmail: "Valid email is required",
   registerErrMobile: "Valid mobile number is required",
   registerErrNationality: "Nationality is required",
-  registerErrZone: "Address zone number is required",
+  registerErrZone: "Location is required",
   registerErrDate: "Transaction date is required",
   registerErrBillRequired: "Bill photo is required",
   registerErrFailed: "Registration failed",
@@ -185,6 +182,12 @@ export const en = {
   registerDialCode: "Country dial code",
   registerSearchCountry: "Search country or code…",
   registerNoCountry: "No country found.",
+  vkHide: "Hide keyboard",
+  vkDone: "Done",
+  vkSpace: "Space",
+  vkBackspace: "Backspace",
+  vkLetters: "ABC",
+  vkNumbers: "123",
   pickerSearchStore: "Search store",
   pickerTypeStore: "Type store name…",
   pickerSearching: "Searching…",
@@ -230,8 +233,7 @@ export const en = {
   adminSignIn: "Sign in",
   adminSigningIn: "Signing in…",
   adminLoginFailed: "Login failed",
-  adminLoginDefault:
-    "Operation: operation / operation123 · Doha Mall: dohamall / dohamall123",
+  adminLoginDefault: "Operation: operation / operation123 · Doha Mall: dohamall / dohamall123",
 
   dashTitle: "Dashboard",
   dashSubtitle: "Monitor daily registrations and store transaction activity.",
@@ -265,8 +267,8 @@ export const en = {
   dashKeyMissing: "Key missing",
   dashNationalityMix: "Nationality mix",
   dashRegsInRangeShort: "Registrations in range",
-  dashByZone: "By zone",
-  dashZoneBreakdown: "Address zone breakdown",
+  dashByZone: "By location",
+  dashZoneBreakdown: "Location breakdown",
   dashPhotosByProfession: "Photos by profession",
   dashBoothSessions: "Booth sessions in range",
 
@@ -277,9 +279,9 @@ export const en = {
   regSearchPlaceholder: "Name, email, or mobile",
   regAllStores: "All stores",
   regAllNationalities: "All nationalities",
-  regAllZones: "All zones",
+  regAllZones: "All locations",
   regSearchStore: "Search store…",
-  regSearchZone: "Search zone…",
+  regSearchZone: "Search location…",
   regMinValue: "Min value (QAR)",
   regMaxValue: "Max value (QAR)",
   regMaxAny: "Any",
@@ -295,7 +297,7 @@ export const en = {
   regColDate: "Date",
   regColGuest: "Guest",
   regColMobile: "Mobile",
-  regColZone: "Zone",
+  regColZone: "Location",
   regColStore: "Store",
   regColValue: "Value",
   regColBill: "Bill",
@@ -349,8 +351,7 @@ export const en = {
   photosDeletedMany: "Deleted {count} photo{plural}",
   photosDeleteOneTitle: "Delete this photo?",
   photosDeleteBulkTitle: "Delete photos?",
-  photosDeleteOneBody:
-    "Permanently delete the {label} session and its file in storage.",
+  photosDeleteOneBody: "Permanently delete the {label} session and its file in storage.",
   photosDeleteBulkBody:
     "This cannot be undone. Matching Future ID images are removed from storage.",
   photosDeleteFilter: "Current date filter only ({count} shown)",
@@ -385,8 +386,7 @@ export const en = {
   storesChooseImage: "Choose image",
   storesAddStore: "Add store",
   storesBulk: "Bulk upload",
-  storesBulkHint:
-    "Select multiple images — names default from filenames, then edit and save all.",
+  storesBulkHint: "Select multiple images — names default from filenames, then edit and save all.",
   storesChooseImages: "Choose images",
   storesSaveAll: "Save all ({count})",
   storesCurrent: "Current stores",
@@ -418,11 +418,14 @@ export const en = {
     "Unused for tablet Print on Vercel. Left for a local Windows IPP worker if it is ever used again.",
   settingsDetectedNow: "Detected now:",
   settingsUseDetectedIp: "Use detected IP",
-  settingsNoSelphyIp:
-    " Power on the SELPHY on the same Wi‑Fi as the tablets.",
+  settingsNoSelphyIp: " Power on the SELPHY on the same Wi‑Fi as the tablets.",
   settingsBoothUrl: "Booth print server URL (optional)",
   settingsBoothUrlHint:
     "Ignored on HTTPS tablets (Vercel). Guest Print and Reprint send the photo from the tablet browser — no laptop.",
+  settingsVkTitle: "On-screen keyboard (registration tablet)",
+  settingsVkEnable: "Enable on-screen keyboard",
+  settingsVkHint:
+    "When on, guests type with a tablet keyboard instead of the Android keyboard. Phone uses digits; names use letters; email uses letters and symbols such as @ . _ - +.",
   settingsDetectedOnPc: "Detected on this PC",
   settingsReady: "ready",
   settingsWorkOffline: "Work Offline",
@@ -438,16 +441,13 @@ export const en = {
     "Print sends the career postcard photo from the tablet. If Android shows a print sheet, tap Canon SELPHY CP1500 once. The preview should be the photo, not the website.",
   settingsStep3:
     "No Windows laptop is required. Vercel cloud servers cannot reach the printer on the LAN.",
-  settingsStep4:
-    "Keep the SELPHY powered on with paper/ribbon. Same Wi‑Fi as the tablets.",
-  settingsStep5:
-    "Evolis Primacy 2 stays available for CR80 card reprints only.",
+  settingsStep4: "Keep the SELPHY powered on with paper/ribbon. Same Wi‑Fi as the tablets.",
+  settingsStep5: "Evolis Primacy 2 stays available for CR80 card reprints only.",
   settingsStep6: "Optional fullscreen booth Chrome shortcut:",
   settingsApiKey: "Magnific / Freepik API key",
   settingsApiKeySet: "Leave masked value, or paste a new key",
   settingsApiKeyPlaceholder: "Paste Magnific API key (starts with MS…)",
-  settingsApiKeyHintSet:
-    "Key is configured. Paste a new key only if you want to replace it.",
+  settingsApiKeyHintSet: "Key is configured. Paste a new key only if you want to replace it.",
   settingsApiKeyHintMissing:
     "Required for the photo booth AI transform. Copy only the API key, not the webhook secret.",
   settingsAdminUser: "Admin username",
@@ -460,8 +460,7 @@ export const en = {
   settingsLogoReadFail: "Could not read logo image",
   settingsSave: "Save settings",
   settingsDanger: "Danger zone",
-  settingsDangerHint:
-    "Deletes all registrations and photos. Does not remove stores or settings.",
+  settingsDangerHint: "Deletes all registrations and photos. Does not remove stores or settings.",
   settingsAdminPassword: "Admin password",
   settingsPurgePlaceholder: "Enter current admin password to enable",
   settingsRemoveAll: "Remove all data",
@@ -471,8 +470,7 @@ export const en = {
   settingsPurging: "Removing…",
   settingsPurgeConfirm: "Yes, remove all data",
   settingsPurgeFail: "Could not remove data",
-  settingsPurged:
-    "Deleted all registrations and photos. Stores and settings were kept.",
+  settingsPurged: "Deleted all registrations and photos. Stores and settings were kept.",
   settingsPurgedCounts: "Removed {guests} registrations and {photos} photos.",
 
   settingsStaffTitle: "Staff logins",
@@ -547,7 +545,7 @@ export const ar: Record<keyof typeof en, string> = {
   commonDeleteFailed: "فشل الحذف",
   commonStore: "المتجر",
   commonNationality: "الجنسية",
-  commonZone: "المنطقة",
+  commonZone: "الموقع",
 
   notFoundTitle: "الصفحة غير موجودة",
   notFoundBody: "الصفحة التي تبحث عنها غير موجودة أو تم نقلها.",
@@ -588,21 +586,17 @@ export const ar: Record<keyof typeof en, string> = {
   resultSecondsLeft: "متبقٍ {count} ثانية",
   resultPrintSending: "جاري بدء الطباعة…",
   resultPrintSendingHint: "جاري تجهيز صورتك للطابعة",
-  resultPrintStaffHint:
-    "للموظفين: إذا ظهرت ورقة الطباعة، اضغط Canon SELPHY CP1500",
+  resultPrintStaffHint: "للموظفين: إذا ظهرت ورقة الطباعة، اضغط Canon SELPHY CP1500",
   resultPrintFinishing: "أوشكت — نُكمل الطباعة",
   resultToastSent: "أُرسلت للطابعة",
-  resultToastSentDesc:
-    "استلم البطاقة عند انتهائها. إذا طلب أندرويد، اضغط Canon SELPHY CP1500.",
+  resultToastSentDesc: "استلم البطاقة عند انتهائها. إذا طلب أندرويد، اضغط Canon SELPHY CP1500.",
   resultPhotoNotReady: "الصورة غير جاهزة — انتظر اكتمال التحويل ثم أعد المحاولة.",
   resultPrintGeneric: "فشلت الطباعة. حاول مرة أخرى.",
   printErrTimeout:
     "الطباعة تستغرق وقتاً أطول من المتوقع. تحقق من طابعة SELPHY — قد تكون لا تزال تطبع. إن لم يكن كذلك، أعد المحاولة.",
   printErrWorker: "فشلت الطباعة. تحقق من الصورة ثم أعد المحاولة.",
-  printErrNetworkHttps:
-    "فشلت الطباعة. ابقَ على موقع Vercel (HTTPS) ثم أعد المحاولة.",
-  printErrNetwork:
-    "فشلت الطباعة. تحقق أن هذا الجهاز وSELPHY على نفس الواي فاي ثم أعد المحاولة.",
+  printErrNetworkHttps: "فشلت الطباعة. ابقَ على موقع Vercel (HTTPS) ثم أعد المحاولة.",
+  printErrNetwork: "فشلت الطباعة. تحقق أن هذا الجهاز وSELPHY على نفس الواي فاي ثم أعد المحاولة.",
   printErrPrinterName:
     "الطابعة غير ظاهرة — في ورقة أندرويد اضغط Canon SELPHY CP1500 (نفس واي فاي هذا الجهاز).",
   printErrNotReady:
@@ -659,8 +653,10 @@ export const ar: Record<keyof typeof en, string> = {
   registerLastName: "اسم العائلة",
   registerEmail: "البريد الإلكتروني",
   registerMobile: "الجوال",
-  registerAddressZone: "رقم المنطقة",
-  registerZonePlaceholder: "مثال: 45",
+  registerAddressZone: "الموقع",
+  registerSelectArea: "اختر الموقع",
+  registerSearchArea: "ابحث عن الموقع…",
+  registerNoArea: "لم يتم العثور على موقع.",
   registerTxnDate: "تاريخ العملية",
   registerRegister: "تسجيل",
   registerErrSelectStore: "اختر متجراً",
@@ -671,7 +667,7 @@ export const ar: Record<keyof typeof en, string> = {
   registerErrEmail: "بريد إلكتروني صالح مطلوب",
   registerErrMobile: "رقم جوال صالح مطلوب",
   registerErrNationality: "الجنسية مطلوبة",
-  registerErrZone: "رقم المنطقة مطلوب",
+  registerErrZone: "الموقع مطلوب",
   registerErrDate: "تاريخ العملية مطلوب",
   registerErrBillRequired: "صورة الفاتورة مطلوبة",
   registerErrFailed: "فشل التسجيل",
@@ -682,6 +678,12 @@ export const ar: Record<keyof typeof en, string> = {
   registerDialCode: "رمز الاتصال الدولي",
   registerSearchCountry: "ابحث عن الدولة أو الرمز…",
   registerNoCountry: "لم يتم العثور على دولة.",
+  vkHide: "إخفاء لوحة المفاتيح",
+  vkDone: "تم",
+  vkSpace: "مسافة",
+  vkBackspace: "حذف",
+  vkLetters: "ABC",
+  vkNumbers: "123",
   pickerSearchStore: "ابحث عن متجر",
   pickerTypeStore: "اكتب اسم المتجر…",
   pickerSearching: "جاري البحث…",
@@ -727,8 +729,7 @@ export const ar: Record<keyof typeof en, string> = {
   adminSignIn: "تسجيل الدخول",
   adminSigningIn: "جاري الدخول…",
   adminLoginFailed: "فشل تسجيل الدخول",
-  adminLoginDefault:
-    "تشغيل: operation / operation123 · دوحة مول: dohamall / dohamall123",
+  adminLoginDefault: "تشغيل: operation / operation123 · دوحة مول: dohamall / dohamall123",
 
   dashTitle: "لوحة المعلومات",
   dashSubtitle: "متابعة التسجيلات اليومية ونشاط معاملات المتاجر.",
@@ -762,8 +763,8 @@ export const ar: Record<keyof typeof en, string> = {
   dashKeyMissing: "المفتاح غير موجود",
   dashNationalityMix: "توزيع الجنسيات",
   dashRegsInRangeShort: "التسجيلات في الفترة",
-  dashByZone: "حسب المنطقة",
-  dashZoneBreakdown: "تفصيل مناطق العنوان",
+  dashByZone: "حسب الموقع",
+  dashZoneBreakdown: "تفصيل المواقع",
   dashPhotosByProfession: "الصور حسب المهنة",
   dashBoothSessions: "جلسات الكشك في الفترة",
 
@@ -774,9 +775,9 @@ export const ar: Record<keyof typeof en, string> = {
   regSearchPlaceholder: "الاسم أو البريد أو الجوال",
   regAllStores: "كل المتاجر",
   regAllNationalities: "كل الجنسيات",
-  regAllZones: "كل المناطق",
+  regAllZones: "كل المواقع",
   regSearchStore: "ابحث عن المتجر…",
-  regSearchZone: "ابحث عن المنطقة…",
+  regSearchZone: "ابحث عن الموقع…",
   regMinValue: "الحد الأدنى (ر.ق)",
   regMaxValue: "الحد الأعلى (ر.ق)",
   regMaxAny: "أي",
@@ -792,25 +793,22 @@ export const ar: Record<keyof typeof en, string> = {
   regColDate: "التاريخ",
   regColGuest: "الضيف",
   regColMobile: "الجوال",
-  regColZone: "المنطقة",
+  regColZone: "الموقع",
   regColStore: "المتجر",
   regColValue: "القيمة",
   regColBill: "الفاتورة",
   regColActions: "إجراءات",
   regEmptyNone:
     "لا تسجيلات ضيوف بعد. جلسات كشك الصور لا تنشئ تسجيلات — استخدم مسار المكتب في /register.",
-  regEmptyFilter:
-    "لا تسجيلات تطابق هذه التصفية{extra}. جرّب توسيع التواريخ أو مسح عوامل البحث.",
+  regEmptyFilter: "لا تسجيلات تطابق هذه التصفية{extra}. جرّب توسيع التواريخ أو مسح عوامل البحث.",
   regEmptyFilterExtra: " ({total} ضيف{plural} خارج هذه التصفية)",
   regDeletedOne: "تم حذف التسجيل",
   regDeletedMany: "تم حذف {count} تسجيل{plural}",
   regDeleteOneTitle: "حذف هذا التسجيل؟",
   regDeleteBulkTitle: "حذف التسجيلات؟",
-  regDeleteOneBody:
-    "سيُحذف {label} وصورة إيصاله نهائياً. جلسات كشك الصور لا تُحذف.",
+  regDeleteOneBody: "سيُحذف {label} وصورة إيصاله نهائياً. جلسات كشك الصور لا تُحذف.",
   regThisGuest: "هذا الضيف",
-  regDeleteBulkBody:
-    "لا يمكن التراجع. تُحذف صور الإيصالات للضيوف المحذوفين من التخزين.",
+  regDeleteBulkBody: "لا يمكن التراجع. تُحذف صور الإيصالات للضيوف المحذوفين من التخزين.",
   regDeleteFilterOnly: "التصفية الحالية فقط ({count} معروض{filters})",
   regDeleteFilterNote: "، مع عوامل تصفية",
   regDeleteAllScope: "كل التسجيلات{total}",
@@ -847,8 +845,7 @@ export const ar: Record<keyof typeof en, string> = {
   photosDeleteOneTitle: "حذف هذه الصورة؟",
   photosDeleteBulkTitle: "حذف الصور؟",
   photosDeleteOneBody: "حذف جلسة {label} وملفها من التخزين نهائياً.",
-  photosDeleteBulkBody:
-    "لا يمكن التراجع. تُحذف صور هوية المستقبل المطابقة من التخزين.",
+  photosDeleteBulkBody: "لا يمكن التراجع. تُحذف صور هوية المستقبل المطابقة من التخزين.",
   photosDeleteFilter: "تصفية التاريخ الحالية فقط ({count} معروض)",
   photosDeleteAllScope: "كل الصور (الفعالية بالكامل)",
 
@@ -881,8 +878,7 @@ export const ar: Record<keyof typeof en, string> = {
   storesChooseImage: "اختيار صورة",
   storesAddStore: "إضافة متجر",
   storesBulk: "رفع جماعي",
-  storesBulkHint:
-    "اختر صوراً متعددة — الأسماء من أسماء الملفات افتراضياً، ثم عدّل واحفظ الكل.",
+  storesBulkHint: "اختر صوراً متعددة — الأسماء من أسماء الملفات افتراضياً، ثم عدّل واحفظ الكل.",
   storesChooseImages: "اختيار الصور",
   storesSaveAll: "حفظ الكل ({count})",
   storesCurrent: "المتاجر الحالية",
@@ -914,11 +910,14 @@ export const ar: Record<keyof typeof en, string> = {
     "غير مستخدم لطباعة الأجهزة على Vercel. مُبقًى لعامل ويندوز IPP المحلي إذا استُخدم لاحقاً.",
   settingsDetectedNow: "المكتشف الآن:",
   settingsUseDetectedIp: "استخدام العنوان المكتشف",
-  settingsNoSelphyIp:
-    " شغّل SELPHY على نفس واي فاي الأجهزة.",
+  settingsNoSelphyIp: " شغّل SELPHY على نفس واي فاي الأجهزة.",
   settingsBoothUrl: "رابط خادم طباعة الكشك (اختياري)",
   settingsBoothUrlHint:
     "يُتجاهل على أجهزة HTTPS (Vercel). طباعة الضيف وإعادة الطباعة ترسل الصورة من متصفح الجهاز — بدون لابتوب.",
+  settingsVkTitle: "لوحة مفاتيح على الشاشة (جهاز التسجيل)",
+  settingsVkEnable: "تفعيل لوحة المفاتيح على الشاشة",
+  settingsVkHint:
+    "عند التفعيل، يكتب الضيوف بلوحة المفاتيح على الجهاز بدل لوحة أندرويد. الجوال أرقام فقط؛ الأسماء حروف؛ البريد حروف ورموز مثل @ . _ - +.",
   settingsDetectedOnPc: "المكتشف على هذا الجهاز",
   settingsReady: "جاهزة",
   settingsWorkOffline: "عمل دون اتصال",
@@ -932,12 +931,9 @@ export const ar: Record<keyof typeof en, string> = {
     "افتح الكشك على موقع Vercel من أجهزة أندرويد (HTTPS). يجب أن تكون الأجهزة وCanon SELPHY على نفس الواي فاي.",
   settingsStep2:
     "الطباعة ترسل صورة بطاقة المهنة من الجهاز. إذا ظهرت ورقة أندرويد، اضغط Canon SELPHY CP1500 مرة واحدة. يجب أن تكون المعاينة الصورة لا الموقع.",
-  settingsStep3:
-    "لا حاجة لجهاز ويندوز. خوادم Vercel لا تصل إلى الطابعة على الشبكة المحلية.",
-  settingsStep4:
-    "أبقِ SELPHY قيد التشغيل مع الورق/الشريط. نفس واي فاي الأجهزة.",
-  settingsStep5:
-    "تبقى Evolis Primacy 2 لإعادة طباعة بطاقات CR80 فقط.",
+  settingsStep3: "لا حاجة لجهاز ويندوز. خوادم Vercel لا تصل إلى الطابعة على الشبكة المحلية.",
+  settingsStep4: "أبقِ SELPHY قيد التشغيل مع الورق/الشريط. نفس واي فاي الأجهزة.",
+  settingsStep5: "تبقى Evolis Primacy 2 لإعادة طباعة بطاقات CR80 فقط.",
   settingsStep6: "اختصار كروم اختياري لملء شاشة الكشك:",
   settingsApiKey: "مفتاح Magnific / Freepik",
   settingsApiKeySet: "اترك القيمة المخفية، أو الصق مفتاحاً جديداً",
@@ -955,8 +951,7 @@ export const ar: Record<keyof typeof en, string> = {
   settingsLogoReadFail: "تعذر قراءة صورة الشعار",
   settingsSave: "حفظ الإعدادات",
   settingsDanger: "منطقة الخطر",
-  settingsDangerHint:
-    "يحذف كل التسجيلات والصور. لا يزيل المتاجر أو الإعدادات.",
+  settingsDangerHint: "يحذف كل التسجيلات والصور. لا يزيل المتاجر أو الإعدادات.",
   settingsAdminPassword: "كلمة مرور الإدارة",
   settingsPurgePlaceholder: "أدخل كلمة مرور الإدارة الحالية للتفعيل",
   settingsRemoveAll: "حذف كل البيانات",
@@ -1072,10 +1067,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     applyDocumentLocale(next);
   }, []);
 
-  const t = useCallback(
-    (key: MessageKey, vars?: Vars) => translate(locale, key, vars),
-    [locale],
-  );
+  const t = useCallback((key: MessageKey, vars?: Vars) => translate(locale, key, vars), [locale]);
 
   const value = useMemo<I18nContextValue>(
     () => ({

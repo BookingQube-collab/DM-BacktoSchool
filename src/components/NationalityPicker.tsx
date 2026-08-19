@@ -9,20 +9,18 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { NATIONALITIES, type NationalityOption } from "@/lib/countries";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
+import { useVirtualKeyboard } from "@/components/VirtualKeyboard";
 
 type NationalityPickerProps = {
   id?: string;
   value: string;
   onChange: (name: string) => void;
   className?: string;
+  onOpenChange?: (open: boolean) => void;
 };
 
 export function NationalityPicker({
@@ -30,15 +28,21 @@ export function NationalityPicker({
   value,
   onChange,
   className,
+  onOpenChange,
 }: NationalityPickerProps) {
   const [open, setOpen] = useState(false);
   const { t } = useI18n();
-  const selected: NationalityOption | undefined = NATIONALITIES.find(
-    (n) => n.name === value,
-  );
+  const vk = useVirtualKeyboard();
+  const selected: NationalityOption | undefined = NATIONALITIES.find((n) => n.name === value);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        onOpenChange?.(next);
+      }}
+    >
       <PopoverTrigger asChild>
         <Button
           id={id}
@@ -73,6 +77,7 @@ export function NationalityPicker({
           <CommandInput
             placeholder={t("registerSearchNationality")}
             className="h-11 text-base"
+            inputMode={vk.enabled ? "none" : undefined}
           />
           <CommandList className="max-h-64">
             <CommandEmpty>{t("registerNoNationality")}</CommandEmpty>

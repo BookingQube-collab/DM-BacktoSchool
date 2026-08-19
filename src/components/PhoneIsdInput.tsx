@@ -10,11 +10,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   DIAL_CODES,
   DEFAULT_DIAL_CODE,
@@ -24,6 +20,7 @@ import {
 } from "@/lib/countries";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
+import { useVirtualKeyboard, useVkFieldProps } from "@/components/VirtualKeyboard";
 
 type PhoneIsdInputProps = {
   id?: string;
@@ -36,24 +33,17 @@ type PhoneIsdInputProps = {
 function defaultDialOption(value: string): DialCodeOption {
   const { dial } = splitMobile(value);
   return (
-    DIAL_CODES.find((d) => d.dial === dial) ??
-    DIAL_CODES.find((d) => d.dial === DEFAULT_DIAL_CODE)!
+    DIAL_CODES.find((d) => d.dial === dial) ?? DIAL_CODES.find((d) => d.dial === DEFAULT_DIAL_CODE)!
   );
 }
 
-export function PhoneIsdInput({
-  id,
-  value,
-  onChange,
-  className,
-}: PhoneIsdInputProps) {
+export function PhoneIsdInput({ id, value, onChange, className }: PhoneIsdInputProps) {
   const initial = splitMobile(value);
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState<DialCodeOption>(() =>
-    defaultDialOption(value),
-  );
+  const [selected, setSelected] = useState<DialCodeOption>(() => defaultDialOption(value));
   const [local, setLocal] = useState(initial.local);
   const { t } = useI18n();
+  const vk = useVirtualKeyboard();
 
   function emit(option: DialCodeOption, nextLocal: string) {
     onChange(combineMobile(option.dial, nextLocal));
@@ -71,9 +61,22 @@ export function PhoneIsdInput({
     emit(selected, digits);
   }
 
+  const localVk = useVkFieldProps({
+    id: id ? `${id}-local` : "mobile-local",
+    mode: "numeric",
+    value: local,
+    onChange: onLocalChange,
+  });
+
   return (
     <div className={cn("flex gap-2", className)}>
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next);
+          if (next) vk.dismiss();
+        }}
+      >
         <PopoverTrigger asChild>
           <Button
             type="button"
@@ -98,6 +101,7 @@ export function PhoneIsdInput({
             <CommandInput
               placeholder={t("registerSearchCountry")}
               className="h-11 text-base"
+              inputMode={vk.enabled ? "none" : undefined}
             />
             <CommandList className="max-h-64">
               <CommandEmpty>{t("registerNoCountry")}</CommandEmpty>
@@ -113,9 +117,7 @@ export function PhoneIsdInput({
                       {c.flag}
                     </span>
                     <span className="min-w-0 flex-1 truncate">{c.name}</span>
-                    <span className="tabular-nums text-muted-foreground">
-                      {c.dial}
-                    </span>
+                    <span className="tabular-nums text-muted-foreground">{c.dial}</span>
                     <Check
                       className={cn(
                         "h-4 w-4 shrink-0",
@@ -134,13 +136,14 @@ export function PhoneIsdInput({
 
       <Input
         id={id}
-        type="tel"
-        inputMode="numeric"
+        type={vk.enabled ? "text" : "tel"}
+        inputMode={vk.enabled ? "none" : "numeric"}
         autoComplete="tel-national"
         value={local}
         onChange={(e) => onLocalChange(e.target.value)}
         placeholder="55XXXXXX"
-        className="h-12 flex-1 rounded-xl px-4 text-base"
+        className="h-12 flex-1 rounded-xl px-4 text-base data-[vk-active=true]:ring-2 data-[vk-active=true]:ring-accent"
+        {...localVk}
       />
     </div>
   );

@@ -32,11 +32,8 @@ import {
 import type { NamedCount, StoreValueBucket } from "@/lib/admin-charts";
 import { NATIONALITIES } from "@/lib/countries";
 import { useI18n } from "@/lib/i18n";
-import {
-  defaultRegistrationsFromDate,
-  formatQar,
-  todayISODate,
-} from "@/lib/registration";
+import { qatarAreaSelectOptions } from "@/lib/qatar-areas";
+import { defaultRegistrationsFromDate, formatQar, todayISODate } from "@/lib/registration";
 
 export const Route = createFileRoute("/admin/registrations")({
   component: AdminRegistrationsPage,
@@ -94,9 +91,7 @@ type Aggregates = {
 };
 
 type DeleteDialog =
-  | { type: "one"; id: string; label: string }
-  | { type: "bulk"; scope: "filter" | "all" }
-  | null;
+  { type: "one"; id: string; label: string } | { type: "bulk"; scope: "filter" | "all" } | null;
 
 const filterPickerClass = "h-9 min-w-40 rounded-md px-3 text-sm";
 const editPickerClass = "h-9 w-full rounded-md px-3 text-sm";
@@ -169,13 +164,9 @@ function AdminRegistrationsPage() {
         return;
       }
       setRows((data.registrations as Registration[]) ?? []);
-      setTotalGuests(
-        typeof data.total_guests === "number" ? data.total_guests : null,
-      );
+      setTotalGuests(typeof data.total_guests === "number" ? data.total_guests : null);
       setAggregates((data.aggregates as Aggregates) ?? null);
-      const facets = data.facets as
-        | { nationalities?: string[]; zones?: string[] }
-        | undefined;
+      const facets = data.facets as { nationalities?: string[]; zones?: string[] } | undefined;
       if (facets?.nationalities) setNationalities(facets.nationalities);
       if (facets?.zones) setZones(facets.zones);
     } catch {
@@ -351,10 +342,7 @@ function AdminRegistrationsPage() {
   })();
 
   const editStoreOptions = (() => {
-    if (
-      editForm?.company_id &&
-      !stores.some((s) => s.id === editForm.company_id)
-    ) {
+    if (editForm?.company_id && !stores.some((s) => s.id === editForm.company_id)) {
       return [
         {
           id: editForm.company_id,
@@ -367,12 +355,7 @@ function AdminRegistrationsPage() {
   })();
 
   const hasExtraFilters = Boolean(
-    q.trim() ||
-      nationality ||
-      zone ||
-      minValue.trim() ||
-      maxValue.trim() ||
-      storeId,
+    q.trim() || nationality || zone || minValue.trim() || maxValue.trim() || storeId,
   );
 
   const storeFilterOptions = [
@@ -395,6 +378,7 @@ function AdminRegistrationsPage() {
     value: name,
     label: name,
   }));
+  const editAreaSelectOptions = qatarAreaSelectOptions(editForm?.address_zone);
 
   return (
     <div className="space-y-6">
@@ -424,21 +408,11 @@ function AdminRegistrationsPage() {
         <div className="flex flex-wrap items-end gap-3">
           <div className="space-y-2">
             <Label htmlFor="from">{t("commonFrom")}</Label>
-            <Input
-              id="from"
-              type="date"
-              value={from}
-              onChange={(e) => setFrom(e.target.value)}
-            />
+            <Input id="from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="to">{t("commonTo")}</Label>
-            <Input
-              id="to"
-              type="date"
-              value={to}
-              onChange={(e) => setTo(e.target.value)}
-            />
+            <Input id="to" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
           </div>
           <div className="min-w-[12rem] flex-1 space-y-2">
             <Label htmlFor="q">{t("regSearchGuest")}</Label>
@@ -566,29 +540,19 @@ function AdminRegistrationsPage() {
         <div className="space-y-3">
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="rounded-3xl border border-border bg-secondary/40 p-4">
-              <p className="text-xs font-semibold text-muted-foreground">
-                {t("regFilteredCount")}
-              </p>
-              <p className="mt-2 font-display text-2xl font-bold">
-                {rows.length}
-              </p>
+              <p className="text-xs font-semibold text-muted-foreground">{t("regFilteredCount")}</p>
+              <p className="mt-2 font-display text-2xl font-bold">{rows.length}</p>
             </div>
             <div className="rounded-3xl border border-border bg-secondary/40 p-4">
-              <p className="text-xs font-semibold text-muted-foreground">
-                {t("regTotalValue")}
-              </p>
+              <p className="text-xs font-semibold text-muted-foreground">{t("regTotalValue")}</p>
               <p className="mt-2 font-display text-2xl font-bold">
                 {formatQar(aggregates.total_value)}
               </p>
             </div>
             <div className="rounded-3xl border border-border bg-secondary/40 p-4">
-              <p className="text-xs font-semibold text-muted-foreground">
-                {t("regAvgTxn")}
-              </p>
+              <p className="text-xs font-semibold text-muted-foreground">{t("regAvgTxn")}</p>
               <p className="mt-2 font-display text-2xl font-bold">
-                {formatQar(
-                  rows.length ? aggregates.total_value / rows.length : 0,
-                )}
+                {formatQar(rows.length ? aggregates.total_value / rows.length : 0)}
               </p>
             </div>
           </div>
@@ -616,8 +580,8 @@ function AdminRegistrationsPage() {
       {!loading && totalGuests !== null ? (
         <p className="text-sm text-muted-foreground">
           Showing {rows.length} matching
-          {hasExtraFilters ? " filters" : " in this date range"} · {totalGuests}{" "}
-          guest{totalGuests === 1 ? "" : "s"} total
+          {hasExtraFilters ? " filters" : " in this date range"} · {totalGuests} guest
+          {totalGuests === 1 ? "" : "s"} total
         </p>
       ) : null}
 
@@ -641,8 +605,8 @@ function AdminRegistrationsPage() {
                 <td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">
                   {totalGuests === 0 ? (
                     <>
-                      No guest registrations yet. Photo booth sessions do not create
-                      registrations — use the desk flow at{" "}
+                      No guest registrations yet. Photo booth sessions do not create registrations —
+                      use the desk flow at{" "}
                       <span className="font-medium text-foreground">/register</span>.
                     </>
                   ) : (
@@ -774,9 +738,7 @@ function AdminRegistrationsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit_nationality">
-                  {t("commonNationality")}
-                </Label>
+                <Label htmlFor="edit_nationality">{t("commonNationality")}</Label>
                 <SearchableSelect
                   id="edit_nationality"
                   value={editForm.nationality}
@@ -791,10 +753,16 @@ function AdminRegistrationsPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit_zone">{t("registerAddressZone")}</Label>
-                <Input
+                <SearchableSelect
                   id="edit_zone"
                   value={editForm.address_zone}
-                  onChange={(e) => updateEdit("address_zone", e.target.value)}
+                  onChange={(area) => updateEdit("address_zone", area)}
+                  options={editAreaSelectOptions}
+                  placeholder={t("registerSelectArea")}
+                  searchPlaceholder={t("registerSearchArea")}
+                  emptyText={t("registerNoArea")}
+                  className={editPickerClass}
+                  modal
                 />
               </div>
               <div className="space-y-2">
@@ -819,9 +787,7 @@ function AdminRegistrationsPage() {
                   min={0}
                   step="0.01"
                   value={editForm.transaction_value}
-                  onChange={(e) =>
-                    updateEdit("transaction_value", e.target.value)
-                  }
+                  onChange={(e) => updateEdit("transaction_value", e.target.value)}
                 />
               </div>
               <div className="space-y-2 sm:col-span-2">
@@ -830,30 +796,17 @@ function AdminRegistrationsPage() {
                   id="edit_date"
                   type="date"
                   value={editForm.transaction_date}
-                  onChange={(e) =>
-                    updateEdit("transaction_date", e.target.value)
-                  }
+                  onChange={(e) => updateEdit("transaction_date", e.target.value)}
                 />
               </div>
             </div>
           ) : null}
-          {editError ? (
-            <p className="text-sm text-destructive">{editError}</p>
-          ) : null}
+          {editError ? <p className="text-sm text-destructive">{editError}</p> : null}
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={saving}
-              onClick={closeEdit}
-            >
+            <Button type="button" variant="outline" disabled={saving} onClick={closeEdit}>
               {t("commonCancel")}
             </Button>
-            <Button
-              type="button"
-              disabled={saving || !editForm}
-              onClick={() => void saveEdit()}
-            >
+            <Button type="button" disabled={saving || !editForm} onClick={() => void saveEdit()}>
               {saving ? t("commonSaving") : t("commonSave")}
             </Button>
           </DialogFooter>
@@ -869,9 +822,7 @@ function AdminRegistrationsPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {dialog?.type === "one"
-                ? t("regDeleteOneTitle")
-                : t("regDeleteBulkTitle")}
+              {dialog?.type === "one" ? t("regDeleteOneTitle") : t("regDeleteBulkTitle")}
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3 text-sm text-muted-foreground">
@@ -886,8 +837,8 @@ function AdminRegistrationsPage() {
                 ) : (
                   <>
                     <p>
-                      This cannot be undone. Receipt images for deleted guests are
-                      removed from storage.
+                      This cannot be undone. Receipt images for deleted guests are removed from
+                      storage.
                     </p>
                     <div className="space-y-2 rounded-lg border border-border bg-secondary/40 p-3 text-foreground">
                       <label className="flex items-start gap-2">
@@ -896,9 +847,7 @@ function AdminRegistrationsPage() {
                           name="reg-delete-scope"
                           className="mt-1"
                           checked={dialog?.scope === "filter"}
-                          onChange={() =>
-                            setDialog({ type: "bulk", scope: "filter" })
-                          }
+                          onChange={() => setDialog({ type: "bulk", scope: "filter" })}
                         />
                         <span>
                           Current filter only ({rows.length} shown
@@ -911,9 +860,7 @@ function AdminRegistrationsPage() {
                           name="reg-delete-scope"
                           className="mt-1"
                           checked={dialog?.scope === "all"}
-                          onChange={() =>
-                            setDialog({ type: "bulk", scope: "all" })
-                          }
+                          onChange={() => setDialog({ type: "bulk", scope: "all" })}
                         />
                         <span>
                           All registrations

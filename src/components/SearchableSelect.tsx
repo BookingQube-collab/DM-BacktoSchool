@@ -9,12 +9,9 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { useVirtualKeyboard } from "@/components/VirtualKeyboard";
 
 export type SearchableSelectOption = {
   value: string;
@@ -32,6 +29,7 @@ type SearchableSelectProps = {
   className?: string;
   /** Use inside dialogs so the list stays interactive and above the overlay. */
   modal?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 
 export function SearchableSelect({
@@ -44,12 +42,21 @@ export function SearchableSelect({
   emptyText,
   className,
   modal = false,
+  onOpenChange,
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false);
+  const vk = useVirtualKeyboard();
   const selected = options.find((option) => option.value === value);
 
   return (
-    <Popover open={open} onOpenChange={setOpen} modal={modal}>
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        onOpenChange?.(next);
+      }}
+      modal={modal}
+    >
       <PopoverTrigger asChild>
         <Button
           id={id}
@@ -63,9 +70,7 @@ export function SearchableSelect({
             className,
           )}
         >
-          <span className="min-w-0 truncate">
-            {selected ? selected.label : placeholder}
-          </span>
+          <span className="min-w-0 truncate">{selected ? selected.label : placeholder}</span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -77,6 +82,7 @@ export function SearchableSelect({
           <CommandInput
             placeholder={searchPlaceholder}
             className="h-11 text-base"
+            inputMode={vk.enabled ? "none" : undefined}
           />
           <CommandList className="max-h-64">
             <CommandEmpty>{emptyText}</CommandEmpty>
