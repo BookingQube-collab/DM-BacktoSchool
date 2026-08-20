@@ -1,5 +1,8 @@
 # Run once on the Windows PC that STAYS at the booth (not your laptop).
 # After this, powering on that PC starts the print worker automatically.
+param(
+  [switch]$SkipStart
+)
 $ErrorActionPreference = "Stop"
 
 $taskName = "SmartStartBoothPrint"
@@ -37,12 +40,16 @@ Register-ScheduledTask `
   -Description "Smart Start Future Me — polls the print queue and sends photos to the SELPHY." `
   -Force | Out-Null
 
-$running = Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue
-if ($running) {
-  Write-Host "Port 8080 is already in use — leaving the current worker running."
+if ($SkipStart) {
+  Write-Host "Scheduled task registered (will start at next logon)."
 } else {
-  Start-ScheduledTask -TaskName $taskName
-  Write-Host "Started the booth print worker now."
+  $running = Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue
+  if ($running) {
+    Write-Host "Port 8080 is already in use — leaving the current worker running."
+  } else {
+    Start-ScheduledTask -TaskName $taskName
+    Write-Host "Started the booth print worker now."
+  }
 }
 
 Write-Host ""
