@@ -163,6 +163,31 @@
 }
 
 @media print {
+  /* If a tablet prints the parent page instead of the iframe document, hide
+     app chrome so the preview is still the postcard frame only. */
+  html.is-printing-postcard body > *:not(.postcard-print-frame) {
+    display: none !important;
+  }
+  html.is-printing-postcard,
+  html.is-printing-postcard body {
+    width: 148mm !important;
+    height: 100mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #000 !important;
+    overflow: hidden !important;
+  }
+  html.is-printing-postcard .postcard-print-frame {
+    display: block !important;
+    position: absolute !important;
+    opacity: 1 !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 148mm !important;
+    height: 100mm !important;
+    border: 0 !important;
+  }
+
   /* Android/Chrome print sheet: one full-bleed postcard. Avoid visibility:hidden
      on body * — that made the SELPHY preview blank on tablets. */
   @page {

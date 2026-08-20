@@ -109,6 +109,7 @@ export const en = {
   printErrRejected:
     "Printer did not accept the job — ask staff to check SELPHY Wi‑Fi and the Android print sheet.",
   printErrPhoto: "Photo not ready — wait for the transform to finish, then retry.",
+  printErrCancelled: "Print cancelled — retry",
 
   futureId: "Future ID",
   futureIdAlt: "Future {title}",
@@ -622,6 +623,7 @@ export const ar: Record<keyof typeof en, string> = {
   printErrRejected:
     "الطابعة لم تقبل المهمة — اطلب من الموظفين التحقق من واي فاي SELPHY وورقة طباعة أندرويد.",
   printErrPhoto: "الصورة غير جاهزة — انتظر اكتمال التحويل ثم أعد المحاولة.",
+  printErrCancelled: "تم إلغاء الطباعة — أعد المحاولة",
 
   futureId: "هوية المستقبل",
   futureIdAlt: "{title} المستقبل",

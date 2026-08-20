@@ -3,7 +3,7 @@ import "./lib/error-capture";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 
-// Windows booth only: poll Supabase print_jobs and silent-print (Vercel tablets enqueue).
+// Windows booth only (optional): poll print_jobs. HTTPS tablets print in the browser.
 if (typeof process !== "undefined" && process.platform === "win32") {
   void import("./lib/print-worker.server")
     .then((m) => m.startPrintWorker())
