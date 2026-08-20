@@ -578,7 +578,7 @@ function AdminRegistrationsPage() {
               heightClass="aspect-auto h-[180px] w-full"
             />
             <NamedCountBarChart
-              title="By zone"
+              title={t("commonZone")}
               subtitle={t("chartFiltered")}
               items={aggregates.by_zone}
               heightClass="aspect-auto h-[180px] w-full"
