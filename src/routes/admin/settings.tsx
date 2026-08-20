@@ -47,7 +47,6 @@ type Settings = {
   printer_host: string;
   booth_print_base_url: string;
   virtual_keyboard_enabled?: boolean;
-  leaderboard_orientation?: "vertical" | "horizontal";
   staff_users?: PublicStaffUser[];
 };
 
@@ -64,9 +63,6 @@ function AdminSettingsPage() {
   const [printerHost, setPrinterHost] = useState("");
   const [boothPrintBaseUrl, setBoothPrintBaseUrl] = useState("");
   const [virtualKeyboardEnabled, setVirtualKeyboardEnabled] = useState(false);
-  const [leaderboardOrientation, setLeaderboardOrientation] = useState<"vertical" | "horizontal">(
-    "vertical",
-  );
   const [detectedSelphyIp, setDetectedSelphyIp] = useState<string | null>(null);
   const [detectedPrinters, setDetectedPrinters] = useState<
     {
@@ -100,9 +96,6 @@ function AdminSettingsPage() {
     setPrinterHost(s.printer_host || "");
     setBoothPrintBaseUrl(s.booth_print_base_url || "");
     setVirtualKeyboardEnabled(Boolean(s.virtual_keyboard_enabled));
-    setLeaderboardOrientation(
-      s.leaderboard_orientation === "horizontal" ? "horizontal" : "vertical",
-    );
     setLogoPreview(s.doha_mall_logo_url || null);
     setPendingLogo(null);
     setClearLogo(false);
@@ -184,7 +177,6 @@ function AdminSettingsPage() {
         printer_host: printerHost.trim(),
         booth_print_base_url: boothPrintBaseUrl.trim(),
         virtual_keyboard_enabled: virtualKeyboardEnabled,
-        leaderboard_orientation: leaderboardOrientation,
       };
       if (freepik && !freepik.includes("•")) {
         body.freepik_api_key = freepik;
@@ -452,24 +444,6 @@ function AdminSettingsPage() {
             />
           </div>
           <p className="text-sm font-medium">{t("settingsVkEnable")}</p>
-        </div>
-
-        <div className="space-y-3 rounded-xl border border-border p-4">
-          <div>
-            <Label htmlFor="leaderboard_orientation">{t("settingsLbOrientation")}</Label>
-            <p className="mt-1 text-xs text-muted-foreground">{t("settingsLbOrientationHint")}</p>
-          </div>
-          <select
-            id="leaderboard_orientation"
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            value={leaderboardOrientation}
-            onChange={(e) =>
-              setLeaderboardOrientation(e.target.value === "horizontal" ? "horizontal" : "vertical")
-            }
-          >
-            <option value="vertical">{t("settingsLbVertical")}</option>
-            <option value="horizontal">{t("settingsLbHorizontal")}</option>
-          </select>
         </div>
 
         <div className="space-y-2">

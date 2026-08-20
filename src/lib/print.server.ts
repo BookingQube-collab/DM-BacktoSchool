@@ -39,7 +39,8 @@ const ippEndpointCache = new Map<string, IppCacheEntry>();
 /** Short TTL — DHCP / SELPHY Wi‑Fi can change LAN IP (e.g. .103 → .108). */
 const IPP_CACHE_TTL_MS = 60_000;
 
-const BOOTH_NETWORK_ERROR = "Open this app from the booth computer network.";
+const BOOTH_NETWORK_ERROR =
+  "Open this app from the booth computer network.";
 
 export async function resolvePrinterName(override?: string) {
   const fromBody = override?.trim();
@@ -68,13 +69,7 @@ function normalizePrinterHost(raw: string): string {
   } catch {
     /* fall through */
   }
-  return (
-    t
-      .replace(/^\[|\]$/g, "")
-      .split("/")[0]
-      ?.split(":")[0]
-      ?.trim() || ""
-  );
+  return t.replace(/^\[|\]$/g, "").split("/")[0]?.split(":")[0]?.trim() || "";
 }
 
 function assertPrintableImageBytes(buf: Buffer, label = "Print image") {
@@ -137,7 +132,9 @@ async function loadDohaMallLogoBytes(): Promise<Buffer | null> {
   try {
     const { path, url } = await resolveDohaMallLogoUrl();
     if (path) {
-      const { data, error } = await supabaseAdmin.storage.from("branding").download(path);
+      const { data, error } = await supabaseAdmin.storage
+        .from("branding")
+        .download(path);
       if (!error && data) {
         const buf = Buffer.from(await data.arrayBuffer());
         if (buf.length >= 64) return buf;
@@ -208,15 +205,15 @@ try {
   $g.Clear([System.Drawing.Color]::Transparent)
   $g.DrawImage($poster, 0, 0, $poster.Width, $poster.Height)
 
-  # ~16% of postcard width (~33% larger than prior 12%); keep aspect + corner alignment
-  $targetW = [int][Math]::Max(64, [Math]::Round($poster.Width * 0.16))
+  # ~12% of postcard width; keep aspect; bottom-right with margin (on-photo badge)
+  $targetW = [int][Math]::Max(48, [Math]::Round($poster.Width * 0.12))
   $scale = $targetW / [double]$logo.Width
-  $targetH = [int][Math]::Max(32, [Math]::Round($logo.Height * $scale))
+  $targetH = [int][Math]::Max(24, [Math]::Round($logo.Height * $scale))
   # Cap height so tall logos don't cover the photo
-  $maxH = [int][Math]::Round($poster.Height * 0.16)
+  $maxH = [int][Math]::Round($poster.Height * 0.12)
   if ($targetH -gt $maxH) {
     $targetH = $maxH
-    $targetW = [int][Math]::Max(64, [Math]::Round($logo.Width * ($targetH / [double]$logo.Height)))
+    $targetW = [int][Math]::Max(48, [Math]::Round($logo.Width * ($targetH / [double]$logo.Height)))
   }
 
   $margin = [int][Math]::Max(12, [Math]::Round($poster.Width * 0.028))
@@ -272,7 +269,10 @@ export async function withDohaMallLogoForPrint(bytes: Buffer): Promise<Buffer> {
  * Silently spool raw image bytes (PNG/JPEG/WebP) to the booth printer.
  * Shared by booth `/api/print` (via data URL) and admin reprint.
  */
-export async function printPostcardImageBytes(bytes: Buffer, printerName: string) {
+export async function printPostcardImageBytes(
+  bytes: Buffer,
+  printerName: string,
+) {
   assertPrintableImageBytes(bytes);
   const withLogo = await withDohaMallLogoForPrint(bytes);
   const ext = imageExtFromBytes(withLogo);
@@ -340,76 +340,90 @@ async function runPowerShell(script: string, timeoutMs = 45_000) {
   await writeFile(ps1, `\uFEFF${script}`, "utf8");
 
   try {
-    return await new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
-      const child = spawn(
-        "powershell.exe",
-        ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", ps1],
-        {
-          windowsHide: true,
-          stdio: ["ignore", "pipe", "pipe"],
-        },
-      );
-
-      let stdout = "";
-      let stderr = "";
-      let settled = false;
-      const maxBuf = 4 * 1024 * 1024;
-
-      const finish = (fn: () => void) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        fn();
-      };
-
-      const timer = setTimeout(() => {
-        killProcessTree(child.pid);
-        try {
-          child.kill();
-        } catch {
-          /* ignore */
-        }
-        finish(() =>
-          reject(
-            Object.assign(new Error("Printer not ready (timed out waiting for Windows spooler)."), {
-              timedOut: true,
-              killed: true,
-              stdout,
-              stderr,
-            }),
-          ),
+    return await new Promise<{ stdout: string; stderr: string }>(
+      (resolve, reject) => {
+        const child = spawn(
+          "powershell.exe",
+          [
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            ps1,
+          ],
+          {
+            windowsHide: true,
+            stdio: ["ignore", "pipe", "pipe"],
+          },
         );
-      }, timeoutMs);
 
-      child.stdout?.on("data", (chunk: Buffer | string) => {
-        stdout += chunk.toString();
-        if (stdout.length > maxBuf) stdout = stdout.slice(-maxBuf);
-      });
-      child.stderr?.on("data", (chunk: Buffer | string) => {
-        stderr += chunk.toString();
-        if (stderr.length > maxBuf) stderr = stderr.slice(-maxBuf);
-      });
+        let stdout = "";
+        let stderr = "";
+        let settled = false;
+        const maxBuf = 4 * 1024 * 1024;
 
-      child.on("error", (err) => {
-        finish(() => reject(err));
-      });
+        const finish = (fn: () => void) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          fn();
+        };
 
-      child.on("close", (code) => {
-        finish(() => {
-          if (code === 0) {
-            resolve({ stdout, stderr });
-            return;
+        const timer = setTimeout(() => {
+          killProcessTree(child.pid);
+          try {
+            child.kill();
+          } catch {
+            /* ignore */
           }
-          reject(
-            Object.assign(new Error(stderr || stdout || `PowerShell exited ${code}`), {
-              code,
-              stdout,
-              stderr,
-            }),
+          finish(() =>
+            reject(
+              Object.assign(
+                new Error(
+                  "Printer not ready (timed out waiting for Windows spooler).",
+                ),
+                {
+                  timedOut: true,
+                  killed: true,
+                  stdout,
+                  stderr,
+                },
+              ),
+            ),
           );
+        }, timeoutMs);
+
+        child.stdout?.on("data", (chunk: Buffer | string) => {
+          stdout += chunk.toString();
+          if (stdout.length > maxBuf) stdout = stdout.slice(-maxBuf);
         });
-      });
-    }).catch((e) => {
+        child.stderr?.on("data", (chunk: Buffer | string) => {
+          stderr += chunk.toString();
+          if (stderr.length > maxBuf) stderr = stderr.slice(-maxBuf);
+        });
+
+        child.on("error", (err) => {
+          finish(() => reject(err));
+        });
+
+        child.on("close", (code) => {
+          finish(() => {
+            if (code === 0) {
+              resolve({ stdout, stderr });
+              return;
+            }
+            reject(
+              Object.assign(new Error(stderr || stdout || `PowerShell exited ${code}`), {
+                code,
+                stdout,
+                stderr,
+              }),
+            );
+          });
+        });
+      },
+    ).catch((e) => {
       throw new Error(extractPsError(e));
     });
   } finally {
@@ -455,7 +469,10 @@ function isReadyStatus(status: string, workOffline: boolean): boolean {
  * Soft/network class drivers (Wi‑Fi SELPHY often lands here via Microsoft IPP/WSD).
  * Used for preference + shorter timeouts — not a hard refuse.
  */
-export function isSoftPrintDriver(driverName?: string | null, portName?: string | null): boolean {
+export function isSoftPrintDriver(
+  driverName?: string | null,
+  portName?: string | null,
+): boolean {
   const d = (driverName || "").toLowerCase();
   const p = (portName || "").toLowerCase();
   if (/microsoft ipp|ipp class driver|universal print class|virtual print class/i.test(d)) {
@@ -478,16 +495,24 @@ function isSelphyName(name?: string | null): boolean {
 }
 
 /** Ready alternate queue (native first). Used only when name resolution fails. */
-function suggestReadyAlternate(printers: InstalledPrinter[], excludeName: string): string | null {
+function suggestReadyAlternate(
+  printers: InstalledPrinter[],
+  excludeName: string,
+): string | null {
   const exclude = excludeName.trim().toLowerCase();
   const readyNative = printers.filter(
-    (p) => p.ready && !p.softDriver && p.name.trim().toLowerCase() !== exclude,
+    (p) =>
+      p.ready &&
+      !p.softDriver &&
+      p.name.trim().toLowerCase() !== exclude,
   );
   // Prefer another SELPHY/Canon native queue before card printers.
   const selphyNative = readyNative.find((p) => isSelphyName(p.name));
   if (selphyNative) return selphyNative.name;
   if (readyNative[0]) return readyNative[0].name;
-  const anyReady = printers.find((p) => p.ready && p.name.trim().toLowerCase() !== exclude);
+  const anyReady = printers.find(
+    (p) => p.ready && p.name.trim().toLowerCase() !== exclude,
+  );
   return anyReady?.name ?? null;
 }
 
@@ -557,7 +582,10 @@ function formatStaffPrintError(
 /**
  * Compact list for “printer not found” only — never dump full inventory into UI.
  */
-function formatMatchedPrinterHint(wanted: string, printers: InstalledPrinter[]): string {
+function formatMatchedPrinterHint(
+  wanted: string,
+  printers: InstalledPrinter[],
+): string {
   if (!printers.length) {
     return `No printers detected on this Windows PC. Run the booth app on the PC with the printer.`;
   }
@@ -567,7 +595,9 @@ function formatMatchedPrinterHint(wanted: string, printers: InstalledPrinter[]):
     .slice(0, 3)
     .map((p) => `“${p.name}”`);
   const sample =
-    readyNames.length > 0 ? `Ready: ${readyNames.join(", ")}` : `Try: “${printers[0]!.name}”`;
+    readyNames.length > 0
+      ? `Ready: ${readyNames.join(", ")}`
+      : `Try: “${printers[0]!.name}”`;
   return alt
     ? `Set Admin → Settings → Printer name (e.g. “${alt}”). ${sample}.`
     : `Set Admin → Settings → Printer name to an exact Windows name. ${sample}.`;
@@ -575,7 +605,11 @@ function formatMatchedPrinterHint(wanted: string, printers: InstalledPrinter[]):
 
 function isCanonNativeDriver(driverName?: string | null): boolean {
   const d = (driverName || "").toLowerCase();
-  return /canon/.test(d) && /selphy|cp1500|cp1\d{2,}/.test(d) && !isSoftPrintDriver(d);
+  return (
+    /canon/.test(d) &&
+    /selphy|cp1500|cp1\d{2,}/.test(d) &&
+    !isSoftPrintDriver(d)
+  );
 }
 
 /**
@@ -696,13 +730,19 @@ function matchScore(requested: string, candidate: InstalledPrinter): number {
 
     const hits = reqTokens.filter((t) =>
       nameTokens.some(
-        (n) => n === t || (t.length >= 4 && n.length >= 4 && (n.includes(t) || t.includes(n))),
+        (n) =>
+          n === t ||
+          (t.length >= 4 && n.length >= 4 && (n.includes(t) || t.includes(n))),
       ),
     );
     const ratio = hits.length / reqTokens.length;
     // Require a real substantive hit (model/brand), not noise like "2"
     const strong = hits.some(
-      (t) => t === "selphy" || t.startsWith("cp15") || t.startsWith("canon") || t.length >= 5,
+      (t) =>
+        t === "selphy" ||
+        t.startsWith("cp15") ||
+        t.startsWith("canon") ||
+        t.length >= 5,
     );
     if (ratio < 0.5 || !strong) return 0;
 
@@ -828,7 +868,9 @@ async function printPngWindows(
   const printWaitMs = soft ? 5_000 : 12_000;
   const spoolPollLoops = soft ? 6 : 16;
   const psTimeoutMs = soft ? 10_000 : 35_000;
-  const notReadyHint = soft ? selphyWifiStaffHint() : "check USB, power, and cassette";
+  const notReadyHint = soft
+    ? selphyWifiStaffHint()
+    : "check USB, power, and cassette";
   const rejectHint = soft
     ? selphyWifiStaffHint()
     : "Install the Canon SELPHY USB manufacturer driver (or select a ready queue in Admin) and retry.";
@@ -1100,7 +1142,11 @@ function ippStringAttr(tag: number, name: string, value: string): Buffer {
   return b;
 }
 
-function buildIppPrintJob(jpeg: Buffer, printerUri: string, jobName: string): Buffer {
+function buildIppPrintJob(
+  jpeg: Buffer,
+  printerUri: string,
+  jobName: string,
+): Buffer {
   // Keep job attrs minimal — SELPHY rejects some enum tags; media + scaling is enough.
   const parts: Buffer[] = [
     // IPP 2.0, Print-Job (0x0002), request-id 1
@@ -1177,7 +1223,11 @@ function postIpp(
         res.on("end", () => {
           const buf = Buffer.concat(chunks);
           if ((res.statusCode || 0) >= 400) {
-            reject(new Error(`IPP HTTP ${res.statusCode} (${buf.length} bytes)`));
+            reject(
+              new Error(
+                `IPP HTTP ${res.statusCode} (${buf.length} bytes)`,
+              ),
+            );
             return;
           }
           resolve({ buf, bodyFinished: true });
@@ -1196,7 +1246,9 @@ function postIpp(
         }),
       );
     });
-    req.on("error", (err) => reject(Object.assign(err, { bodyFinished })));
+    req.on("error", (err) =>
+      reject(Object.assign(err, { bodyFinished })),
+    );
     req.write(body);
     req.end();
   });
@@ -1231,7 +1283,9 @@ function isLikelyLanIpv4(ip: string): boolean {
 function endpointFromHost(host: string): IppEndpoint | null {
   const h = normalizePrinterHost(host);
   if (!h) return null;
-  const url = isLikelyLanIpv4(h) ? `http://${h}:631/ipp/print` : `http://${h}:631/ipp/print`;
+  const url = isLikelyLanIpv4(h)
+    ? `http://${h}:631/ipp/print`
+    : `http://${h}:631/ipp/print`;
   return {
     url,
     ip: isLikelyLanIpv4(h) ? h : undefined,
@@ -1239,7 +1293,11 @@ function endpointFromHost(host: string): IppEndpoint | null {
   };
 }
 
-function probeTcpPort(host: string, port: number, timeoutMs = 900): Promise<boolean> {
+function probeTcpPort(
+  host: string,
+  port: number,
+  timeoutMs = 900,
+): Promise<boolean> {
   return new Promise((resolve) => {
     const socket = net.connect({ host, port }, () => {
       socket.destroy();
@@ -1315,7 +1373,9 @@ async function scanLocalSubnetIppHosts(): Promise<string[]> {
     for (let i = 0; i < hosts.length; i += BATCH) {
       const slice = hosts.slice(i, i + BATCH);
       const hits = await Promise.all(
-        slice.map(async (host) => ((await probeTcpPort(host, 631, 280)) ? host : null)),
+        slice.map(async (host) =>
+          (await probeTcpPort(host, 631, 280)) ? host : null,
+        ),
       );
       for (const h of hits) {
         if (h) found.push(h);
@@ -1328,7 +1388,9 @@ async function scanLocalSubnetIppHosts(): Promise<string[]> {
   return found;
 }
 
-async function firstReachableIppHost(hosts: string[]): Promise<string | null> {
+async function firstReachableIppHost(
+  hosts: string[],
+): Promise<string | null> {
   const uniq = [
     ...new Set(
       hosts
@@ -1360,13 +1422,19 @@ export async function resolvePrinterIppEndpoint(
   opts?: { force?: boolean; preferredHost?: string },
 ): Promise<IppEndpoint | null> {
   if (process.platform !== "win32") return null;
-  const preferredHost = preferredHostIfOnLan(normalizePrinterHost(opts?.preferredHost || ""));
+  const preferredHost = preferredHostIfOnLan(
+    normalizePrinterHost(opts?.preferredHost || ""),
+  );
   const key = [
     printerName.trim().toLowerCase() || DEFAULT_PRINTER_NAME.toLowerCase(),
     preferredHost || "-",
   ].join("|");
   const cached = ippEndpointCache.get(key);
-  if (!opts?.force && cached && Date.now() - cached.at < IPP_CACHE_TTL_MS) {
+  if (
+    !opts?.force &&
+    cached &&
+    Date.now() - cached.at < IPP_CACHE_TTL_MS
+  ) {
     // Re-validate cached host quickly — SELPHY DHCP can move overnight.
     if (cached.endpoint?.ip || cached.endpoint?.url) {
       let host = cached.endpoint.ip || "";
@@ -1499,7 +1567,12 @@ try {
       .filter(isLikelyLanIpv4);
 
     // Prefer Admin override, then live Canon MAC ARP, then PnP/URL hosts.
-    const orderedHosts = [preferredHost, ...macIps, ...urlHosts, ...pnpIps].filter(Boolean);
+    const orderedHosts = [
+      preferredHost,
+      ...macIps,
+      ...urlHosts,
+      ...pnpIps,
+    ].filter(Boolean);
 
     let reachable = await firstReachableIppHost(orderedHosts);
     if (!reachable) {
@@ -1543,10 +1616,10 @@ export async function detectSelphyIppHost(
     return { ip: null, url: null };
   }
   const preferred = await resolvePrinterHost();
-  const endpoint = await resolvePrinterIppEndpoint(printerName?.trim() || DEFAULT_PRINTER_NAME, {
-    force: true,
-    preferredHost: preferred || undefined,
-  });
+  const endpoint = await resolvePrinterIppEndpoint(
+    printerName?.trim() || DEFAULT_PRINTER_NAME,
+    { force: true, preferredHost: preferred || undefined },
+  );
   return {
     ip: endpoint?.ip || null,
     url: endpoint?.url || null,
@@ -1564,7 +1637,9 @@ function ippBodyWasFinished(err: unknown): boolean {
 
 function isIppConnectFailure(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
-  return /ECONNREFUSED|ENETUNREACH|EHOSTUNREACH|ENOTFOUND|ECONNRESET|connect /i.test(msg);
+  return /ECONNREFUSED|ENETUNREACH|EHOSTUNREACH|ENOTFOUND|ECONNRESET|connect /i.test(
+    msg,
+  );
 }
 
 /**
@@ -1609,7 +1684,9 @@ export async function printJpegViaIpp(
       lastDetail = parsed.detail;
       // 0x0507 server-error-busy — wait and retry (job was not accepted)
       if (parsed.status === 0x0507) continue;
-      throw new Error(`IPP Print-Job failed (${parsed.detail}). ${selphyWifiStaffHint()}.`);
+      throw new Error(
+        `IPP Print-Job failed (${parsed.detail}). ${selphyWifiStaffHint()}.`,
+      );
     } catch (e) {
       if (isIppTransportTimeout(e) && ippBodyWasFinished(e)) {
         // Full Print-Job body reached the printer; SELPHY often holds the
@@ -1627,7 +1704,10 @@ export async function printJpegViaIpp(
   );
 }
 
-async function ensureJpegBytes(bytes: Buffer, ext: "png" | "jpg" | "webp"): Promise<Buffer> {
+async function ensureJpegBytes(
+  bytes: Buffer,
+  ext: "png" | "jpg" | "webp",
+): Promise<Buffer> {
   if (ext === "jpg") return bytes;
   if (ext === "png") return pngBufferToJpeg(bytes);
   // WebP → PNG via .NET then JPEG is heavy; try Drawing load+jpeg in one PS pass.
@@ -1680,11 +1760,10 @@ async function printPostcardFileBytes(
     const cleared = await tryClearWorkOffline(resolved);
     if (!cleared) {
       throw new Error(
-        formatStaffPrintError(`Printer “${resolved}” is set to Work Offline.`, {
-          resolved,
-          softDriver: match.softDriver,
-          printers,
-        }),
+        formatStaffPrintError(
+          `Printer “${resolved}” is set to Work Offline.`,
+          { resolved, softDriver: match.softDriver, printers },
+        ),
       );
     }
   }
@@ -1696,11 +1775,10 @@ async function printPostcardFileBytes(
   const active = after ?? match;
   if (after && !after.ready && /\boffline\b/i.test(after.status)) {
     throw new Error(
-      formatStaffPrintError(`Printer “${resolved}” is offline (${after.status}).`, {
-        resolved,
-        softDriver: active.softDriver,
-        printers,
-      }),
+      formatStaffPrintError(
+        `Printer “${resolved}” is offline (${after.status}).`,
+        { resolved, softDriver: active.softDriver, printers },
+      ),
     );
   }
   if (after && /\bpaused\b/i.test(after.status)) {
@@ -1744,7 +1822,9 @@ async function printPostcardFileBytes(
           throw ippErr;
         }
       } else if (preferredHost || soft) {
-        throw new Error(`Could not reach SELPHY on Wi‑Fi — ${selphyWifiStaffHint()}.`);
+        throw new Error(
+          `Could not reach SELPHY on Wi‑Fi — ${selphyWifiStaffHint()}.`,
+        );
       }
     } catch (e) {
       // Fall through to Windows spooler only if IPP is unreachable / rejected.

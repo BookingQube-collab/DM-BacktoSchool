@@ -29,19 +29,7 @@ export type SettingKey =
   | "printer_host"
   | "booth_print_base_url"
   | "print_worker_heartbeat"
-  | "virtual_keyboard_enabled"
-  | "leaderboard_orientation";
-
-export type LeaderboardOrientation = "vertical" | "horizontal";
-
-export function parseLeaderboardOrientation(value: string): LeaderboardOrientation {
-  const v = value.trim().toLowerCase();
-  return v === "horizontal" ? "horizontal" : "vertical";
-}
-
-export async function getLeaderboardOrientation(): Promise<LeaderboardOrientation> {
-  return parseLeaderboardOrientation(await getSetting("leaderboard_orientation"));
-}
+  | "virtual_keyboard_enabled";
 
 const SECRET_KEYS = new Set<SettingKey>(["freepik_api_key", "admin_password_hash"]);
 
@@ -255,7 +243,6 @@ export async function getBrandingSettings() {
   const printerHost = (await getSetting("printer_host")).trim();
   const boothPrintBaseUrl = normalizeBoothPrintBaseUrl(await getSetting("booth_print_base_url"));
   const virtualKeyboardEnabled = await isVirtualKeyboardEnabled();
-  const leaderboardOrientation = await getLeaderboardOrientation();
   return {
     doha_mall_logo_path: logo.path,
     doha_mall_logo_url: logo.url,
@@ -263,7 +250,6 @@ export async function getBrandingSettings() {
     printer_host: printerHost,
     booth_print_base_url: boothPrintBaseUrl,
     virtual_keyboard_enabled: virtualKeyboardEnabled,
-    leaderboard_orientation: leaderboardOrientation,
   };
 }
 
@@ -298,7 +284,6 @@ export async function listPublicSettings() {
     printer_host: branding.printer_host,
     booth_print_base_url: branding.booth_print_base_url,
     virtual_keyboard_enabled: branding.virtual_keyboard_enabled,
-    leaderboard_orientation: branding.leaderboard_orientation,
     staff_users: staffUsers,
     updated_at: {
       freepik_api_key: map.get("freepik_api_key")?.updated_at ?? null,
@@ -309,7 +294,6 @@ export async function listPublicSettings() {
       printer_host: map.get("printer_host")?.updated_at ?? null,
       booth_print_base_url: map.get("booth_print_base_url")?.updated_at ?? null,
       virtual_keyboard_enabled: map.get("virtual_keyboard_enabled")?.updated_at ?? null,
-      leaderboard_orientation: map.get("leaderboard_orientation")?.updated_at ?? null,
     },
   };
 }
