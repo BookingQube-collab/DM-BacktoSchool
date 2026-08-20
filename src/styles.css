@@ -356,6 +356,11 @@
   height: 100dvh;
   overflow: hidden;
   background-color: var(--background);
+  transform-origin: center center;
+}
+
+.leaderboard-stage[data-flip="true"] {
+  transform: rotate(180deg);
 }
 
 .leaderboard-canvas {

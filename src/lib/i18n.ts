@@ -450,6 +450,11 @@ export const en = {
     "Fills the public /leaderboard TV with a full-screen portrait (Vertical) or landscape (Horizontal) layout. If the tablet is mounted the other way, the whole screen rotates to match.",
   settingsLbVertical: "Vertical",
   settingsLbHorizontal: "Horizontal",
+  settingsLbRotate: "Screen rotation",
+  settingsLbRotateHint:
+    "Rotate the entire public /leaderboard TV 180° if the display is mounted upside down. Combines with Vertical / Horizontal layout.",
+  settingsLbRotateNormal: "Normal",
+  settingsLbRotateUpsideDown: "Upside down",
   settingsDetectedOnPc: "Detected on this PC",
   settingsReady: "ready",
   settingsWorkOffline: "Work Offline",
@@ -969,6 +974,11 @@ export const ar: Record<keyof typeof en, string> = {
     "يملأ شاشة /leaderboard العامة بالكامل عمودياً (صورة) أو أفقياً (منظر). إذا كان الجهاز مثبتاً بالاتجاه الآخر، تدور الشاشة كلها لتطابق الإعداد.",
   settingsLbVertical: "عمودي",
   settingsLbHorizontal: "أفقي",
+  settingsLbRotate: "دوران الشاشة",
+  settingsLbRotateHint:
+    "أدِر شاشة /leaderboard العامة بالكامل 180° إذا كان العرض مثبتاً مقلوباً. يعمل مع التخطيط العمودي / الأفقي.",
+  settingsLbRotateNormal: "عادي",
+  settingsLbRotateUpsideDown: "مقلوب",
   settingsDetectedOnPc: "المكتشف على هذا الجهاز",
   settingsReady: "جاهزة",
   settingsWorkOffline: "عمل دون اتصال",

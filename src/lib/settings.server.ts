@@ -30,9 +30,11 @@ export type SettingKey =
   | "booth_print_base_url"
   | "print_worker_heartbeat"
   | "virtual_keyboard_enabled"
-  | "leaderboard_orientation";
+  | "leaderboard_orientation"
+  | "leaderboard_rotate";
 
 export type LeaderboardOrientation = "vertical" | "horizontal";
+export type LeaderboardRotate = 0 | 180;
 
 export function parseLeaderboardOrientation(value: string): LeaderboardOrientation {
   return value.trim().toLowerCase() === "horizontal" ? "horizontal" : "vertical";
@@ -40,6 +42,17 @@ export function parseLeaderboardOrientation(value: string): LeaderboardOrientati
 
 export async function getLeaderboardOrientation(): Promise<LeaderboardOrientation> {
   return parseLeaderboardOrientation(await getSetting("leaderboard_orientation"));
+}
+
+export function parseLeaderboardRotate(value: string): LeaderboardRotate {
+  const v = value.trim().toLowerCase();
+  return v === "180" || v === "upside-down" || v === "upside down" || v === "flip"
+    ? 180
+    : 0;
+}
+
+export async function getLeaderboardRotate(): Promise<LeaderboardRotate> {
+  return parseLeaderboardRotate(await getSetting("leaderboard_rotate"));
 }
 
 const SECRET_KEYS = new Set<SettingKey>(["freepik_api_key", "admin_password_hash"]);
@@ -300,6 +313,7 @@ export async function getBrandingSettings() {
   const boothPrintBaseUrl = normalizeBoothPrintBaseUrl(await getSetting("booth_print_base_url"));
   const virtualKeyboardEnabled = await isVirtualKeyboardEnabled();
   const leaderboardOrientation = await getLeaderboardOrientation();
+  const leaderboardRotate = await getLeaderboardRotate();
   return {
     doha_mall_logo_path: logo.path,
     doha_mall_logo_url: logo.url,
@@ -308,6 +322,7 @@ export async function getBrandingSettings() {
     booth_print_base_url: boothPrintBaseUrl,
     virtual_keyboard_enabled: virtualKeyboardEnabled,
     leaderboard_orientation: leaderboardOrientation,
+    leaderboard_rotate: leaderboardRotate,
   };
 }
 
@@ -343,6 +358,7 @@ export async function listPublicSettings() {
     booth_print_base_url: branding.booth_print_base_url,
     virtual_keyboard_enabled: branding.virtual_keyboard_enabled,
     leaderboard_orientation: branding.leaderboard_orientation,
+    leaderboard_rotate: branding.leaderboard_rotate,
     staff_users: staffUsers,
     updated_at: {
       freepik_api_key: map.get("freepik_api_key")?.updated_at ?? null,
@@ -354,6 +370,7 @@ export async function listPublicSettings() {
       booth_print_base_url: map.get("booth_print_base_url")?.updated_at ?? null,
       virtual_keyboard_enabled: map.get("virtual_keyboard_enabled")?.updated_at ?? null,
       leaderboard_orientation: map.get("leaderboard_orientation")?.updated_at ?? null,
+      leaderboard_rotate: map.get("leaderboard_rotate")?.updated_at ?? null,
     },
   };
 }

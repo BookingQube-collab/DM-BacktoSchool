@@ -48,6 +48,7 @@ type Settings = {
   booth_print_base_url: string;
   virtual_keyboard_enabled?: boolean;
   leaderboard_orientation?: "vertical" | "horizontal";
+  leaderboard_rotate?: 0 | 180 | "0" | "180";
   staff_users?: PublicStaffUser[];
 };
 
@@ -67,6 +68,7 @@ function AdminSettingsPage() {
   const [leaderboardOrientation, setLeaderboardOrientation] = useState<
     "vertical" | "horizontal"
   >("vertical");
+  const [leaderboardRotate, setLeaderboardRotate] = useState<0 | 180>(0);
   const [detectedSelphyIp, setDetectedSelphyIp] = useState<string | null>(null);
   const [detectedPrinters, setDetectedPrinters] = useState<
     {
@@ -102,6 +104,9 @@ function AdminSettingsPage() {
     setVirtualKeyboardEnabled(Boolean(s.virtual_keyboard_enabled));
     setLeaderboardOrientation(
       s.leaderboard_orientation === "horizontal" ? "horizontal" : "vertical",
+    );
+    setLeaderboardRotate(
+      s.leaderboard_rotate === 180 || s.leaderboard_rotate === "180" ? 180 : 0,
     );
     setLogoPreview(s.doha_mall_logo_url || null);
     setPendingLogo(null);
@@ -185,6 +190,7 @@ function AdminSettingsPage() {
         booth_print_base_url: boothPrintBaseUrl.trim(),
         virtual_keyboard_enabled: virtualKeyboardEnabled,
         leaderboard_orientation: leaderboardOrientation,
+        leaderboard_rotate: leaderboardRotate,
       };
       if (freepik && !freepik.includes("•")) {
         body.freepik_api_key = freepik;
@@ -455,23 +461,40 @@ function AdminSettingsPage() {
         </div>
 
         <div className="space-y-3 rounded-xl border border-border p-4">
-          <div>
-            <Label htmlFor="leaderboard_orientation">{t("settingsLbOrientation")}</Label>
-            <p className="mt-1 text-xs text-muted-foreground">{t("settingsLbOrientationHint")}</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="leaderboard_orientation">{t("settingsLbOrientation")}</Label>
+              <p className="text-xs text-muted-foreground">{t("settingsLbOrientationHint")}</p>
+              <select
+                id="leaderboard_orientation"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                value={leaderboardOrientation}
+                onChange={(e) =>
+                  setLeaderboardOrientation(
+                    e.target.value === "horizontal" ? "horizontal" : "vertical",
+                  )
+                }
+              >
+                <option value="vertical">{t("settingsLbVertical")}</option>
+                <option value="horizontal">{t("settingsLbHorizontal")}</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="leaderboard_rotate">{t("settingsLbRotate")}</Label>
+              <p className="text-xs text-muted-foreground">{t("settingsLbRotateHint")}</p>
+              <select
+                id="leaderboard_rotate"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                value={String(leaderboardRotate)}
+                onChange={(e) =>
+                  setLeaderboardRotate(e.target.value === "180" ? 180 : 0)
+                }
+              >
+                <option value="0">{t("settingsLbRotateNormal")}</option>
+                <option value="180">{t("settingsLbRotateUpsideDown")}</option>
+              </select>
+            </div>
           </div>
-          <select
-            id="leaderboard_orientation"
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            value={leaderboardOrientation}
-            onChange={(e) =>
-              setLeaderboardOrientation(
-                e.target.value === "horizontal" ? "horizontal" : "vertical",
-              )
-            }
-          >
-            <option value="vertical">{t("settingsLbVertical")}</option>
-            <option value="horizontal">{t("settingsLbHorizontal")}</option>
-          </select>
         </div>
 
         <div className="space-y-2">

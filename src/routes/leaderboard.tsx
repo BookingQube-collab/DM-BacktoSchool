@@ -51,9 +51,11 @@ function LeaderboardPage() {
   const [orientation, setOrientation] = useState<"vertical" | "horizontal">(
     "vertical",
   );
+  const [rotate, setRotate] = useState<0 | 180>(0);
   const viewportLandscape = useViewportIsLandscape();
   const wantsLandscape = orientation === "horizontal";
   const rotated = wantsLandscape !== viewportLandscape;
+  const flipped = rotate === 180;
 
   useEffect(() => {
     let cancelled = false;
@@ -63,6 +65,7 @@ function LeaderboardPage() {
         if (!res.ok) return;
         const data = (await res.json()) as {
           leaderboard_orientation?: string;
+          leaderboard_rotate?: number | string;
         };
         if (cancelled) return;
         setOrientation(
@@ -70,8 +73,13 @@ function LeaderboardPage() {
             ? "horizontal"
             : "vertical",
         );
+        setRotate(
+          data.leaderboard_rotate === 180 || data.leaderboard_rotate === "180"
+            ? 180
+            : 0,
+        );
       } catch {
-        /* keep default vertical */
+        /* keep default vertical / unflipped */
       }
     })();
     return () => {
@@ -80,7 +88,10 @@ function LeaderboardPage() {
   }, []);
 
   return (
-    <div className="leaderboard-stage">
+    <div
+      className="leaderboard-stage"
+      data-flip={flipped ? "true" : "false"}
+    >
       <div
         className="leaderboard-canvas"
         data-orientation={orientation}

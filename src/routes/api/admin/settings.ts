@@ -7,6 +7,7 @@ import {
   listPublicSettings,
   normalizeBoothPrintBaseUrl,
   parseLeaderboardOrientation,
+  parseLeaderboardRotate,
   setSetting,
   updateAdminPassword,
 } from "@/lib/settings.server";
@@ -82,6 +83,7 @@ export const Route = createFileRoute("/api/admin/settings")({
             booth_print_base_url?: string;
             virtual_keyboard_enabled?: boolean;
             leaderboard_orientation?: string;
+            leaderboard_rotate?: string | number;
             doha_mall_logo_image?: string;
             clear_doha_mall_logo?: boolean;
             staff_users?: Array<{
@@ -156,6 +158,12 @@ export const Route = createFileRoute("/api/admin/settings")({
             await setSetting(
               "leaderboard_orientation",
               parseLeaderboardOrientation(body.leaderboard_orientation),
+            );
+          }
+          if (body.leaderboard_rotate !== undefined && body.leaderboard_rotate !== null) {
+            await setSetting(
+              "leaderboard_rotate",
+              String(parseLeaderboardRotate(String(body.leaderboard_rotate))),
             );
           }
 
