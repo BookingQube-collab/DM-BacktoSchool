@@ -1,16 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { json, requireAdminSession } from "@/lib/admin-auth.server";
-import { enqueuePrintJob } from "@/lib/print-jobs.server";
+import {
+  enqueuePrintJob,
+  shouldEnqueuePrintForBoothWorker,
+} from "@/lib/print-jobs.server";
 import {
   fetchPrintableImageBytes,
   printPostcardImageBytes,
   resolvePrinterName,
 } from "@/lib/print.server";
-
-function isWindowsBooth(): boolean {
-  return typeof process !== "undefined" && process.platform === "win32";
-}
 
 async function loadSessionImageBytes(session: {
   image_path: string | null;
@@ -62,7 +61,7 @@ export const Route = createFileRoute("/api/admin/reprint")({
 
           // Vercel / tablet Admin: queue the stored photo for the booth worker
           // (same silent SELPHY print as guest Print — no Android sheet).
-          if (!isWindowsBooth()) {
+          if (shouldEnqueuePrintForBoothWorker()) {
             let imageUrl = session.image_url?.trim() || "";
             if (session.image_path?.trim()) {
               const signed = await supabaseAdmin.storage

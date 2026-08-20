@@ -1,10 +1,21 @@
 /** Guest/admin tablet print — Vercel queues; booth PC worker silent-prints the photo. */
 
-export const SILENT_PRINT_TIMEOUT_MS = 90_000;
+/** Abort only the enqueue/direct POST — never the status poll or countdown overlay. */
+export const SILENT_PRINT_POST_TIMEOUT_MS = 120_000;
+/** Queue poll after POST returns. Covers worker pickup + slow SELPHY IPP ACK. */
+export const PRINT_POLL_TIMEOUT_MS = 120_000;
+/** @deprecated Use PRINT_POLL_TIMEOUT_MS / SILENT_PRINT_POST_TIMEOUT_MS */
+export const SILENT_PRINT_TIMEOUT_MS = PRINT_POLL_TIMEOUT_MS;
 const PRINT_STATUS_POLL_MS = 2_000;
 
 const PRINT_ERR_STILL_PRINTING =
   "Print is taking longer than expected. Check the SELPHY — it may still be printing. If not, retry.";
+
+export function isPrintStillInProgressError(raw: unknown): boolean {
+  const m = raw instanceof Error ? raw.message : String(raw ?? "");
+  return /taking longer than expected|may still be printing/i.test(m);
+}
+
 const PRINT_ERR_QUEUE_FAILED =
   "Print queue failed — check SELPHY and that the Windows booth PC is powered on.";
 
@@ -71,7 +82,7 @@ export async function pollQueuedPrintJob(
   progress?: PrintProgress,
 ): Promise<void> {
   const started = Date.now();
-  const deadline = started + SILENT_PRINT_TIMEOUT_MS;
+  const deadline = started + PRINT_POLL_TIMEOUT_MS;
   let accepted = false;
   const markAccepted = () => {
     if (accepted) return;
@@ -114,7 +125,12 @@ export async function pollQueuedPrintJob(
     // is claiming/printing — guests already received physical prints with a
     // false "booth PC did not pick it up" toast.
 
-    if (Date.now() >= deadline) break;
+    if (Date.now() >= deadline) {
+      // Worker already claimed the job — SELPHY may still be printing.
+      // Do not fail the UI (countdown overlay must not be aborted).
+      if (accepted) return;
+      break;
+    }
     await sleep(PRINT_STATUS_POLL_MS);
   }
 
@@ -150,8 +166,9 @@ export async function silentPrintApi(
   const controller = new AbortController();
   const timer = window.setTimeout(
     () => controller.abort(),
-    SILENT_PRINT_TIMEOUT_MS,
+    SILENT_PRINT_POST_TIMEOUT_MS,
   );
+  let payload: PrintPayload = {};
   try {
     const res = await fetch(resolvePrintApiUrl(boothPrintBaseUrl), {
       method: "POST",
@@ -163,7 +180,6 @@ export async function silentPrintApi(
       signal: controller.signal,
     });
 
-    let payload: PrintPayload = {};
     try {
       payload = (await res.json()) as PrintPayload;
     } catch {
@@ -176,9 +192,6 @@ export async function silentPrintApi(
           `Print request failed (${res.status}). Is the booth server running on this PC?`,
       );
     }
-
-    window.clearTimeout(timer);
-    await followPrintPayload(payload, progress);
   } catch (e) {
     if (e instanceof DOMException && e.name === "AbortError") {
       throw new Error(PRINT_ERR_STILL_PRINTING);
@@ -187,4 +200,8 @@ export async function silentPrintApi(
   } finally {
     window.clearTimeout(timer);
   }
+
+  // Poll is never under the POST AbortController (countdown overlay can run
+  // in parallel once the worker claims the job).
+  await followPrintPayload(payload, progress);
 }

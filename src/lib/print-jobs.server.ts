@@ -15,6 +15,16 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+/**
+ * Cloud/Vercel must never IPP-print. Only the Windows booth PC talks to SELPHY.
+ * Check VERCEL first so a Windows-built bundle still queues on serverless.
+ */
+export function shouldEnqueuePrintForBoothWorker(): boolean {
+  if (typeof process === "undefined") return true;
+  if (process.env.VERCEL || process.env.VERCEL_ENV) return true;
+  return process.platform !== "win32";
+}
+
 /** Enqueue a print job for the Windows booth worker (Vercel / non-Windows path). */
 export async function enqueuePrintJob(imageUrl: string): Promise<PrintJob> {
   const trimmed = imageUrl.trim();

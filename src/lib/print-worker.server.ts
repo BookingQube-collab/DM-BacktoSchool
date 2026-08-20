@@ -18,8 +18,8 @@ import { touchPrintWorkerHeartbeat } from "@/lib/settings.server";
 const POLL_MS = 2_500;
 /** Independent of job processing so heartbeat stays fresh during IPP. */
 const HEARTBEAT_MS = 8_000;
-/** Must finish before the tablet's ~90s poll so guests see done/failed, not a hang. */
-const JOB_TIMEOUT_MS = 70_000;
+/** Must finish before the tablet's 120s poll (logo + IPP discover + slow ACK). */
+const JOB_TIMEOUT_MS = 105_000;
 
 let started = false;
 let ticking = false;

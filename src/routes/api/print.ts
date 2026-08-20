@@ -1,6 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { json } from "@/lib/admin-auth.server";
-import { enqueuePrintJob } from "@/lib/print-jobs.server";
+import {
+  enqueuePrintJob,
+  shouldEnqueuePrintForBoothWorker,
+} from "@/lib/print-jobs.server";
 import {
   fetchPrintableImageBytes,
   printPostcardImageBytes,
@@ -20,10 +23,6 @@ function corsHeaders(request: Request): Record<string, string> {
   };
 }
 
-function isWindowsBooth(): boolean {
-  return typeof process !== "undefined" && process.platform === "win32";
-}
-
 export const Route = createFileRoute("/api/print")({
   server: {
     handlers: {
@@ -37,7 +36,7 @@ export const Route = createFileRoute("/api/print")({
         const cors = corsHeaders(request);
         try {
           // Ensure booth worker is polling whenever Windows serves /api/print.
-          if (isWindowsBooth()) {
+          if (!shouldEnqueuePrintForBoothWorker()) {
             const { startPrintWorker } = await import(
               "@/lib/print-worker.server"
             );
@@ -66,7 +65,7 @@ export const Route = createFileRoute("/api/print")({
           }
 
           // Vercel / non-Windows: enqueue for the booth worker (avoids mixed content).
-          if (!isWindowsBooth()) {
+          if (shouldEnqueuePrintForBoothWorker()) {
             if (!imageUrl) {
               return json(
                 {

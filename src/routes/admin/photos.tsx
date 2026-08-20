@@ -24,7 +24,11 @@ import type { DayBucket, NamedCount } from "@/lib/admin-charts";
 import { todayISODate } from "@/lib/registration";
 import { professionTitleById } from "@/lib/professions";
 import { useI18n } from "@/lib/i18n";
-import { followPrintPayload, guestPrintError } from "@/lib/print-client";
+import {
+  followPrintPayload,
+  guestPrintError,
+  isPrintStillInProgressError,
+} from "@/lib/print-client";
 
 export const Route = createFileRoute("/admin/photos")({
   component: AdminPhotosPage,
@@ -183,8 +187,11 @@ function AdminPhotosPage() {
     setPrintPhase("sending");
     setShowPrintOverlay(true);
     setCountdownSec(60);
+    let accepted = false;
     let countdownDone: Promise<void> = Promise.resolve();
     try {
+      // No AbortController on POST — Windows booth IPP can take ~70s; Vercel
+      // only enqueues. Poll after the response, never under a POST abort timer.
       const res = await fetch("/api/admin/reprint", {
         method: "POST",
         credentials: "include",
@@ -200,11 +207,19 @@ function AdminPhotosPage() {
       if (!res.ok) {
         throw new Error(data.error || `Reprint failed (${res.status})`);
       }
-      await followPrintPayload(data, {
-        onAccepted: () => {
-          countdownDone = startPrintCountdown();
-        },
-      });
+      try {
+        await followPrintPayload(data, {
+          onAccepted: () => {
+            accepted = true;
+            countdownDone = startPrintCountdown();
+          },
+        });
+      } catch (pollErr) {
+        // Countdown already running — don't abort it. Job was claimed.
+        if (!accepted || !isPrintStillInProgressError(pollErr)) {
+          throw pollErr;
+        }
+      }
       await countdownDone;
       if (data.printer_name) {
         setReprintPrinterById((prev) => ({
