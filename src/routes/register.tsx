@@ -55,7 +55,7 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
   const { t } = useI18n();
   const vk = useVirtualKeyboard();
   const dismissKeyboard = vk.dismiss;
-  const [featured, setFeatured] = useState<Store[]>([]);
+  const [stores, setStores] = useState<Store[]>([]);
   const [featuredSource, setFeaturedSource] = useState<"sales" | "top_brands">("top_brands");
   const [storesReady, setStoresReady] = useState(false);
   const [hasStores, setHasStores] = useState(false);
@@ -100,7 +100,9 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
       const data = await res.json();
       if (cancelled) return;
       if (res.ok) {
-        setFeatured((data.featured as Store[]) ?? []);
+        const allStores = (data.stores as Store[] | undefined) ?? [];
+        const featured = (data.featured as Store[] | undefined) ?? [];
+        setStores(allStores.length > 0 ? allStores : featured);
         setFeaturedSource(data.featured_source === "sales" ? "sales" : "top_brands");
         setHasStores(Number(data.total_stores) > 0);
         setStoresReady(true);
@@ -292,31 +294,33 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
 
         <div className="min-w-0 space-y-5 rounded-3xl border border-border bg-secondary/45 p-5 shadow-xl backdrop-blur md:p-8 landscape:flex landscape:min-h-0 landscape:flex-1 landscape:flex-col landscape:gap-3 landscape:space-y-0 landscape:rounded-2xl landscape:p-4 md:landscape:p-5">
           {step === 1 ? (
-            <div className="min-w-0 w-full space-y-5 landscape:grid landscape:min-h-0 landscape:flex-1 landscape:grid-cols-1 landscape:gap-4 landscape:space-y-0 lg:landscape:grid-cols-[minmax(0,1fr)_minmax(16rem,22rem)] lg:landscape:items-start">
+            <div className="flex min-h-0 w-full min-w-0 flex-col landscape:flex-1">
               <StorePicker
-                featured={featured}
+                stores={stores}
                 featuredSource={featuredSource}
                 selectedId={form.company_id}
                 onSelect={(id) => update("company_id", id)}
                 loading={!storesReady}
+                toolbarExtra={
+                  <div className={cn(fieldWrapClass, "min-w-0")}>
+                    <Label htmlFor="transaction_value" className={labelClass}>
+                      {t("registerTxnValue")}
+                    </Label>
+                    <Input
+                      id="transaction_value"
+                      type={vk.enabled ? "text" : "number"}
+                      min={MIN_TRANSACTION_VALUE}
+                      step="0.01"
+                      inputMode={vk.enabled ? "none" : "decimal"}
+                      value={form.transaction_value}
+                      onChange={(e) => update("transaction_value", e.target.value)}
+                      className={fieldClass}
+                      placeholder={t("registerTxnPlaceholder")}
+                      {...txnVk}
+                    />
+                  </div>
+                }
               />
-              <div className={cn(fieldWrapClass, "min-w-0")}>
-                <Label htmlFor="transaction_value" className={labelClass}>
-                  {t("registerTxnValue")}
-                </Label>
-                <Input
-                  id="transaction_value"
-                  type={vk.enabled ? "text" : "number"}
-                  min={MIN_TRANSACTION_VALUE}
-                  step="0.01"
-                  inputMode={vk.enabled ? "none" : "decimal"}
-                  value={form.transaction_value}
-                  onChange={(e) => update("transaction_value", e.target.value)}
-                  className={fieldClass}
-                  placeholder={t("registerTxnPlaceholder")}
-                  {...txnVk}
-                />
-              </div>
             </div>
           ) : null}
 

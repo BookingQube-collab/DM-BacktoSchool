@@ -65,8 +65,15 @@ export const Route = createFileRoute("/api/register")({
           const bySales = pickFeaturedBySales(stores, counts);
 
           const featured = bySales.length > 0 ? bySales : pickTopBrandFallback(stores);
+          const featuredIds = new Set(featured.map((s) => s.id));
+          const orderedStores = [
+            ...featured,
+            ...stores.filter((s) => !featuredIds.has(s.id)),
+          ];
 
           return json({
+            stores: orderedStores,
+
             featured,
 
             featured_source: bySales.length > 0 ? "sales" : "top_brands",

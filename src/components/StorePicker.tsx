@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { Search, X } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -9,11 +9,12 @@ import { useVirtualKeyboard, useVkFieldProps } from "@/components/VirtualKeyboar
 export type Store = { id: string; name: string; logo_url: string | null };
 
 type StorePickerProps = {
-  featured: Store[];
+  stores: Store[];
   featuredSource: "sales" | "top_brands";
   selectedId: string;
   onSelect: (id: string) => void;
   loading?: boolean;
+  toolbarExtra?: ReactNode;
 };
 
 function StoreLogo({ store, className }: { store: Store; className?: string }) {
@@ -37,20 +38,17 @@ function StoreCard({
   store,
   selected,
   onSelect,
-  compact,
 }: {
   store: Store;
   selected: boolean;
   onSelect: () => void;
-  compact?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onSelect}
       className={cn(
-        "group flex shrink-0 flex-col overflow-hidden rounded-3xl border text-left transition landscape:rounded-2xl",
-        compact ? "w-[7.5rem] sm:w-[8.5rem]" : "w-[8.5rem] sm:w-[9.5rem] landscape:w-[6.75rem] sm:landscape:w-[7.25rem]",
+        "group flex w-full min-w-0 flex-col overflow-hidden rounded-3xl border text-left transition landscape:rounded-2xl",
         selected ? "border-accent ring-2 ring-accent/60" : "border-border hover:border-accent/50",
       )}
     >
@@ -70,66 +68,26 @@ function StoreCard({
 }
 
 export function StorePicker({
-  featured,
+  stores,
   featuredSource,
   selectedId,
   onSelect,
   loading,
+  toolbarExtra,
 }: StorePickerProps) {
   const [query, setQuery] = useState("");
-  const [suggestions, setSuggestions] = useState<Store[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [open, setOpen] = useState(false);
-  const [pickedStore, setPickedStore] = useState<Store | null>(null);
-  const wrapRef = useRef<HTMLDivElement>(null);
   const { t } = useI18n();
   const vk = useVirtualKeyboard();
   const searchVk = useVkFieldProps({
     id: "store_search",
     mode: "text",
     value: query,
-    onChange: (next) => {
-      setQuery(next);
-      setOpen(true);
-    },
+    onChange: (next) => setQuery(next),
   });
 
-  const inFeatured = featured.some((s) => s.id === selectedId);
-  const offFeaturedStore = selectedId && !inFeatured ? pickedStore : null;
-
-  useEffect(() => {
-    const q = query.trim();
-    if (q.length < 1) {
-      setSuggestions([]);
-      setSearching(false);
-      return;
-    }
-
-    setSearching(true);
-    const timer = window.setTimeout(() => {
-      void (async () => {
-        try {
-          const res = await fetch(`/api/register?q=${encodeURIComponent(q)}`);
-          const data = await res.json();
-          if (res.ok) {
-            setSuggestions((data.stores as Store[]) ?? []);
-          }
-        } finally {
-          setSearching(false);
-        }
-      })();
-    }, 220);
-
-    return () => window.clearTimeout(timer);
-  }, [query]);
-
-  useEffect(() => {
-    function onDocClick(e: MouseEvent) {
-      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", onDocClick);
-    return () => document.removeEventListener("mousedown", onDocClick);
-  }, []);
+  const q = query.trim().toLowerCase();
+  const visible = q ? stores.filter((s) => s.name.toLowerCase().includes(q)) : stores;
+  const featuredHeading = featuredSource === "sales" ? t("pickerPopular") : t("pickerFeatured");
 
   function selectStore(store: Store) {
     vk.dismiss();
@@ -137,107 +95,49 @@ export function StorePicker({
     const page = document.querySelector("[data-register-page]");
     if (page instanceof HTMLElement) page.scrollLeft = 0;
     onSelect(store.id);
-    setPickedStore(featured.some((s) => s.id === store.id) ? null : store);
     setQuery("");
-    setSuggestions([]);
-    setOpen(false);
   }
-
-  function clearSelection() {
-    onSelect("");
-    setPickedStore(null);
-    setQuery("");
-    setSuggestions([]);
-  }
-
-  const featuredHeading = featuredSource === "sales" ? t("pickerPopular") : t("pickerFeatured");
 
   return (
-    <div className="min-w-0 max-w-full space-y-4 landscape:space-y-2.5">
-      <div ref={wrapRef} className="relative min-w-0 space-y-2 landscape:space-y-1">
-        <Label htmlFor="store_search" className="text-base landscape:text-base">
-          {t("pickerSearchStore")}
-        </Label>
-        <div className="relative min-w-0">
-          <Search className="pointer-events-none absolute start-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            id="store_search"
-            type={vk.enabled ? "text" : "search"}
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setOpen(true);
-            }}
-            className="h-12 w-full scroll-mt-3 scroll-mb-[var(--vk-height,8rem)] rounded-xl ps-11 pe-4 text-base md:text-base landscape:h-14 landscape:text-lg data-[vk-active=true]:ring-2 data-[vk-active=true]:ring-accent"
-            placeholder={t("pickerTypeStore")}
-            autoComplete="off"
-            {...searchVk}
-            onFocus={(e) => {
-              searchVk.onFocus?.(e);
-              setOpen(true);
-            }}
-          />
-        </div>
-
-        {open && query.trim().length > 0 ? (
-          <div className="absolute inset-x-0 z-20 mt-1 max-w-full overflow-hidden rounded-2xl border border-border bg-popover shadow-xl">
-            {searching ? (
-              <p className="px-4 py-3 text-sm text-muted-foreground">{t("pickerSearching")}</p>
-            ) : suggestions.length === 0 ? (
-              <p className="px-4 py-3 text-sm text-muted-foreground">
-                {t("pickerNoMatch", { query: query.trim() })}
-              </p>
-            ) : (
-              <ul className="max-h-64 overflow-y-auto py-1 landscape:max-h-[min(32dvh,12rem)]">
-                {suggestions.map((store) => (
-                  <li key={store.id}>
-                    <button
-                      type="button"
-                      onClick={() => selectStore(store)}
-                      className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition hover:bg-secondary/80"
-                    >
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white p-1.5">
-                        <StoreLogo store={store} />
-                      </div>
-                      <span className="min-w-0 truncate text-base font-medium">{store.name}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+    <div className="flex min-h-0 min-w-0 max-w-full flex-col gap-4 landscape:flex-1 landscape:overflow-hidden landscape:gap-2.5">
+      <div className="grid shrink-0 gap-4 landscape:grid-cols-[minmax(0,1fr)_minmax(16rem,22rem)] landscape:items-start landscape:gap-4">
+        <div className="relative min-w-0 space-y-2 landscape:space-y-1">
+          <Label htmlFor="store_search" className="text-base landscape:text-base">
+            {t("pickerSearchStore")}
+          </Label>
+          <div className="relative min-w-0">
+            <Search className="pointer-events-none absolute start-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id="store_search"
+              type={vk.enabled ? "text" : "search"}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="h-12 w-full scroll-mt-3 scroll-mb-[var(--vk-height,8rem)] rounded-xl ps-11 pe-4 text-base md:text-base landscape:h-14 landscape:text-lg data-[vk-active=true]:ring-2 data-[vk-active=true]:ring-accent"
+              placeholder={t("pickerTypeStore")}
+              autoComplete="off"
+              {...searchVk}
+            />
           </div>
-        ) : null}
+        </div>
+        {toolbarExtra}
       </div>
 
-      {offFeaturedStore ? (
-        <div className="space-y-2">
-          <p className="text-sm font-semibold text-muted-foreground">{t("pickerSelectedStore")}</p>
-          <div className="flex items-start gap-3">
-            <StoreCard store={offFeaturedStore} selected onSelect={() => {}} />
-            <button
-              type="button"
-              onClick={clearSelection}
-              className="mt-1 flex items-center gap-1 rounded-lg px-2 py-1 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground"
-            >
-              <X className="h-4 w-4" />
-              {t("commonClear")}
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      <div className="min-w-0 space-y-2 landscape:space-y-1">
-        <Label className="text-base">{featuredHeading}</Label>
-        {loading ? (
-          <p className="text-sm text-muted-foreground">{t("pickerLoading")}</p>
-        ) : featured.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
-            {t("pickerNoStores")}
-          </p>
-        ) : (
-          <div className="min-w-0 max-w-full overflow-x-auto overscroll-x-contain pb-2 landscape:pb-1">
-            <div className="flex w-max max-w-none gap-3 md:gap-4 landscape:gap-2.5">
-              {featured.map((store) => (
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 landscape:gap-1">
+        <Label className="shrink-0 text-base">{q ? t("pickerSearchStore") : featuredHeading}</Label>
+        <div className="min-h-[12rem] min-w-0 flex-1 overflow-y-auto overscroll-contain pb-1 max-h-[min(52dvh,28rem)] landscape:min-h-0 landscape:max-h-none">
+          {loading ? (
+            <p className="px-1 py-6 text-sm text-muted-foreground">{t("pickerLoading")}</p>
+          ) : stores.length === 0 ? (
+            <p className="rounded-2xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+              {t("pickerNoStores")}
+            </p>
+          ) : visible.length === 0 ? (
+            <p className="rounded-2xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+              {t("pickerNoMatch", { query: query.trim() })}
+            </p>
+          ) : (
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(7.25rem,1fr))] gap-3 sm:grid-cols-[repeat(auto-fill,minmax(8rem,1fr))] landscape:grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] landscape:gap-2.5 md:landscape:grid-cols-[repeat(auto-fill,minmax(7rem,1fr))]">
+              {visible.map((store) => (
                 <StoreCard
                   key={store.id}
                   store={store}
@@ -246,10 +146,10 @@ export function StorePicker({
                 />
               ))}
             </div>
-          </div>
-        )}
-        {!loading && featured.length > 0 ? (
-          <p className="text-xs text-muted-foreground landscape:hidden">
+          )}
+        </div>
+        {!loading && !q && stores.length > 0 ? (
+          <p className="shrink-0 text-xs text-muted-foreground landscape:hidden">
             {featuredSource === "sales" ? t("pickerRankedSales") : t("pickerTopBrands")}
           </p>
         ) : null}
