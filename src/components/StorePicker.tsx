@@ -124,7 +124,7 @@ export function StorePicker({
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 landscape:gap-1">
         <Label className="shrink-0 text-base">{q ? t("pickerSearchStore") : featuredHeading}</Label>
-        <div className="min-h-[12rem] min-w-0 flex-1 overflow-y-auto overscroll-contain pb-1 max-h-[min(52dvh,28rem)] landscape:min-h-0 landscape:max-h-none">
+        <div className="scrollbar-none min-h-[12rem] min-w-0 flex-1 overflow-y-auto overscroll-contain pb-1 max-h-[min(52dvh,28rem)] landscape:min-h-0 landscape:max-h-none">
           {loading ? (
             <p className="px-1 py-6 text-sm text-muted-foreground">{t("pickerLoading")}</p>
           ) : stores.length === 0 ? (

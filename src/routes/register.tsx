@@ -233,7 +233,7 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
     <div
       data-register-page
       className={cn(
-        "relative h-dvh max-h-dvh overflow-x-hidden overflow-y-scroll overscroll-y-contain text-foreground",
+        "relative h-dvh max-h-dvh overflow-x-hidden overflow-y-auto overscroll-y-contain text-foreground scrollbar-none",
         "px-4 pt-12 pb-8 md:px-6",
         "landscape:flex landscape:flex-col landscape:px-5 landscape:pt-3 landscape:pb-2",
         vk.activeId &&

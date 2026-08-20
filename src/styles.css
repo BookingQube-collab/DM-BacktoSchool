@@ -69,6 +69,15 @@
   --foreground: oklch(0.98 0.01 90);
 }
 
+/* Hide scrollbar chrome; keep overflow scrolling (touch / wheel). */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 @layer base {
   * {
     border-color: var(--color-border);
