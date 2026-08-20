@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { PrintCountdownOverlay } from "@/components/PrintCountdownOverlay";
-import { guestPrintError, printPostcardFromBrowser } from "@/lib/print-client";
+import { guestPrintError, silentPrintApi } from "@/lib/print-client";
 import type { Profession } from "@/lib/professions";
 import { localizedProfessionTitle } from "@/lib/professions";
 import { useI18n } from "@/lib/i18n";
 import { CareerReaction } from "./CareerReaction";
 import { FutureIdCard } from "./FutureIdCard";
 
-/** Kids wait for physical SELPHY output after the tablet sends the postcard */
+/** Canon SELPHY CP1500 postcard (KP/RP) — landscape 148×100 mm / 6×4" */
+const SELPHY_PRINTER_HINT = "Canon SELPHY CP1500";
+/** Kids wait for physical SELPHY output after the job is accepted */
 const DESKTOP_PRINT_COUNTDOWN_SEC = 60;
 
 type Props = {
@@ -19,6 +21,8 @@ type Props = {
 
 type Branding = {
   doha_mall_logo_url?: string;
+  printer_name?: string;
+  booth_print_base_url?: string;
 };
 
 type PrintStatus = "idle" | "printing" | "done" | "error";
@@ -154,6 +158,8 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
       return;
     }
 
+    const printerName = branding.printer_name?.trim() || SELPHY_PRINTER_HINT;
+    const boothPrintBaseUrl = branding.booth_print_base_url?.trim() || "";
     const generation = ++printGenerationRef.current;
     const stillCurrent = () =>
       mountedRef.current && printGenerationRef.current === generation;
@@ -166,8 +172,7 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
 
     try {
       let countdownDone: Promise<void> = Promise.resolve();
-      await printPostcardFromBrowser(imageUrl, {
-        mallLogoUrl: branding.doha_mall_logo_url,
+      await silentPrintApi(imageUrl, printerName, boothPrintBaseUrl, {
         onAccepted: () => {
           if (!stillCurrent()) return;
           countdownDone = startPrintCountdown();
@@ -179,14 +184,13 @@ export function ResultScreen({ profession, imageUrl, onRestart }: Props) {
     } catch (e) {
       console.error(e);
       if (!stillCurrent()) return;
+      // Close overlay immediately — never leave guests on a stuck 0 / spinner.
       dismissPrintOverlay();
       setPrintPhase("sending");
       const raw = e instanceof Error ? e.message : t("resultPrintGeneric");
       setPrintStatus("error");
       toast.error(t("resultPrintFailed"), {
-        description: /cancel/i.test(raw)
-          ? t("printErrCancelled")
-          : guestPrintError(raw),
+        description: guestPrintError(raw),
         duration: 8000,
       });
       scheduleStatusIdle(3000);

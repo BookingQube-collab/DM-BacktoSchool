@@ -24,7 +24,7 @@ import type { DayBucket, NamedCount } from "@/lib/admin-charts";
 import { todayISODate } from "@/lib/registration";
 import { professionTitleById } from "@/lib/professions";
 import { useI18n } from "@/lib/i18n";
-import { guestPrintError, printPostcardFromBrowser } from "@/lib/print-client";
+import { followPrintPayload, guestPrintError } from "@/lib/print-client";
 
 export const Route = createFileRoute("/admin/photos")({
   component: AdminPhotosPage,
@@ -84,7 +84,6 @@ function AdminPhotosPage() {
   const [printPhase, setPrintPhase] = useState<"sending" | "printing">(
     "sending",
   );
-  const [mallLogoUrl, setMallLogoUrl] = useState<string | null>(null);
   const countdownIntervalRef = useRef<number | null>(null);
   const countdownRemainingRef = useRef(0);
   const countdownResolveRef = useRef<(() => void) | null>(null);
@@ -135,23 +134,6 @@ function AdminPhotosPage() {
     return () => clearCountdown();
   }, [clearCountdown]);
 
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const res = await fetch("/api/branding");
-        if (!res.ok) return;
-        const data = (await res.json()) as { doha_mall_logo_url?: string };
-        if (!cancelled) setMallLogoUrl(data.doha_mall_logo_url?.trim() || null);
-      } catch {
-        /* logo optional */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   async function load(nextFrom = from, nextTo = to) {
     setLoading(true);
     setError(null);
@@ -186,7 +168,7 @@ function AdminPhotosPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function reprint(sessionId: string, imageUrl: string) {
+  async function reprint(sessionId: string) {
     setReprintById((prev) => ({ ...prev, [sessionId]: "printing" }));
     setReprintErrorById((prev) => {
       const next = { ...prev };
@@ -203,16 +185,33 @@ function AdminPhotosPage() {
     setCountdownSec(60);
     let countdownDone: Promise<void> = Promise.resolve();
     try {
-      if (!imageUrl?.trim()) {
-        throw new Error(t("resultPhotoNotReady"));
+      const res = await fetch("/api/admin/reprint", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        printer_name?: string;
+        queued?: boolean;
+        jobId?: string;
+      };
+      if (!res.ok) {
+        throw new Error(data.error || `Reprint failed (${res.status})`);
       }
-      await printPostcardFromBrowser(imageUrl, {
-        mallLogoUrl,
+      await followPrintPayload(data, {
         onAccepted: () => {
           countdownDone = startPrintCountdown();
         },
       });
       await countdownDone;
+      if (data.printer_name) {
+        setReprintPrinterById((prev) => ({
+          ...prev,
+          [sessionId]: data.printer_name!,
+        }));
+      }
       setShowPrintOverlay(false);
       setReprintById((prev) => ({ ...prev, [sessionId]: "done" }));
       window.setTimeout(() => {
@@ -220,10 +219,9 @@ function AdminPhotosPage() {
       }, 3500);
     } catch (e) {
       dismissPrintOverlay();
-      const raw = e instanceof Error ? e.message : t("photosReachFail");
-      const message = /cancel/i.test(raw)
-        ? t("printErrCancelled")
-        : guestPrintError(raw);
+      const message = guestPrintError(
+        e instanceof Error ? e.message : t("photosReachFail"),
+      );
       setReprintById((prev) => ({ ...prev, [sessionId]: "error" }));
       setReprintErrorById((prev) => ({ ...prev, [sessionId]: message }));
       window.setTimeout(() => {
@@ -425,7 +423,7 @@ function AdminPhotosPage() {
                           size="sm"
                           variant={state === "error" ? "destructive" : "default"}
                           disabled={state === "printing" || showPrintOverlay}
-                          onClick={() => void reprint(row.id, row.image_url)}
+                          onClick={() => void reprint(row.id)}
                         >
                           <Printer className="size-4" />
                           {reprintLabel(state)}

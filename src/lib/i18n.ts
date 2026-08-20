@@ -88,26 +88,26 @@ export const en = {
   resultSecondsLeft: "{count} seconds remaining",
   resultPrintSending: "Starting print…",
   resultPrintSendingHint: "Preparing your photo for the printer",
-  resultPrintStaffHint: "Staff: if a print sheet appears, tap Canon SELPHY CP1500",
+  resultPrintStaffHint: "Please wait — the booth PC is sending your photo to the printer.",
   resultPrintFinishing: "Almost ready — finishing the print",
   resultToastSent: "Sent to printer",
-  resultToastSentDesc:
-    "Collect the postcard when it finishes. If Android asked, tap Canon SELPHY CP1500.",
+  resultToastSentDesc: "Your photo is printing.",
   resultPhotoNotReady: "Photo not ready — wait for the transform to finish, then retry.",
   resultPrintGeneric: "Print failed. Try again.",
   printErrTimeout:
     "Print is taking longer than expected. Check the SELPHY — it may still be printing. If not, retry.",
-  printErrWorker: "Print failed. Check the photo and retry.",
-  printErrNetworkHttps: "Print failed. Stay on the Vercel website (HTTPS) and retry.",
+  printErrWorker:
+    "Print queued but booth PC did not pick it up — keep the Windows booth PC powered on.",
+  printErrNetworkHttps:
+    "Could not reach the booth PC — stay on the Vercel website (HTTPS). Keep the Windows booth PC powered on.",
   printErrNetwork:
-    "Print failed. Check that this tablet and the SELPHY are on the same Wi‑Fi, then retry.",
-  printErrPrinterName:
-    "Printer not listed — on the Android sheet, tap Canon SELPHY CP1500 (same Wi‑Fi as this tablet).",
+    "Print needs the Windows booth PC powered on so it can send photos to the SELPHY.",
+  printErrPrinterName: "Printer name not found — ask staff to set it in Admin → Settings.",
   printErrNotReady:
-    "Printer not ready — check SELPHY power, paper, and that it is on the same Wi‑Fi as this tablet.",
+    "Printer not ready — check SELPHY power and Wi‑Fi (same network as the booth PC).",
   printErrTimedOut: "Printer not ready — check power, connection, and paper.",
   printErrRejected:
-    "Printer did not accept the job — ask staff to check SELPHY Wi‑Fi and the Android print sheet.",
+    "Printer did not accept the job — ask staff to check SELPHY Wi‑Fi and Admin settings.",
   printErrPhoto: "Photo not ready — wait for the transform to finish, then retry.",
   printErrCancelled: "Print cancelled — retry",
 
@@ -329,7 +329,7 @@ export const en = {
 
   photosTitle: "Photos",
   photosSubtitle:
-    "Future ID sessions taken at the booth. Reprint prints the stored photo from this tablet (same as guest Print — no laptop).",
+    "Future ID sessions taken at the booth. Reprint silently sends the stored photo to the SELPHY (same countdown as guest Print).",
   photosLoadFail: "Failed to load photos",
   photosLoadError: "Could not load photos",
   photosByProfession: "By profession",
@@ -430,16 +430,17 @@ export const en = {
   settingsNoLogo: "No logo uploaded yet.",
   settingsPrinterName: "Printer name",
   settingsPrinterHint:
-    "Optional label only. Tablets print from the Vercel website: if Android shows a print sheet, tap Canon SELPHY CP1500 (same Wi‑Fi as the tablets). Evolis Primacy 2 is for CR80 card printing only.",
+    "Target queue for silent booth Print and Admin → Photos Reprint. Keep Canon SELPHY CP1500 selected for photo prints. Wi‑Fi SELPHY prints via IPP from the Windows booth PC (same network) — you do not need Add printer in Windows Settings if IPP to the printer IP works. Evolis Primacy 2 is for CR80 card printing only.",
   settingsPrinterIp: "Printer IP (Wi‑Fi SELPHY)",
   settingsPrinterIpHint:
-    "Unused for tablet Print on Vercel. Left for a local Windows IPP worker if it is ever used again.",
+    "Optional. Use when Windows still lists an old SELPHY address after DHCP changed (e.g. 192.168.0.103). Leave blank to auto-detect.",
   settingsDetectedNow: "Detected now:",
   settingsUseDetectedIp: "Use detected IP",
-  settingsNoSelphyIp: " Power on the SELPHY on the same Wi‑Fi as the tablets.",
+  settingsNoSelphyIp:
+    " No live SELPHY IP detected yet — power on the printer on the booth Wi‑Fi.",
   settingsBoothUrl: "Booth print server URL (optional)",
   settingsBoothUrlHint:
-    "Ignored on HTTPS tablets (Vercel). Guest Print and Reprint send the photo from the tablet browser — no laptop.",
+    "Ignored on HTTPS tablets (Vercel). Guest Print queues via /api/print; the Windows booth worker silent-prints. Only needed if guests use the LAN HTTP booth site.",
   settingsVkTitle: "On-screen keyboard (registration tablet)",
   settingsVkEnable: "Enable on-screen keyboard",
   settingsVkHint:
@@ -454,12 +455,13 @@ export const en = {
   settingsCouldNotList: "Could not list printers",
   settingsCouldNotListHost: "Could not list printers on this host",
   settingsStep1:
-    "Open the booth on the Vercel website on the Android tablets (HTTPS). Tablets and the Canon SELPHY must be on the same Wi‑Fi.",
+    "On the Windows PC that stays at the booth, run npm run booth:install once. After that, power it on — Print is silent (countdown only). Same Wi‑Fi as the SELPHY. Tablets stay on Vercel.",
   settingsStep2:
-    "Print sends the career postcard photo from the tablet. If Android shows a print sheet, tap Canon SELPHY CP1500 once. The preview should be the photo, not the website.",
+    "Tablets on Vercel (HTTPS) Print via /api/print → Supabase queue → booth worker → SELPHY. That prints the full photo. No Android print dialog.",
   settingsStep3:
-    "No Windows laptop is required. Vercel cloud servers cannot reach the printer on the LAN.",
-  settingsStep4: "Keep the SELPHY powered on with paper/ribbon. Same Wi‑Fi as the tablets.",
+    "Optional: set Booth print server URL if guests use the LAN HTTP booth site and you want an explicit direct target (e.g. http://192.168.0.x:8080). HTTPS pages never call an HTTP booth URL from the browser (mixed content).",
+  settingsStep4:
+    "Keep the SELPHY powered on with paper/ribbon. Same Wi‑Fi as the booth PC. Set Printer IP in Settings if auto-detect picks a stale address. You do not need Add printer in Windows if IPP to the printer IP works.",
   settingsStep5: "Evolis Primacy 2 stays available for CR80 card reprints only.",
   settingsStep6: "Optional fullscreen booth Chrome shortcut:",
   settingsApiKey: "Magnific / Freepik API key",
@@ -604,24 +606,26 @@ export const ar: Record<keyof typeof en, string> = {
   resultSecondsLeft: "متبقٍ {count} ثانية",
   resultPrintSending: "جاري بدء الطباعة…",
   resultPrintSendingHint: "جاري تجهيز صورتك للطابعة",
-  resultPrintStaffHint: "للموظفين: إذا ظهرت ورقة الطباعة، اضغط Canon SELPHY CP1500",
+  resultPrintStaffHint: "انتظر — جهاز الكشك يرسل صورتك إلى الطابعة.",
   resultPrintFinishing: "أوشكت — نُكمل الطباعة",
   resultToastSent: "أُرسلت للطابعة",
-  resultToastSentDesc: "استلم البطاقة عند انتهائها. إذا طلب أندرويد، اضغط Canon SELPHY CP1500.",
+  resultToastSentDesc: "صورتك قيد الطباعة.",
   resultPhotoNotReady: "الصورة غير جاهزة — انتظر اكتمال التحويل ثم أعد المحاولة.",
   resultPrintGeneric: "فشلت الطباعة. حاول مرة أخرى.",
   printErrTimeout:
     "الطباعة تستغرق وقتاً أطول من المتوقع. تحقق من طابعة SELPHY — قد تكون لا تزال تطبع. إن لم يكن كذلك، أعد المحاولة.",
-  printErrWorker: "فشلت الطباعة. تحقق من الصورة ثم أعد المحاولة.",
-  printErrNetworkHttps: "فشلت الطباعة. ابقَ على موقع Vercel (HTTPS) ثم أعد المحاولة.",
-  printErrNetwork: "فشلت الطباعة. تحقق أن هذا الجهاز وSELPHY على نفس الواي فاي ثم أعد المحاولة.",
-  printErrPrinterName:
-    "الطابعة غير ظاهرة — في ورقة أندرويد اضغط Canon SELPHY CP1500 (نفس واي فاي هذا الجهاز).",
+  printErrWorker:
+    "وُضعت الطباعة في قائمة الانتظار لكن جهاز الكشك لم يستلمها — أبقِ جهاز ويندوز للكشك قيد التشغيل.",
+  printErrNetworkHttps:
+    "تعذر الوصول إلى جهاز الكشك — ابقَ على موقع Vercel (HTTPS). أبقِ جهاز ويندوز للكشك قيد التشغيل.",
+  printErrNetwork:
+    "الطباعة تحتاج جهاز ويندوز للكشك قيد التشغيل لإرسال الصور إلى SELPHY.",
+  printErrPrinterName: "اسم الطابعة غير موجود — اطلب من الموظفين ضبطه في الإدارة ← الإعدادات.",
   printErrNotReady:
-    "الطابعة غير جاهزة — تحقق من تشغيل SELPHY والورق وأنها على نفس واي فاي هذا الجهاز.",
+    "الطابعة غير جاهزة — تحقق من تشغيل SELPHY والواي فاي (نفس شبكة جهاز الكشك).",
   printErrTimedOut: "الطابعة غير جاهزة — تحقق من التشغيل والاتصال والورق.",
   printErrRejected:
-    "الطابعة لم تقبل المهمة — اطلب من الموظفين التحقق من واي فاي SELPHY وورقة طباعة أندرويد.",
+    "الطابعة لم تقبل المهمة — اطلب من الموظفين التحقق من واي فاي SELPHY وإعدادات الإدارة.",
   printErrPhoto: "الصورة غير جاهزة — انتظر اكتمال التحويل ثم أعد المحاولة.",
   printErrCancelled: "تم إلغاء الطباعة — أعد المحاولة",
 
@@ -840,7 +844,7 @@ export const ar: Record<keyof typeof en, string> = {
 
   photosTitle: "الصور",
   photosSubtitle:
-    "جلسات هوية المستقبل في الكشك. إعادة الطباعة تطبع الصورة المخزّنة من هذا الجهاز (مثل طباعة الضيف — بدون لابتوب).",
+    "جلسات هوية المستقبل في الكشك. إعادة الطباعة ترسل الصورة المخزّنة بصمت إلى SELPHY (نفس العدّاد).",
   photosLoadFail: "فشل تحميل الصور",
   photosLoadError: "تعذر تحميل الصور",
   photosByProfession: "حسب المهنة",
@@ -940,16 +944,17 @@ export const ar: Record<keyof typeof en, string> = {
   settingsNoLogo: "لم يُرفع شعار بعد.",
   settingsPrinterName: "اسم الطابعة",
   settingsPrinterHint:
-    "تسمية اختيارية فقط. الأجهزة تطبع من موقع Vercel: إذا ظهرت ورقة أندرويد، اضغط Canon SELPHY CP1500 (نفس واي فاي الأجهزة). Evolis Primacy 2 لطباعة بطاقات CR80 فقط.",
+    "قائمة الانتظار لطباعة الكشك الصامتة وإعادة الطباعة من الإدارة ← الصور. أبقِ Canon SELPHY CP1500 لطباعة الصور. طباعة واي فاي SELPHY تتم عبر IPP من جهاز ويندوز للكشك — لا حاجة لإضافة الطابعة في إعدادات ويندوز إذا عمل IPP إلى عنوان الطابعة. Evolis Primacy 2 لطباعة بطاقات CR80 فقط.",
   settingsPrinterIp: "عنوان IP للطابعة (SELPHY واي فاي)",
   settingsPrinterIpHint:
-    "غير مستخدم لطباعة الأجهزة على Vercel. مُبقًى لعامل ويندوز IPP المحلي إذا استُخدم لاحقاً.",
+    "اختياري. استخدمه إذا عرض ويندوز عنوان SELPHY قديماً بعد تغيّر DHCP. اتركه فارغاً للكشف التلقائي.",
   settingsDetectedNow: "المكتشف الآن:",
   settingsUseDetectedIp: "استخدام العنوان المكتشف",
-  settingsNoSelphyIp: " شغّل SELPHY على نفس واي فاي الأجهزة.",
+  settingsNoSelphyIp:
+    " لم يُكتشف عنوان SELPHY بعد — شغّل الطابعة على واي فاي الكشك.",
   settingsBoothUrl: "رابط خادم طباعة الكشك (اختياري)",
   settingsBoothUrlHint:
-    "يُتجاهل على أجهزة HTTPS (Vercel). طباعة الضيف وإعادة الطباعة ترسل الصورة من متصفح الجهاز — بدون لابتوب.",
+    "يُتجاهل على أجهزة HTTPS (Vercel). طباعة الضيف تدخل قائمة /api/print ويطبعها عامل ويندوز بصمت. يُستخدم فقط إذا فتح الضيوف موقع HTTP المحلي.",
   settingsVkTitle: "لوحة مفاتيح على الشاشة (جهاز التسجيل)",
   settingsVkEnable: "تفعيل لوحة المفاتيح على الشاشة",
   settingsVkHint:
@@ -964,11 +969,13 @@ export const ar: Record<keyof typeof en, string> = {
   settingsCouldNotList: "تعذر عرض الطابعات",
   settingsCouldNotListHost: "تعذر عرض طابعات هذا الجهاز",
   settingsStep1:
-    "افتح الكشك على موقع Vercel من أجهزة أندرويد (HTTPS). يجب أن تكون الأجهزة وCanon SELPHY على نفس الواي فاي.",
+    "على جهاز ويندوز الذي يبقى في الكشك، شغّل npm run booth:install مرة واحدة. بعد ذلك يكفي تشغيل الجهاز — الطباعة صامتة (العدّاد فقط). نفس واي فاي SELPHY. الأجهزة تبقى على Vercel.",
   settingsStep2:
-    "الطباعة ترسل صورة بطاقة المهنة من الجهاز. إذا ظهرت ورقة أندرويد، اضغط Canon SELPHY CP1500 مرة واحدة. يجب أن تكون المعاينة الصورة لا الموقع.",
-  settingsStep3: "لا حاجة لجهاز ويندوز. خوادم Vercel لا تصل إلى الطابعة على الشبكة المحلية.",
-  settingsStep4: "أبقِ SELPHY قيد التشغيل مع الورق/الشريط. نفس واي فاي الأجهزة.",
+    "الأجهزة على Vercel (HTTPS) تطبع عبر /api/print ← قائمة Supabase ← عامل الكشك ← SELPHY. تُطبع الصورة الكاملة. لا حوار طباعة أندرويد.",
+  settingsStep3:
+    "اختياري: عيّن رابط خادم طباعة الكشك إذا استخدم الضيوف موقع HTTP المحلي وتريد هدفاً مباشراً. صفحات HTTPS لا تستدعي رابط HTTP من المتصفح.",
+  settingsStep4:
+    "أبقِ SELPHY قيد التشغيل مع الورق/الشريط. نفس واي فاي جهاز الكشك. عيّن عنوان IP في الإعدادات إذا التقط الكشف عنواناً قديماً. لا حاجة لإضافة الطابعة في ويندوز إذا عمل IPP إلى عنوان الطابعة.",
   settingsStep5: "تبقى Evolis Primacy 2 لإعادة طباعة بطاقات CR80 فقط.",
   settingsStep6: "اختصار كروم اختياري لملء شاشة الكشك:",
   settingsApiKey: "مفتاح Magnific / Freepik",
