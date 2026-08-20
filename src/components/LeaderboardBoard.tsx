@@ -45,12 +45,15 @@ type Props = {
   autoRefreshMs?: number;
   /** Full-screen portrait TV / kiosk layout */
   variant?: "default" | "tv";
+  /** Vertical stack (default) or multi-column horizontal grid */
+  orientation?: "vertical" | "horizontal";
 };
 
 export function LeaderboardBoard({
   highlightId,
   autoRefreshMs = 12_000,
   variant = "default",
+  orientation = "vertical",
 }: Props) {
   const [data, setData] = useState<LeaderboardResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +66,7 @@ export function LeaderboardBoard({
   const reactionQueueRef = useRef<ProfessionId[]>([]);
   const reactionPlayingRef = useRef(false);
   const isTv = variant === "tv";
+  const isHorizontal = orientation === "horizontal";
   const { t, locale } = useI18n();
 
   const playNextReaction = () => {
@@ -223,7 +227,9 @@ export function LeaderboardBoard({
         <ol
           className={
             isTv
-              ? "mt-4 flex min-h-0 flex-1 flex-col gap-[0.55vh] overflow-hidden"
+              ? isHorizontal
+                ? "mt-3 grid min-h-0 flex-1 grid-cols-2 gap-x-[1.2vw] gap-y-[0.7vh] overflow-hidden lg:grid-cols-3"
+                : "mt-4 flex min-h-0 flex-1 flex-col gap-[0.55vh] overflow-hidden"
               : "mt-10 space-y-3"
           }
         >
@@ -236,6 +242,7 @@ export function LeaderboardBoard({
               highlighted={highlightId === row.id}
               isTop={row.rank === 1 && row.count > 0}
               tv={isTv}
+              compact={isTv && isHorizontal}
               bumpToken={bumpTokens[row.id] ?? 0}
               title={professionTitleById(row.id, locale, row.title)}
               youLabel={t("lbYou")}
@@ -266,6 +273,7 @@ function ProfessionRow({
   highlighted,
   isTop,
   tv,
+  compact,
   bumpToken,
   title,
   youLabel,
@@ -277,6 +285,7 @@ function ProfessionRow({
   highlighted: boolean;
   isTop: boolean;
   tv: boolean;
+  compact: boolean;
   bumpToken: number;
   title: string;
   youLabel: string;
@@ -323,7 +332,9 @@ function ProfessionRow({
         enterAnim && !celebrating ? "leaderboard-row-enter" : ""
       } ${
         tv
-          ? "flex min-h-0 flex-1 items-center px-[1.6vw] py-[0.4vh]"
+          ? compact
+            ? "flex min-h-0 items-center px-[1.1vw] py-[0.55vh]"
+            : "flex min-h-0 flex-1 items-center px-[1.6vw] py-[0.4vh]"
           : "px-4 py-3"
       } ${
         celebrating

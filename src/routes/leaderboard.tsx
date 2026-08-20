@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { LeaderboardBoard } from "@/components/LeaderboardBoard";
@@ -28,11 +29,39 @@ export const Route = createFileRoute("/leaderboard")({
 
 function LeaderboardPage() {
   const { highlight } = Route.useSearch();
+  const [orientation, setOrientation] = useState<"vertical" | "horizontal">(
+    "vertical",
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/branding");
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          leaderboard_orientation?: string;
+        };
+        if (cancelled) return;
+        setOrientation(
+          data.leaderboard_orientation === "horizontal"
+            ? "horizontal"
+            : "vertical",
+        );
+      } catch {
+        /* keep default vertical */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div className="fixed inset-0 flex h-[100dvh] w-screen flex-col overflow-hidden bg-background px-[3.5vw] py-[2.2vh]">
       <LeaderboardBoard
         variant="tv"
+        orientation={orientation}
         highlightId={highlight}
         autoRefreshMs={12_000}
       />

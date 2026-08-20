@@ -6,6 +6,7 @@ import {
   getAdminUsername,
   listPublicSettings,
   normalizeBoothPrintBaseUrl,
+  parseLeaderboardOrientation,
   setSetting,
   updateAdminPassword,
 } from "@/lib/settings.server";
@@ -80,6 +81,7 @@ export const Route = createFileRoute("/api/admin/settings")({
             printer_host?: string;
             booth_print_base_url?: string;
             virtual_keyboard_enabled?: boolean;
+            leaderboard_orientation?: string;
             doha_mall_logo_image?: string;
             clear_doha_mall_logo?: boolean;
             staff_users?: Array<{
@@ -148,6 +150,12 @@ export const Route = createFileRoute("/api/admin/settings")({
             await setSetting(
               "virtual_keyboard_enabled",
               body.virtual_keyboard_enabled ? "true" : "false",
+            );
+          }
+          if (typeof body.leaderboard_orientation === "string") {
+            await setSetting(
+              "leaderboard_orientation",
+              parseLeaderboardOrientation(body.leaderboard_orientation),
             );
           }
 

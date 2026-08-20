@@ -13,10 +13,10 @@ import {
   printPostcardImageBytes,
   resolvePrinterName,
 } from "@/lib/print.server";
-import { setSetting } from "@/lib/settings.server";
+import { touchPrintWorkerHeartbeat } from "@/lib/settings.server";
 
 const POLL_MS = 2_500;
-/** Independent of job processing so Vercel fail-fast stays accurate during IPP. */
+/** Independent of job processing so heartbeat stays fresh during IPP. */
 const HEARTBEAT_MS = 8_000;
 /** Must finish before the tablet's ~90s poll so guests see done/failed, not a hang. */
 const JOB_TIMEOUT_MS = 70_000;
@@ -26,10 +26,18 @@ let ticking = false;
 
 async function writeWorkerHeartbeat() {
   try {
-    await setSetting("print_worker_heartbeat", new Date().toISOString());
+    await touchPrintWorkerHeartbeat();
   } catch (err) {
     console.error("[print-worker] heartbeat failed:", err);
   }
+}
+
+function startHeartbeatPump() {
+  void writeWorkerHeartbeat();
+  const id = setInterval(() => {
+    void writeWorkerHeartbeat();
+  }, HEARTBEAT_MS);
+  return () => clearInterval(id);
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number, message: string) {
@@ -53,6 +61,9 @@ async function processOneJob() {
   if (!job) return;
 
   console.log(`[print-worker] printing job ${job.id}`);
+  // Keep heartbeat fresh during long IPP / PowerShell so Vercel does not
+  // treat the booth PC as offline while the SELPHY is still printing.
+  const stopHeartbeat = startHeartbeatPump();
   try {
     await withTimeout(
       (async () => {
@@ -75,6 +86,9 @@ async function processOneJob() {
     } catch (markErr) {
       console.error("[print-worker] could not mark failed:", markErr);
     }
+  } finally {
+    stopHeartbeat();
+    await writeWorkerHeartbeat();
   }
 }
 
@@ -121,10 +135,7 @@ export function startPrintWorker() {
   console.log(
     `[print-worker] polling print_jobs every ${POLL_MS}ms (keep the booth PC on)`,
   );
-  void writeWorkerHeartbeat();
-  setInterval(() => {
-    void writeWorkerHeartbeat();
-  }, HEARTBEAT_MS);
+  startHeartbeatPump();
   void tick();
   setInterval(() => {
     void tick();

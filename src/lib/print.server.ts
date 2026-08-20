@@ -205,15 +205,15 @@ try {
   $g.Clear([System.Drawing.Color]::Transparent)
   $g.DrawImage($poster, 0, 0, $poster.Width, $poster.Height)
 
-  # ~12% of postcard width; keep aspect; bottom-right with margin (on-photo badge)
-  $targetW = [int][Math]::Max(48, [Math]::Round($poster.Width * 0.12))
+  # ~16% of postcard width (~33% larger than prior 12%); same corner / aspect
+  $targetW = [int][Math]::Max(64, [Math]::Round($poster.Width * 0.16))
   $scale = $targetW / [double]$logo.Width
-  $targetH = [int][Math]::Max(24, [Math]::Round($logo.Height * $scale))
+  $targetH = [int][Math]::Max(32, [Math]::Round($logo.Height * $scale))
   # Cap height so tall logos don't cover the photo
-  $maxH = [int][Math]::Round($poster.Height * 0.12)
+  $maxH = [int][Math]::Round($poster.Height * 0.16)
   if ($targetH -gt $maxH) {
     $targetH = $maxH
-    $targetW = [int][Math]::Max(48, [Math]::Round($logo.Width * ($targetH / [double]$logo.Height)))
+    $targetW = [int][Math]::Max(64, [Math]::Round($logo.Width * ($targetH / [double]$logo.Height)))
   }
 
   $margin = [int][Math]::Max(12, [Math]::Round($poster.Width * 0.028))

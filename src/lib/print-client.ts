@@ -2,11 +2,7 @@
 
 export const SILENT_PRINT_TIMEOUT_MS = 90_000;
 const PRINT_STATUS_POLL_MS = 2_000;
-/** Fail fast if the booth PC has not claimed the job (heartbeat missing). */
-const WORKER_MISS_MS = 12_000;
 
-const PRINT_ERR_BOOTH_OFF =
-  "Print queued but booth PC did not pick it up — keep the Windows booth PC powered on.";
 const PRINT_ERR_STILL_PRINTING =
   "Print is taking longer than expected. Check the SELPHY — it may still be printing. If not, retry.";
 const PRINT_ERR_QUEUE_FAILED =
@@ -25,14 +21,11 @@ function sleep(ms: number) {
 export function guestPrintError(raw: string): string {
   const m = raw.toLowerCase();
   if (
-    /did not pick it up|booth worker|npm run booth|npm run dev|booth print service/i.test(
+    /did not pick it up|booth worker|npm run booth|npm run dev|booth print service|taking longer than expected|may still be printing/i.test(
       m,
     )
   ) {
-    return PRINT_ERR_BOOTH_OFF;
-  }
-  if (/taking longer than expected|may still be printing/i.test(m)) {
-    return raw.length > 140 ? `${raw.slice(0, 137)}…` : raw;
+    return PRINT_ERR_STILL_PRINTING;
   }
   if (
     /booth computer network|requires the app server|is the booth server running|win32|failed to fetch|networkerror|load failed|mixed content|blocked:mixed/i.test(
@@ -80,7 +73,6 @@ export async function pollQueuedPrintJob(
   const started = Date.now();
   const deadline = started + SILENT_PRINT_TIMEOUT_MS;
   let accepted = false;
-  let lastStatus = "";
   const markAccepted = () => {
     if (accepted) return;
     accepted = true;
@@ -107,8 +99,6 @@ export async function pollQueuedPrintJob(
       throw new Error(payload.error || `Print status failed (${res.status})`);
     }
 
-    lastStatus = payload.status || lastStatus;
-
     if (payload.status === "done") {
       markAccepted();
       return;
@@ -119,20 +109,16 @@ export async function pollQueuedPrintJob(
     if (payload.status === "failed") {
       throw new Error(payload.error || PRINT_ERR_QUEUE_FAILED);
     }
-    if (payload.status === "pending" && payload.worker_alive === false) {
-      if (Date.now() - started >= WORKER_MISS_MS) {
-        throw new Error(PRINT_ERR_BOOTH_OFF);
-      }
-    }
+    // Do not abort on worker_alive === false while the job is still pending.
+    // Heartbeat can look stale (clock skew, long IPP) even while the booth PC
+    // is claiming/printing — guests already received physical prints with a
+    // false "booth PC did not pick it up" toast.
 
     if (Date.now() >= deadline) break;
     await sleep(PRINT_STATUS_POLL_MS);
   }
 
-  if (lastStatus === "printing") {
-    throw new Error(PRINT_ERR_STILL_PRINTING);
-  }
-  throw new Error(PRINT_ERR_BOOTH_OFF);
+  throw new Error(PRINT_ERR_STILL_PRINTING);
 }
 
 type PrintPayload = {

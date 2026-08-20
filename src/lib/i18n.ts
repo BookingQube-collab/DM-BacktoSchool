@@ -97,7 +97,7 @@ export const en = {
   printErrTimeout:
     "Print is taking longer than expected. Check the SELPHY — it may still be printing. If not, retry.",
   printErrWorker:
-    "Print queued but booth PC did not pick it up — keep the Windows booth PC powered on.",
+    "Print is taking longer than expected. Check the SELPHY — it may still be printing. If not, retry.",
   printErrNetworkHttps:
     "Could not reach the booth PC — stay on the Vercel website (HTTPS). Keep the Windows booth PC powered on.",
   printErrNetwork:
@@ -445,6 +445,11 @@ export const en = {
   settingsVkEnable: "Enable on-screen keyboard",
   settingsVkHint:
     "When on, guests type with a tablet keyboard instead of the Android keyboard. Phone uses digits; names use letters; email uses letters, @ . _ - +, and a .com key. Nationality and location search use letters.",
+  settingsLbOrientation: "Leaderboard layout",
+  settingsLbOrientationHint:
+    "Controls the public /leaderboard TV screen. Vertical stacks careers in one column; horizontal uses a multi-column grid (better for landscape displays).",
+  settingsLbVertical: "Vertical",
+  settingsLbHorizontal: "Horizontal",
   settingsDetectedOnPc: "Detected on this PC",
   settingsReady: "ready",
   settingsWorkOffline: "Work Offline",
@@ -615,7 +620,7 @@ export const ar: Record<keyof typeof en, string> = {
   printErrTimeout:
     "الطباعة تستغرق وقتاً أطول من المتوقع. تحقق من طابعة SELPHY — قد تكون لا تزال تطبع. إن لم يكن كذلك، أعد المحاولة.",
   printErrWorker:
-    "وُضعت الطباعة في قائمة الانتظار لكن جهاز الكشك لم يستلمها — أبقِ جهاز ويندوز للكشك قيد التشغيل.",
+    "الطباعة تستغرق وقتاً أطول من المتوقع. تحقق من طابعة SELPHY — قد تكون لا تزال تطبع. إن لم يكن كذلك، أعد المحاولة.",
   printErrNetworkHttps:
     "تعذر الوصول إلى جهاز الكشك — ابقَ على موقع Vercel (HTTPS). أبقِ جهاز ويندوز للكشك قيد التشغيل.",
   printErrNetwork:
@@ -959,6 +964,11 @@ export const ar: Record<keyof typeof en, string> = {
   settingsVkEnable: "تفعيل لوحة المفاتيح على الشاشة",
   settingsVkHint:
     "عند التفعيل، يكتب الضيوف بلوحة المفاتيح على الجهاز بدل لوحة أندرويد. الجوال أرقام فقط؛ الأسماء حروف؛ البريد حروف ورموز مثل @ . _ - + ومفتاح .com. البحث عن الجنسية والموقع يستخدم الحروف.",
+  settingsLbOrientation: "تخطيط لوحة المتصدرين",
+  settingsLbOrientationHint:
+    "يتحكم بشاشة /leaderboard العامة. العمودي يرتّب المهن في عمود واحد؛ الأفقي يستخدم شبكة متعددة الأعمدة (أنسب للشاشات الأفقية).",
+  settingsLbVertical: "عمودي",
+  settingsLbHorizontal: "أفقي",
   settingsDetectedOnPc: "المكتشف على هذا الجهاز",
   settingsReady: "جاهزة",
   settingsWorkOffline: "عمل دون اتصال",

@@ -29,7 +29,18 @@ export type SettingKey =
   | "printer_host"
   | "booth_print_base_url"
   | "print_worker_heartbeat"
-  | "virtual_keyboard_enabled";
+  | "virtual_keyboard_enabled"
+  | "leaderboard_orientation";
+
+export type LeaderboardOrientation = "vertical" | "horizontal";
+
+export function parseLeaderboardOrientation(value: string): LeaderboardOrientation {
+  return value.trim().toLowerCase() === "horizontal" ? "horizontal" : "vertical";
+}
+
+export async function getLeaderboardOrientation(): Promise<LeaderboardOrientation> {
+  return parseLeaderboardOrientation(await getSetting("leaderboard_orientation"));
+}
 
 const SECRET_KEYS = new Set<SettingKey>(["freepik_api_key", "admin_password_hash"]);
 
@@ -53,15 +64,60 @@ export async function setSetting(key: SettingKey, value: string) {
   if (error) throw new Error(error.message);
 }
 
-/** Vercel /api/print/status fail-fast: booth worker writes this every ~8s. */
-const PRINT_WORKER_HEARTBEAT_MAX_AGE_MS = 45_000;
+/** Booth worker writes this every ~8s, including during IPP. */
+const PRINT_WORKER_HEARTBEAT_MAX_AGE_MS = 90_000;
+
+function heartbeatAgeMs(raw: string, updatedAt?: string | null): number | null {
+  const epoch = Number(raw.trim());
+  if (Number.isFinite(epoch) && epoch > 1_000_000_000_000) {
+    return Date.now() - epoch;
+  }
+  const fromValue = raw.trim() ? Date.parse(raw.trim()) : Number.NaN;
+  const fromUpdated = updatedAt ? Date.parse(updatedAt) : Number.NaN;
+  const beatMs = Number.isFinite(fromUpdated)
+    ? fromUpdated
+    : Number.isFinite(fromValue)
+      ? fromValue
+      : Number.NaN;
+  if (!Number.isFinite(beatMs)) return null;
+  return Date.now() - beatMs;
+}
+
+/** Heartbeat ping — value is epoch ms so clock-skew ISO parsing is not required. */
+export async function touchPrintWorkerHeartbeat() {
+  await setSetting("print_worker_heartbeat", String(Date.now()));
+}
 
 export async function isPrintWorkerAlive(): Promise<boolean> {
-  const beat = (await getSetting("print_worker_heartbeat")).trim();
-  const beatMs = beat ? Date.parse(beat) : Number.NaN;
-  if (!Number.isFinite(beatMs)) return false;
-  const age = Date.now() - beatMs;
-  return age < PRINT_WORKER_HEARTBEAT_MAX_AGE_MS && age > -120_000;
+  try {
+    const { data } = await supabaseAdmin
+      .from("app_settings")
+      .select("value, updated_at")
+      .eq("key", "print_worker_heartbeat")
+      .maybeSingle();
+    const age = heartbeatAgeMs(data?.value ?? "", data?.updated_at ?? null);
+    if (age != null && age < PRINT_WORKER_HEARTBEAT_MAX_AGE_MS && age > -180_000) {
+      return true;
+    }
+  } catch {
+    /* fall through to print_jobs activity */
+  }
+
+  // Worker may be mid-IPP with a delayed heartbeat; a live/recent job still counts.
+  try {
+    const cutoff = new Date(Date.now() - PRINT_WORKER_HEARTBEAT_MAX_AGE_MS).toISOString();
+    const { data } = await supabaseAdmin
+      .from("print_jobs")
+      .select("id")
+      .in("status", ["printing", "done"])
+      .gte("updated_at", cutoff)
+      .limit(1);
+    if (data && data.length > 0) return true;
+  } catch {
+    /* ignore */
+  }
+
+  return false;
 }
 
 export async function getAdminUsername() {
@@ -243,6 +299,7 @@ export async function getBrandingSettings() {
   const printerHost = (await getSetting("printer_host")).trim();
   const boothPrintBaseUrl = normalizeBoothPrintBaseUrl(await getSetting("booth_print_base_url"));
   const virtualKeyboardEnabled = await isVirtualKeyboardEnabled();
+  const leaderboardOrientation = await getLeaderboardOrientation();
   return {
     doha_mall_logo_path: logo.path,
     doha_mall_logo_url: logo.url,
@@ -250,6 +307,7 @@ export async function getBrandingSettings() {
     printer_host: printerHost,
     booth_print_base_url: boothPrintBaseUrl,
     virtual_keyboard_enabled: virtualKeyboardEnabled,
+    leaderboard_orientation: leaderboardOrientation,
   };
 }
 
@@ -284,6 +342,7 @@ export async function listPublicSettings() {
     printer_host: branding.printer_host,
     booth_print_base_url: branding.booth_print_base_url,
     virtual_keyboard_enabled: branding.virtual_keyboard_enabled,
+    leaderboard_orientation: branding.leaderboard_orientation,
     staff_users: staffUsers,
     updated_at: {
       freepik_api_key: map.get("freepik_api_key")?.updated_at ?? null,
@@ -294,6 +353,7 @@ export async function listPublicSettings() {
       printer_host: map.get("printer_host")?.updated_at ?? null,
       booth_print_base_url: map.get("booth_print_base_url")?.updated_at ?? null,
       virtual_keyboard_enabled: map.get("virtual_keyboard_enabled")?.updated_at ?? null,
+      leaderboard_orientation: map.get("leaderboard_orientation")?.updated_at ?? null,
     },
   };
 }
