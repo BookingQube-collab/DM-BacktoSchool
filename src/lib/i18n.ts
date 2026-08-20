@@ -436,8 +436,7 @@ export const en = {
     "Optional. Use when Windows still lists an old SELPHY address after DHCP changed (e.g. 192.168.0.103). Leave blank to auto-detect.",
   settingsDetectedNow: "Detected now:",
   settingsUseDetectedIp: "Use detected IP",
-  settingsNoSelphyIp:
-    " No live SELPHY IP detected yet — power on the printer on the booth Wi‑Fi.",
+  settingsNoSelphyIp: " No live SELPHY IP detected yet — power on the printer on the booth Wi‑Fi.",
   settingsBoothUrl: "Booth print server URL (optional)",
   settingsBoothUrlHint:
     "Ignored on HTTPS tablets (Vercel). Guest Print queues via /api/print; the Windows booth worker silent-prints. Only needed if guests use the LAN HTTP booth site.",
@@ -445,6 +444,11 @@ export const en = {
   settingsVkEnable: "Enable on-screen keyboard",
   settingsVkHint:
     "When on, guests type with a tablet keyboard instead of the Android keyboard. Phone uses digits; names use letters; email uses letters, @ . _ - +, and a .com key. Nationality and location search use letters.",
+  settingsLbOrientation: "Leaderboard layout",
+  settingsLbOrientationHint:
+    "Controls the public /leaderboard TV screen. Vertical stacks careers in one column; horizontal uses a multi-column grid (better for landscape displays).",
+  settingsLbVertical: "Vertical",
+  settingsLbHorizontal: "Horizontal",
   settingsDetectedOnPc: "Detected on this PC",
   settingsReady: "ready",
   settingsWorkOffline: "Work Offline",
@@ -618,11 +622,9 @@ export const ar: Record<keyof typeof en, string> = {
     "وُضعت الطباعة في قائمة الانتظار لكن جهاز الكشك لم يستلمها — أبقِ جهاز ويندوز للكشك قيد التشغيل.",
   printErrNetworkHttps:
     "تعذر الوصول إلى جهاز الكشك — ابقَ على موقع Vercel (HTTPS). أبقِ جهاز ويندوز للكشك قيد التشغيل.",
-  printErrNetwork:
-    "الطباعة تحتاج جهاز ويندوز للكشك قيد التشغيل لإرسال الصور إلى SELPHY.",
+  printErrNetwork: "الطباعة تحتاج جهاز ويندوز للكشك قيد التشغيل لإرسال الصور إلى SELPHY.",
   printErrPrinterName: "اسم الطابعة غير موجود — اطلب من الموظفين ضبطه في الإدارة ← الإعدادات.",
-  printErrNotReady:
-    "الطابعة غير جاهزة — تحقق من تشغيل SELPHY والواي فاي (نفس شبكة جهاز الكشك).",
+  printErrNotReady: "الطابعة غير جاهزة — تحقق من تشغيل SELPHY والواي فاي (نفس شبكة جهاز الكشك).",
   printErrTimedOut: "الطابعة غير جاهزة — تحقق من التشغيل والاتصال والورق.",
   printErrRejected:
     "الطابعة لم تقبل المهمة — اطلب من الموظفين التحقق من واي فاي SELPHY وإعدادات الإدارة.",
@@ -950,8 +952,7 @@ export const ar: Record<keyof typeof en, string> = {
     "اختياري. استخدمه إذا عرض ويندوز عنوان SELPHY قديماً بعد تغيّر DHCP. اتركه فارغاً للكشف التلقائي.",
   settingsDetectedNow: "المكتشف الآن:",
   settingsUseDetectedIp: "استخدام العنوان المكتشف",
-  settingsNoSelphyIp:
-    " لم يُكتشف عنوان SELPHY بعد — شغّل الطابعة على واي فاي الكشك.",
+  settingsNoSelphyIp: " لم يُكتشف عنوان SELPHY بعد — شغّل الطابعة على واي فاي الكشك.",
   settingsBoothUrl: "رابط خادم طباعة الكشك (اختياري)",
   settingsBoothUrlHint:
     "يُتجاهل على أجهزة HTTPS (Vercel). طباعة الضيف تدخل قائمة /api/print ويطبعها عامل ويندوز بصمت. يُستخدم فقط إذا فتح الضيوف موقع HTTP المحلي.",
@@ -959,6 +960,11 @@ export const ar: Record<keyof typeof en, string> = {
   settingsVkEnable: "تفعيل لوحة المفاتيح على الشاشة",
   settingsVkHint:
     "عند التفعيل، يكتب الضيوف بلوحة المفاتيح على الجهاز بدل لوحة أندرويد. الجوال أرقام فقط؛ الأسماء حروف؛ البريد حروف ورموز مثل @ . _ - + ومفتاح .com. البحث عن الجنسية والموقع يستخدم الحروف.",
+  settingsLbOrientation: "تخطيط لوحة المتصدرين",
+  settingsLbOrientationHint:
+    "يتحكم بشاشة /leaderboard العامة. العمودي يرتّب المهن في عمود واحد؛ الأفقي يستخدم شبكة متعددة الأعمدة (أنسب للشاشات الأفقية).",
+  settingsLbVertical: "عمودي",
+  settingsLbHorizontal: "أفقي",
   settingsDetectedOnPc: "المكتشف على هذا الجهاز",
   settingsReady: "جاهزة",
   settingsWorkOffline: "عمل دون اتصال",

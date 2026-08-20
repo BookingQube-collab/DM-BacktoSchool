@@ -1,10 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import {
-  PROFESSIONS,
-  type Profession,
-  type ProfessionId,
-} from "@/lib/professions";
+import { PROFESSIONS, type Profession, type ProfessionId } from "@/lib/professions";
 import {
   fetchLeaderboard,
   type LeaderboardProfession,
@@ -29,15 +25,10 @@ function orderIncreasedForReactions(
   increased: string[],
   highlightId?: ProfessionId | string | null,
 ): ProfessionId[] {
-  const ids = increased.filter((id): id is ProfessionId =>
-    PROFESSIONS.some((p) => p.id === id),
-  );
+  const ids = increased.filter((id): id is ProfessionId => PROFESSIONS.some((p) => p.id === id));
   if (!highlightId) return ids;
   const hi = String(highlightId);
-  return [
-    ...ids.filter((id) => id === hi),
-    ...ids.filter((id) => id !== hi),
-  ];
+  return [...ids.filter((id) => id === hi), ...ids.filter((id) => id !== hi)];
 }
 
 type Props = {
@@ -45,12 +36,15 @@ type Props = {
   autoRefreshMs?: number;
   /** Full-screen portrait TV / kiosk layout */
   variant?: "default" | "tv";
+  /** Vertical stack (default) or multi-column horizontal grid */
+  orientation?: "vertical" | "horizontal";
 };
 
 export function LeaderboardBoard({
   highlightId,
   autoRefreshMs = 12_000,
   variant = "default",
+  orientation = "vertical",
 }: Props) {
   const [data, setData] = useState<LeaderboardResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +57,7 @@ export function LeaderboardBoard({
   const reactionQueueRef = useRef<ProfessionId[]>([]);
   const reactionPlayingRef = useRef(false);
   const isTv = variant === "tv";
+  const isHorizontal = orientation === "horizontal";
   const { t, locale } = useI18n();
 
   const playNextReaction = () => {
@@ -120,9 +115,7 @@ export function LeaderboardBoard({
 
     const load = async () => {
       try {
-        const next = await fetchLeaderboard(
-          highlightId ? String(highlightId) : undefined,
-        );
+        const next = await fetchLeaderboard(highlightId ? String(highlightId) : undefined);
         if (!cancelled) applyLeaderboard(next);
       } catch (e) {
         if (!cancelled) {
@@ -153,19 +146,9 @@ export function LeaderboardBoard({
   const maxCount = Math.max(1, ...(data?.professions.map((p) => p.count) ?? [1]));
 
   return (
-    <div
-      className={
-        isTv
-          ? "flex h-full min-h-0 w-full flex-col"
-          : "mx-auto w-full max-w-4xl"
-      }
-    >
+    <div className={isTv ? "flex h-full min-h-0 w-full flex-col" : "mx-auto w-full max-w-4xl"}>
       {activeReaction && (
-        <CareerReaction
-          key={reactionKey}
-          career={activeReaction}
-          onComplete={playNextReaction}
-        />
+        <CareerReaction key={reactionKey} career={activeReaction} onComplete={playNextReaction} />
       )}
       <div className={`shrink-0 text-center ${isTv ? "px-2" : ""}`}>
         {isTv && (
@@ -186,17 +169,13 @@ export function LeaderboardBoard({
         </p>
         <h2
           className={`mt-2 font-display font-bold text-foreground ${
-            isTv
-              ? "text-[clamp(1.6rem,3.6vh,3.25rem)] leading-tight"
-              : "text-4xl md:text-5xl"
+            isTv ? "text-[clamp(1.6rem,3.6vh,3.25rem)] leading-tight" : "text-4xl md:text-5xl"
           }`}
         >
           {t("lbHeadline")}
         </h2>
         <p
-          className={`mt-2 text-foreground/70 ${
-            isTv ? "text-[clamp(0.9rem,1.8vh,1.35rem)]" : ""
-          }`}
+          className={`mt-2 text-foreground/70 ${isTv ? "text-[clamp(0.9rem,1.8vh,1.35rem)]" : ""}`}
         >
           <span
             className={`font-display font-bold text-accent tabular-nums ${
@@ -209,22 +188,22 @@ export function LeaderboardBoard({
         </p>
       </div>
 
-      {error && (
-        <p className="mt-6 shrink-0 text-center text-sm text-destructive">{error}</p>
-      )}
+      {error && <p className="mt-6 shrink-0 text-center text-sm text-destructive">{error}</p>}
 
       {!data && !error && (
-        <p className="mt-10 shrink-0 text-center text-foreground/50">
-          {t("lbLoading")}
-        </p>
+        <p className="mt-10 shrink-0 text-center text-foreground/50">{t("lbLoading")}</p>
       )}
 
       {data && (
         <ol
           className={
             isTv
-              ? "mt-4 flex min-h-0 flex-1 flex-col gap-[0.55vh] overflow-hidden"
-              : "mt-10 space-y-3"
+              ? isHorizontal
+                ? "mt-4 grid min-h-0 flex-1 grid-cols-2 gap-x-[1.4vw] gap-y-[0.7vh] overflow-hidden lg:grid-cols-3"
+                : "mt-4 flex min-h-0 flex-1 flex-col gap-[0.55vh] overflow-hidden"
+              : isHorizontal
+                ? "mt-10 grid grid-cols-1 gap-3 sm:grid-cols-2"
+                : "mt-10 space-y-3"
           }
         >
           {data.professions.map((row, i) => (
@@ -236,6 +215,7 @@ export function LeaderboardBoard({
               highlighted={highlightId === row.id}
               isTop={row.rank === 1 && row.count > 0}
               tv={isTv}
+              horizontal={isHorizontal}
               bumpToken={bumpTokens[row.id] ?? 0}
               title={professionTitleById(row.id, locale, row.title)}
               youLabel={t("lbYou")}
@@ -266,6 +246,7 @@ function ProfessionRow({
   highlighted,
   isTop,
   tv,
+  horizontal,
   bumpToken,
   title,
   youLabel,
@@ -277,6 +258,7 @@ function ProfessionRow({
   highlighted: boolean;
   isTop: boolean;
   tv: boolean;
+  horizontal: boolean;
   bumpToken: number;
   title: string;
   youLabel: string;
@@ -287,10 +269,7 @@ function ProfessionRow({
   const lastBumpRef = useRef(0);
 
   useEffect(() => {
-    const t = window.setTimeout(
-      () => setEnterAnim(false),
-      520 + index * 55,
-    );
+    const t = window.setTimeout(() => setEnterAnim(false), 520 + index * 55);
     return () => window.clearTimeout(t);
   }, [index]);
 
@@ -323,7 +302,9 @@ function ProfessionRow({
         enterAnim && !celebrating ? "leaderboard-row-enter" : ""
       } ${
         tv
-          ? "flex min-h-0 flex-1 items-center px-[1.6vw] py-[0.4vh]"
+          ? horizontal
+            ? "flex min-h-0 items-center px-[1.2vw] py-[0.85vh]"
+            : "flex min-h-0 flex-1 items-center px-[1.6vw] py-[0.4vh]"
           : "px-4 py-3"
       } ${
         celebrating
@@ -336,11 +317,7 @@ function ProfessionRow({
               ? "border-primary/40 bg-primary/10"
               : "border-white/10 bg-white/5"
       }`}
-      style={
-        enterAnim && !celebrating
-          ? { animationDelay: `${index * 55}ms` }
-          : undefined
-      }
+      style={enterAnim && !celebrating ? { animationDelay: `${index * 55}ms` } : undefined}
     >
       {celebrating && (
         <span
@@ -349,9 +326,7 @@ function ProfessionRow({
           aria-hidden
         />
       )}
-      <div
-        className={`relative z-[2] flex w-full items-center ${tv ? "gap-[1.2vw]" : "gap-3"}`}
-      >
+      <div className={`relative z-[2] flex w-full items-center ${tv ? "gap-[1.2vw]" : "gap-3"}`}>
         <span
           className={`flex shrink-0 items-center justify-center rounded-xl font-display font-bold ${
             tv
@@ -375,9 +350,7 @@ function ProfessionRow({
         <div className="min-w-0 flex-1">
           <p
             className={`truncate font-display font-semibold text-foreground ${
-              tv
-                ? "text-[clamp(1rem,2.4vh,1.75rem)]"
-                : "text-lg"
+              tv ? "text-[clamp(1rem,2.4vh,1.75rem)]" : "text-lg"
             }`}
           >
             {title}
@@ -425,13 +398,7 @@ function ProfessionRow({
   );
 }
 
-function ThumbnailStack({
-  thumbs,
-  tv,
-}: {
-  thumbs: string[];
-  tv: boolean;
-}) {
+function ThumbnailStack({ thumbs, tv }: { thumbs: string[]; tv: boolean }) {
   const n = thumbs.length;
   // Slightly smaller when packing 3 so TV rows still fit.
   const sizeClass = tv
@@ -444,17 +411,14 @@ function ThumbnailStack({
       ? "h-10 w-10"
       : "h-12 w-12";
 
-  const overlapClass =
-    n >= 2 ? (tv ? "-space-x-[1.1vw]" : "-space-x-3") : "";
+  const overlapClass = n >= 2 ? (tv ? "-space-x-[1.1vw]" : "-space-x-3") : "";
 
   // Left → right: third, second, latest (latest at row edge, on top).
   const ordered = [...thumbs].reverse();
 
   return (
     <div
-      className={`flex shrink-0 items-center ${overlapClass} ${
-        tv ? "" : "hidden sm:flex"
-      }`}
+      className={`flex shrink-0 items-center ${overlapClass} ${tv ? "" : "hidden sm:flex"}`}
       aria-hidden
     >
       {ordered.map((src, i) => {
