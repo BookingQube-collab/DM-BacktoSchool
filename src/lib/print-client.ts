@@ -36,6 +36,12 @@ export function isPrintStillInProgressError(raw: unknown): boolean {
 const PRINT_ERR_QUEUE_FAILED =
   "Print queue failed — check SELPHY and that the Windows booth PC is powered on.";
 
+const PRINT_ERR_PHOTO_DOWNLOAD =
+  "Could not download the photo for printing. Wait for it to finish, then retry. If it continues, copy the latest project to the booth PC and restart SETUP-BOOTH-PC.cmd.";
+
+const PRINT_ERR_TABLET_NETWORK =
+  "Could not reach the print service. Stay on this website (not a 192.168 address), then retry.";
+
 type PrintProgress = {
   onAccepted?: () => void;
 };
@@ -71,6 +77,12 @@ async function fetchWithTimeout(
   }
 }
 
+function isTabletPrintNetworkError(raw: string): boolean {
+  return /failed to fetch|networkerror|load failed|mixed content|blocked:mixed/i.test(
+    raw,
+  );
+}
+
 export function guestPrintError(raw: string): string {
   const m = raw.toLowerCase();
   if (
@@ -94,8 +106,20 @@ export function guestPrintError(raw: string): string {
   ) {
     return PRINT_ERR_BOOTH_OFFLINE;
   }
+  // Node undici ("fetch failed") = booth PC could not download the photo.
+  // Browser "Failed to fetch" = tablet could not reach same-origin /api/print.
   if (
-    /booth computer network|requires the app server|is the booth server running|win32|failed to fetch|networkerror|load failed|mixed content|blocked:mixed/i.test(
+    /fetch failed|could not download|photo not ready|too small|image is empty|cors|enotfound|enetunreach|econnreset|cert_|expired or forbidden/i.test(
+      m,
+    )
+  ) {
+    return PRINT_ERR_PHOTO_DOWNLOAD;
+  }
+  if (isTabletPrintNetworkError(m)) {
+    return PRINT_ERR_TABLET_NETWORK;
+  }
+  if (
+    /booth computer network|requires the app server|is the booth server running|win32/i.test(
       m,
     )
   ) {
@@ -118,7 +142,7 @@ export function guestPrintError(raw: string): string {
   if (/timed out|not ready|offline|work offline|paused/i.test(m)) {
     return "Printer not ready — check power, connection, and paper.";
   }
-  if (/photo|too small|empty|could not download|cors/i.test(m)) {
+  if (/photo/i.test(m)) {
     return "Photo not ready — wait for the transform to finish, then retry.";
   }
   const cut = raw.split(/\s+Available:/i)[0]?.trim() || raw;
@@ -199,11 +223,13 @@ export async function pollQueuedPrintJob(
     } catch (e) {
       failIfPendingTooLong();
       if (Date.now() >= deadline) {
-        throw isAbortError(e)
-          ? new Error(PRINT_ERR_BOOTH_OFFLINE)
-          : e instanceof Error
-            ? e
-            : new Error(String(e));
+        if (isAbortError(e)) {
+          throw new Error(PRINT_ERR_BOOTH_OFFLINE);
+        }
+        const msg = e instanceof Error ? e.message : String(e);
+        throw new Error(
+          isTabletPrintNetworkError(msg) ? PRINT_ERR_TABLET_NETWORK : msg,
+        );
       }
       await sleep(PRINT_STATUS_POLL_MS);
       continue;
@@ -349,6 +375,10 @@ export async function silentPrintApi(
   } catch (e) {
     if (isAbortError(e)) {
       throw new Error(PRINT_ERR_POST_HANG);
+    }
+    const msg = e instanceof Error ? e.message : String(e);
+    if (isTabletPrintNetworkError(msg)) {
+      throw new Error(PRINT_ERR_TABLET_NETWORK);
     }
     throw e instanceof Error ? e : new Error(String(e));
   } finally {

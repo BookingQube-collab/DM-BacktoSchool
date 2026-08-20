@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import dns from "node:dns";
 import http from "node:http";
 import https from "node:https";
 import net from "node:net";
@@ -6,6 +7,10 @@ import { mkdtemp, readFile, unlink, writeFile } from "node:fs/promises";
 import { networkInterfaces, tmpdir } from "node:os";
 import { join } from "node:path";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import {
+  getSupabaseServiceRoleKey,
+  getSupabaseUrl,
+} from "@/integrations/supabase/env";
 import { getSetting, resolveDohaMallLogoUrl } from "@/lib/settings.server";
 
 const DEFAULT_PRINTER_NAME = "Canon SELPHY CP1500";
@@ -118,13 +123,43 @@ function imageExtFromBytes(buf: Buffer): "png" | "jpg" | "webp" {
 
 /** `storage://bucket/path` queued by Admin reprint — skip signed-URL HTTP. */
 const STORAGE_QUEUE_PREFIX = "storage://";
+const STORAGE_PATH_RE =
+  /\/storage\/v1\/(?:object\/(?:sign|authenticated|public)|render\/image\/(?:sign|authenticated|public))\/([^/]+)\/(.+)$/i;
+
+function preferIpv4Dns() {
+  try {
+    dns.setDefaultResultOrder("ipv4first");
+  } catch {
+    /* Node < 17 */
+  }
+}
+
+/** Undici's TypeError is only "fetch failed" — the real reason is in `cause`. */
+function describeNetworkError(err: unknown): string {
+  const e = err as Error & {
+    cause?: { code?: string; message?: string };
+    code?: string;
+  };
+  const msg = (e?.message || String(err)).trim();
+  const code = e?.code || e?.cause?.code || "";
+  const causeMsg = (e?.cause?.message || "").trim();
+  const parts = [
+    msg && !/^fetch failed$/i.test(msg) && !/^failed to fetch$/i.test(msg)
+      ? msg
+      : "",
+    code,
+    causeMsg && causeMsg !== msg ? causeMsg : "",
+  ].filter(Boolean);
+  return (parts.join(": ") || "network").slice(0, 180);
+}
 
 function parseSupabaseStorageObject(
   url: string,
 ): { bucket: string; path: string } | null {
   const trimmed = url.trim();
+  if (!trimmed) return null;
   if (trimmed.toLowerCase().startsWith(STORAGE_QUEUE_PREFIX)) {
-    const rest = trimmed.slice(STORAGE_QUEUE_PREFIX.length);
+    const rest = trimmed.slice(STORAGE_QUEUE_PREFIX.length).split(/[?#]/)[0] || "";
     const slash = rest.indexOf("/");
     if (slash <= 0 || slash === rest.length - 1) return null;
     return {
@@ -134,16 +169,127 @@ function parseSupabaseStorageObject(
   }
   try {
     const u = new URL(trimmed);
-    const m = u.pathname.match(
-      /\/storage\/v1\/object\/(?:sign|authenticated|public)\/([^/]+)\/(.+)$/i,
-    );
+    const m = u.pathname.match(STORAGE_PATH_RE);
     if (!m?.[1] || !m[2]) return null;
     return {
       bucket: decodeURIComponent(m[1]),
       path: decodeURIComponent(m[2]),
     };
   } catch {
+    if (
+      /^future-[a-z0-9._-]+\.(png|jpe?g|webp)$/i.test(trimmed) &&
+      !trimmed.includes("/")
+    ) {
+      return { bucket: "future-photos", path: trimmed };
+    }
     return null;
+  }
+}
+
+function isNewSupabaseApiKey(value: string): boolean {
+  return value.startsWith("sb_publishable_") || value.startsWith("sb_secret_");
+}
+
+function storageAuthHeaders(): Record<string, string> {
+  const key = getSupabaseServiceRoleKey()?.trim() || "";
+  const headers: Record<string, string> = {};
+  if (!key) return headers;
+  headers.apikey = key;
+  if (!isNewSupabaseApiKey(key)) {
+    headers.Authorization = `Bearer ${key}`;
+  }
+  return headers;
+}
+
+function httpsGetBuffer(
+  url: string,
+  headers: Record<string, string>,
+  timeoutMs = 20_000,
+  redirectsLeft = 5,
+  family?: 4,
+): Promise<{ status: number; buf: Buffer }> {
+  return new Promise((resolve, reject) => {
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      reject(new Error(`Invalid image URL`));
+      return;
+    }
+    const isHttps = parsed.protocol === "https:";
+    const lib = isHttps ? https : http;
+    const req = lib.get(
+      {
+        hostname: parsed.hostname,
+        port: parsed.port || (isHttps ? 443 : 80),
+        path: `${parsed.pathname}${parsed.search}`,
+        headers,
+        timeout: timeoutMs,
+        ...(family ? { family } : {}),
+      },
+      (res) => {
+        const status = res.statusCode || 0;
+        if (status >= 300 && status < 400 && res.headers.location) {
+          res.resume();
+          if (redirectsLeft <= 0) {
+            reject(new Error(`Too many redirects (${status})`));
+            return;
+          }
+          const next = new URL(res.headers.location, url).href;
+          httpsGetBuffer(next, headers, timeoutMs, redirectsLeft - 1, family).then(
+            resolve,
+            reject,
+          );
+          return;
+        }
+        const chunks: Buffer[] = [];
+        res.on("data", (c: Buffer) => chunks.push(c));
+        res.on("end", () => resolve({ status, buf: Buffer.concat(chunks) }));
+      },
+    );
+    req.on("timeout", () => {
+      req.destroy();
+      reject(new Error("timed out downloading print image"));
+    });
+    req.on("error", reject);
+  });
+}
+
+async function httpsGetBufferPreferIpv4(
+  url: string,
+  headers: Record<string, string>,
+  timeoutMs = 20_000,
+): Promise<{ status: number; buf: Buffer }> {
+  try {
+    return await httpsGetBuffer(url, headers, timeoutMs, 5, 4);
+  } catch {
+    return httpsGetBuffer(url, headers, timeoutMs, 5);
+  }
+}
+
+async function fetchUrlBytes(url: string): Promise<{ status: number; buf: Buffer | null }> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 20_000);
+  try {
+    const res = await fetch(url, {
+      redirect: "follow",
+      signal: controller.signal,
+    });
+    if (res.ok) {
+      const buf = Buffer.from(await res.arrayBuffer());
+      return { status: res.status, buf };
+    }
+    return { status: res.status, buf: null };
+  } catch (e) {
+    try {
+      return await httpsGetBufferPreferIpv4(url, {});
+    } catch (httpsErr) {
+      throw new Error(
+        `${describeNetworkError(e)}; ${describeNetworkError(httpsErr)}`,
+      );
+    }
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -151,60 +297,130 @@ async function downloadStorageObject(
   bucket: string,
   path: string,
 ): Promise<Buffer | null> {
-  const { data, error } = await supabaseAdmin.storage.from(bucket).download(path);
-  if (error || !data) return null;
-  const buf = Buffer.from(await data.arrayBuffer());
-  return buf.length >= 2_048 ? buf : null;
+  try {
+    const { data, error } = await supabaseAdmin.storage.from(bucket).download(path);
+    if (error || !data) {
+      if (error) {
+        console.warn(`[print] storage.download ${bucket}/${path}: ${error.message}`);
+      }
+      return null;
+    }
+    const buf = Buffer.from(await data.arrayBuffer());
+    return buf.length >= 2_048 ? buf : null;
+  } catch (e) {
+    console.warn(
+      `[print] storage.download threw ${bucket}/${path}: ${describeNetworkError(e)}`,
+    );
+    return null;
+  }
 }
 
-/** Load printable image bytes from a public/signed URL (admin reprint, etc.). */
+async function downloadStorageObjectViaRest(
+  bucket: string,
+  path: string,
+): Promise<Buffer | null> {
+  const base = getSupabaseUrl()?.replace(/\/+$/, "");
+  const headers = storageAuthHeaders();
+  if (!base || !headers.apikey) return null;
+  const encodedPath = path
+    .split("/")
+    .filter(Boolean)
+    .map((seg) => encodeURIComponent(seg))
+    .join("/");
+  const url = `${base}/storage/v1/object/${encodeURIComponent(bucket)}/${encodedPath}`;
+  try {
+    const { status, buf } = await httpsGetBufferPreferIpv4(url, headers);
+    if (status >= 200 && status < 300 && buf.length >= 2_048) return buf;
+    console.warn(`[print] storage REST ${bucket}/${path}: HTTP ${status}`);
+    return null;
+  } catch (e) {
+    console.warn(
+      `[print] storage REST threw ${bucket}/${path}: ${describeNetworkError(e)}`,
+    );
+    return null;
+  }
+}
+
+async function downloadParsedObject(
+  bucket: string,
+  path: string,
+): Promise<Buffer | null> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) {
+      await new Promise((r) => setTimeout(r, 400 * attempt));
+    }
+    const viaSdk = await downloadStorageObject(bucket, path);
+    if (viaSdk) return viaSdk;
+    const viaRest = await downloadStorageObjectViaRest(bucket, path);
+    if (viaRest) return viaRest;
+  }
+  return null;
+}
+
+/** Load printable image bytes from storage:// or a public/signed URL. */
 export async function fetchPrintableImageBytes(url: string): Promise<Buffer> {
+  preferIpv4Dns();
   const trimmed = url?.trim();
   if (!trimmed) {
     throw new Error("Image URL is required");
   }
 
   const parsed = parseSupabaseStorageObject(trimmed);
-  if (parsed && trimmed.toLowerCase().startsWith(STORAGE_QUEUE_PREFIX)) {
-    const viaAdmin = await downloadStorageObject(parsed.bucket, parsed.path);
-    if (viaAdmin) return viaAdmin;
-    throw new Error(
-      `Could not download print image from storage (${parsed.bucket}/${parsed.path})`,
-    );
+  let lastStatus = 0;
+  let lastNetwork = "";
+
+  // Service role first — signed URLs 400/403/expire on the booth PC; Node
+  // `fetch failed` (undici, often IPv6) must not be the only attempt.
+  if (parsed) {
+    const viaAdmin = await downloadParsedObject(parsed.bucket, parsed.path);
+    if (viaAdmin) {
+      assertPrintableImageBytes(viaAdmin, "Downloaded print image");
+      return viaAdmin;
+    }
   }
 
-  let lastStatus = 0;
-  try {
-    const res = await fetch(trimmed);
-    lastStatus = res.status;
-    if (res.ok) {
-      const buf = Buffer.from(await res.arrayBuffer());
-      assertPrintableImageBytes(buf, "Downloaded print image");
-      return buf;
+  if (/^https?:\/\//i.test(trimmed)) {
+    try {
+      const got = await fetchUrlBytes(trimmed);
+      lastStatus = got.status;
+      if (got.buf && got.status >= 200 && got.status < 300) {
+        assertPrintableImageBytes(got.buf, "Downloaded print image");
+        return got.buf;
+      }
+    } catch (e) {
+      lastNetwork = describeNetworkError(e);
     }
-  } catch {
-    /* signed URL fetch can 400 from the booth PC — try service role below */
   }
 
   if (parsed) {
-    const viaAdmin = await downloadStorageObject(parsed.bucket, parsed.path);
-    if (viaAdmin) return viaAdmin;
-    const signed = await supabaseAdmin.storage
-      .from(parsed.bucket)
-      .createSignedUrl(parsed.path, 60 * 60);
-    if (signed.data?.signedUrl) {
-      const retry = await fetch(signed.data.signedUrl);
-      if (retry.ok) {
-        const buf = Buffer.from(await retry.arrayBuffer());
-        assertPrintableImageBytes(buf, "Downloaded print image");
-        return buf;
+    try {
+      const signed = await supabaseAdmin.storage
+        .from(parsed.bucket)
+        .createSignedUrl(parsed.path, 60 * 60);
+      if (signed.data?.signedUrl) {
+        const got = await fetchUrlBytes(signed.data.signedUrl);
+        lastStatus = got.status;
+        if (got.buf && got.status >= 200 && got.status < 300) {
+          assertPrintableImageBytes(got.buf, "Downloaded print image");
+          return got.buf;
+        }
+      } else if (signed.error) {
+        lastNetwork = signed.error.message;
       }
-      lastStatus = retry.status;
+    } catch (e) {
+      lastNetwork = describeNetworkError(e);
     }
   }
 
+  const hint = parsed ? `${parsed.bucket}/${parsed.path}` : "url";
+  const detail =
+    lastStatus === 400 || lastStatus === 403
+      ? `${lastStatus} expired or forbidden signed URL`
+      : lastStatus
+        ? String(lastStatus)
+        : lastNetwork || "network";
   throw new Error(
-    `Could not download print image (${lastStatus || "network"})`,
+    `Could not download print image (${detail}) for ${hint}. Check the booth PC can reach Supabase, then retry.`,
   );
 }
 

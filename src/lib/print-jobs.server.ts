@@ -28,11 +28,13 @@ export function shouldEnqueuePrintForBoothWorker(): boolean {
 /** Prefer storage://bucket/path so the booth worker can download with the service role. */
 function toStorageQueueRef(url: string): string {
   const trimmed = url.trim();
-  if (trimmed.toLowerCase().startsWith("storage://")) return trimmed;
+  if (trimmed.toLowerCase().startsWith("storage://")) {
+    return trimmed.split(/[?#]/)[0] || trimmed;
+  }
   try {
     const u = new URL(trimmed);
     const m = u.pathname.match(
-      /\/storage\/v1\/object\/(?:sign|authenticated|public)\/([^/]+)\/(.+)$/i,
+      /\/storage\/v1\/(?:object\/(?:sign|authenticated|public)|render\/image\/(?:sign|authenticated|public))\/([^/]+)\/(.+)$/i,
     );
     if (m?.[1] && m[2]) {
       return `storage://${decodeURIComponent(m[1])}/${decodeURIComponent(m[2])}`;

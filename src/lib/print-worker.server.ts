@@ -2,6 +2,7 @@
  * Windows booth print worker — polls Supabase print_jobs and silent-prints via IPP.
  * Started only when process.platform === "win32" (booth PC `npm run booth`).
  */
+import dns from "node:dns";
 import {
   claimNextPrintJob,
   markPrintJobDone,
@@ -89,6 +90,8 @@ async function processOneJob() {
   if (!job) return;
 
   console.log(`[print-worker] printing job ${job.id}`);
+  const imageRef = job.image_url.split("?")[0] || job.image_url;
+  console.log(`[print-worker] image ${imageRef.slice(0, 160)}`);
   // Keep heartbeat fresh during long IPP / PowerShell so Vercel does not
   // treat the booth PC as offline while the SELPHY is still printing.
   const stopHeartbeat = startHeartbeatPump();
@@ -108,9 +111,13 @@ async function processOneJob() {
     console.log(`[print-worker] done job ${job.id}`);
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    console.error(`[print-worker] failed job ${job.id}:`, message);
+    const stored =
+      /^fetch failed$/i.test(message) || /^failed to fetch$/i.test(message)
+        ? "Could not download print image (network). Check the booth PC can reach Supabase, then retry."
+        : message;
+    console.error(`[print-worker] failed job ${job.id}:`, stored);
     try {
-      await markPrintJobFailed(job.id, message);
+      await markPrintJobFailed(job.id, stored);
     } catch (markErr) {
       console.error("[print-worker] could not mark failed:", markErr);
     }
@@ -168,6 +175,11 @@ export function startPrintWorker() {
   if (typeof process === "undefined" || process.platform !== "win32") return;
 
   started = true;
+  try {
+    dns.setDefaultResultOrder("ipv4first");
+  } catch {
+    /* Node < 17 */
+  }
   console.log(
     `[print-worker] polling print_jobs every ${POLL_MS}ms (keep the booth PC on)`,
   );
