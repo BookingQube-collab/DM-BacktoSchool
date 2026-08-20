@@ -75,6 +75,7 @@ export const Route = createFileRoute("/api/admin/reprint")({
             const job = await enqueuePrintJob(imageUrl);
             const { isPrintWorkerAlive } = await import("@/lib/settings.server");
             const worker_alive = await isPrintWorkerAlive();
+            // Always queue on Vercel: { ok, queued: true, jobId } — never IPP here.
             return json({
               ok: true,
               queued: true,

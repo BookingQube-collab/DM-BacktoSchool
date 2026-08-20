@@ -20,6 +20,8 @@ const POLL_MS = 2_500;
 const HEARTBEAT_MS = 8_000;
 /** Must finish before the tablet's 120s poll (logo + IPP discover + slow ACK). */
 const JOB_TIMEOUT_MS = 105_000;
+/** Don't leave `ticking` stuck if Supabase list/claim hangs. */
+const QUEUE_OP_TIMEOUT_MS = 15_000;
 
 let started = false;
 let ticking = false;
@@ -57,7 +59,11 @@ function withTimeout<T>(promise: Promise<T>, ms: number, message: string) {
 }
 
 async function processOneJob() {
-  const job = await claimNextPrintJob();
+  const job = await withTimeout(
+    claimNextPrintJob(),
+    QUEUE_OP_TIMEOUT_MS,
+    "claimNextPrintJob timed out talking to the print queue",
+  );
   if (!job) return;
 
   console.log(`[print-worker] printing job ${job.id}`);
@@ -96,7 +102,11 @@ async function tick() {
   if (ticking) return;
   ticking = true;
   try {
-    const reclaimed = await reclaimStalePrintJobs();
+    const reclaimed = await withTimeout(
+      reclaimStalePrintJobs(),
+      QUEUE_OP_TIMEOUT_MS,
+      "reclaimStalePrintJobs timed out talking to the print queue",
+    );
     if (reclaimed > 0) {
       console.warn(
         `[print-worker] reclaimed ${reclaimed} stalled printing job(s)`,

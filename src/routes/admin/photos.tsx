@@ -28,6 +28,8 @@ import {
   followPrintPayload,
   guestPrintError,
   isPrintStillInProgressError,
+  PRINT_ERR_BOOTH_OFFLINE,
+  PRINT_QUEUE_POST_TIMEOUT_MS,
 } from "@/lib/print-client";
 
 export const Route = createFileRoute("/admin/photos")({
@@ -189,15 +191,30 @@ function AdminPhotosPage() {
     setCountdownSec(60);
     let accepted = false;
     let countdownDone: Promise<void> = Promise.resolve();
+    const controller = new AbortController();
+    const postTimer = window.setTimeout(
+      () => controller.abort(),
+      PRINT_QUEUE_POST_TIMEOUT_MS,
+    );
     try {
-      // No AbortController on POST — Windows booth IPP can take ~70s; Vercel
-      // only enqueues. Poll after the response, never under a POST abort timer.
-      const res = await fetch("/api/admin/reprint", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session_id: sessionId }),
-      });
+      let res: Response;
+      try {
+        res = await fetch("/api/admin/reprint", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ session_id: sessionId }),
+          signal: controller.signal,
+        });
+      } catch (e) {
+        if (
+          (e instanceof DOMException && e.name === "AbortError") ||
+          (e instanceof Error && e.name === "AbortError")
+        ) {
+          throw new Error(PRINT_ERR_BOOTH_OFFLINE);
+        }
+        throw e instanceof Error ? e : new Error(String(e));
+      }
       const data = (await res.json().catch(() => ({}))) as {
         error?: string;
         printer_name?: string;
@@ -242,6 +259,8 @@ function AdminPhotosPage() {
       window.setTimeout(() => {
         setReprintById((prev) => ({ ...prev, [sessionId]: "idle" }));
       }, 8000);
+    } finally {
+      window.clearTimeout(postTimer);
     }
   }
 
