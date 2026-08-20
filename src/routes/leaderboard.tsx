@@ -27,11 +27,33 @@ export const Route = createFileRoute("/leaderboard")({
   component: LeaderboardPage,
 });
 
+function useViewportIsLandscape() {
+  const [isLandscape, setIsLandscape] = useState(true);
+
+  useEffect(() => {
+    const update = () => {
+      setIsLandscape(window.innerWidth >= window.innerHeight);
+    };
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("orientationchange", update);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("orientationchange", update);
+    };
+  }, []);
+
+  return isLandscape;
+}
+
 function LeaderboardPage() {
   const { highlight } = Route.useSearch();
   const [orientation, setOrientation] = useState<"vertical" | "horizontal">(
     "vertical",
   );
+  const viewportLandscape = useViewportIsLandscape();
+  const wantsLandscape = orientation === "horizontal";
+  const rotated = wantsLandscape !== viewportLandscape;
 
   useEffect(() => {
     let cancelled = false;
@@ -58,13 +80,19 @@ function LeaderboardPage() {
   }, []);
 
   return (
-    <div className="fixed inset-0 flex h-[100dvh] w-screen flex-col overflow-hidden bg-background px-[3.5vw] py-[2.2vh]">
-      <LeaderboardBoard
-        variant="tv"
-        orientation={orientation}
-        highlightId={highlight}
-        autoRefreshMs={12_000}
-      />
+    <div className="leaderboard-stage">
+      <div
+        className="leaderboard-canvas"
+        data-orientation={orientation}
+        data-rotated={rotated ? "true" : "false"}
+      >
+        <LeaderboardBoard
+          variant="tv"
+          orientation={orientation}
+          highlightId={highlight}
+          autoRefreshMs={12_000}
+        />
+      </div>
     </div>
   );
 }

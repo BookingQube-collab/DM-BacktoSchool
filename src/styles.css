@@ -344,6 +344,56 @@
   animation: leaderboard-reflect-sweep 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* Full-bleed TV: admin Vertical | Horizontal fills the physical screen.
+   If the tablet is mounted the other way, rotate + swap so the canvas
+   still reads in the chosen orientation with no leftover bands. */
+.leaderboard-stage {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  width: 100dvw;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background-color: var(--background);
+}
+
+.leaderboard-canvas {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  container-type: size;
+  container-name: leaderboard;
+}
+
+.leaderboard-canvas[data-rotated="true"] {
+  inset: auto;
+  top: 50%;
+  left: 50%;
+  width: 100vh;
+  width: 100dvh;
+  height: 100vw;
+  height: 100dvw;
+  transform: translate(-50%, -50%) rotate(90deg);
+  transform-origin: center center;
+}
+
+.leaderboard-canvas .career-reaction {
+  position: absolute;
+}
+
+.leaderboard-canvas .career-reaction__stage {
+  width: min(92cqw, 640px);
+  min-height: 55cqh;
+}
+
+.leaderboard-canvas .career-reaction__char {
+  height: clamp(9rem, 38cqh, 16rem);
+}
+
 /* Profession emoji flair — join beat + leaderboard bump */
 @keyframes crew-football-bounce {
   0% {

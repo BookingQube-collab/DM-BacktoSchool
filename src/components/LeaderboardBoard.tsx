@@ -45,7 +45,7 @@ type Props = {
   autoRefreshMs?: number;
   /** Full-screen portrait TV / kiosk layout */
   variant?: "default" | "tv";
-  /** Vertical stack (default) or multi-column horizontal grid */
+  /** Vertical = full-screen portrait stack; horizontal = full-screen landscape grid */
   orientation?: "vertical" | "horizontal";
 };
 
@@ -160,7 +160,9 @@ export function LeaderboardBoard({
     <div
       className={
         isTv
-          ? "flex h-full min-h-0 w-full flex-col"
+          ? `flex h-full min-h-0 w-full flex-col ${
+              isHorizontal ? "px-[1.4cqw] py-[1.2cqh]" : "px-[2.4cqw] py-[1.5cqh]"
+            }`
           : "mx-auto w-full max-w-4xl"
       }
     >
@@ -171,46 +173,76 @@ export function LeaderboardBoard({
           onComplete={playNextReaction}
         />
       )}
-      <div className={`shrink-0 text-center ${isTv ? "px-2" : ""}`}>
+      <div
+        className={`shrink-0 ${
+          isTv && isHorizontal
+            ? "flex items-center gap-[1.6cqw] text-start"
+            : `text-center ${isTv ? "px-[0.4cqw]" : ""}`
+        }`}
+      >
         {isTv && (
-          <h1 className="mx-auto flex max-w-[42vmin] justify-center">
+          <h1
+            className={`flex shrink-0 justify-center ${
+              isHorizontal
+                ? "w-[min(18cqw,11rem)]"
+                : "mx-auto max-w-[42cqw]"
+            }`}
+          >
             <img
               src="/smart-start-logo.png"
               alt="Smart Start"
-              className="h-auto w-full max-h-[11vh] object-contain drop-shadow-lg"
+              className={`h-auto w-full object-contain drop-shadow-lg ${
+                isHorizontal ? "max-h-[9cqh]" : "max-h-[9.5cqh]"
+              }`}
             />
           </h1>
         )}
-        <p
-          className={`font-display uppercase tracking-[0.35em] text-accent ${
-            isTv ? "mt-3 text-[clamp(0.7rem,1.4vh,1rem)]" : "text-sm"
-          }`}
-        >
-          {t("lbTitle")}
-        </p>
-        <h2
-          className={`mt-2 font-display font-bold text-foreground ${
-            isTv
-              ? "text-[clamp(1.6rem,3.6vh,3.25rem)] leading-tight"
-              : "text-4xl md:text-5xl"
-          }`}
-        >
-          {t("lbHeadline")}
-        </h2>
-        <p
-          className={`mt-2 text-foreground/70 ${
-            isTv ? "text-[clamp(0.9rem,1.8vh,1.35rem)]" : ""
-          }`}
-        >
-          <span
-            className={`font-display font-bold text-accent tabular-nums ${
-              isTv ? "text-[clamp(1.5rem,3.2vh,2.75rem)]" : "text-3xl"
+        <div className={isTv && isHorizontal ? "min-w-0 flex-1" : ""}>
+          <p
+            className={`font-display uppercase tracking-[0.35em] text-accent ${
+              isTv
+                ? isHorizontal
+                  ? "text-[clamp(0.65rem,1.8cqh,0.95rem)]"
+                  : "mt-[0.6cqh] text-[clamp(0.7rem,1.4cqh,1rem)]"
+                : "text-sm"
             }`}
           >
-            {data ? total : "—"}
-          </span>{" "}
-          {t("lbPhotosTaken")}
-        </p>
+            {t("lbTitle")}
+          </p>
+          <h2
+            className={`font-display font-bold text-foreground ${
+              isTv
+                ? isHorizontal
+                  ? "mt-[0.2cqh] text-[clamp(1.25rem,4.2cqh,2.6rem)] leading-tight"
+                  : "mt-[0.5cqh] text-[clamp(1.5rem,3.4cqh,3rem)] leading-tight"
+                : "mt-2 text-4xl md:text-5xl"
+            }`}
+          >
+            {t("lbHeadline")}
+          </h2>
+          <p
+            className={`text-foreground/70 ${
+              isTv
+                ? isHorizontal
+                  ? "mt-[0.15cqh] text-[clamp(0.8rem,2cqh,1.15rem)]"
+                  : "mt-[0.4cqh] text-[clamp(0.85rem,1.7cqh,1.25rem)]"
+                : "mt-2"
+            }`}
+          >
+            <span
+              className={`font-display font-bold text-accent tabular-nums ${
+                isTv
+                  ? isHorizontal
+                    ? "text-[clamp(1.2rem,3.6cqh,2.2rem)]"
+                    : "text-[clamp(1.4rem,3cqh,2.5rem)]"
+                  : "text-3xl"
+              }`}
+            >
+              {data ? total : "—"}
+            </span>{" "}
+            {t("lbPhotosTaken")}
+          </p>
+        </div>
       </div>
 
       {error && (
@@ -228,8 +260,8 @@ export function LeaderboardBoard({
           className={
             isTv
               ? isHorizontal
-                ? "mt-3 grid min-h-0 flex-1 grid-cols-2 gap-x-[1.2vw] gap-y-[0.7vh] overflow-hidden lg:grid-cols-3"
-                : "mt-4 flex min-h-0 flex-1 flex-col gap-[0.55vh] overflow-hidden"
+                ? "mt-[1cqh] grid min-h-0 flex-1 grid-cols-4 grid-rows-3 gap-x-[0.9cqw] gap-y-[0.9cqh] overflow-hidden"
+                : "mt-[1cqh] flex min-h-0 flex-1 flex-col gap-[0.45cqh] overflow-hidden"
               : "mt-10 space-y-3"
           }
         >
@@ -333,8 +365,8 @@ function ProfessionRow({
       } ${
         tv
           ? compact
-            ? "flex min-h-0 items-center px-[1.1vw] py-[0.55vh]"
-            : "flex min-h-0 flex-1 items-center px-[1.6vw] py-[0.4vh]"
+            ? "flex h-full min-h-0 items-center px-[0.9cqw] py-[0.5cqh]"
+            : "flex min-h-0 flex-1 items-center px-[1.5cqw] py-[0.35cqh]"
           : "px-4 py-3"
       } ${
         celebrating
@@ -361,12 +393,14 @@ function ProfessionRow({
         />
       )}
       <div
-        className={`relative z-[2] flex w-full items-center ${tv ? "gap-[1.2vw]" : "gap-3"}`}
+        className={`relative z-[2] flex w-full items-center ${tv ? "gap-[1cqw]" : "gap-3"}`}
       >
         <span
           className={`flex shrink-0 items-center justify-center rounded-xl font-display font-bold ${
             tv
-              ? "h-[clamp(2rem,4.2vh,3.25rem)] w-[clamp(2rem,4.2vh,3.25rem)] text-[clamp(0.95rem,2.2vh,1.5rem)]"
+              ? compact
+                ? "h-[clamp(1.7rem,5.2cqh,2.7rem)] w-[clamp(1.7rem,5.2cqh,2.7rem)] text-[clamp(0.85rem,2.6cqh,1.3rem)]"
+                : "h-[clamp(2rem,4.2cqh,3.25rem)] w-[clamp(2rem,4.2cqh,3.25rem)] text-[clamp(0.95rem,2.2cqh,1.5rem)]"
               : "h-10 w-10 text-lg"
           } ${isTop || celebrating ? "bg-accent text-accent-foreground" : "bg-white/10 text-foreground"}`}
         >
@@ -374,7 +408,13 @@ function ProfessionRow({
         </span>
         <span
           key={celebrating ? `emoji-${bumpToken}` : "emoji"}
-          className={`${tv ? "text-[clamp(1.4rem,3.4vh,2.4rem)]" : "text-3xl"} ${
+          className={`${
+            tv
+              ? compact
+                ? "text-[clamp(1.15rem,4.2cqh,2rem)]"
+                : "text-[clamp(1.4rem,3.4cqh,2.4rem)]"
+              : "text-3xl"
+          } ${
             celebrating
               ? `${professionEmojiFlairClass(row.id, "once")} motion-reduce:animate-none`
               : ""
@@ -387,7 +427,9 @@ function ProfessionRow({
           <p
             className={`truncate font-display font-semibold text-foreground ${
               tv
-                ? "text-[clamp(1rem,2.4vh,1.75rem)]"
+                ? compact
+                  ? "text-[clamp(0.85rem,2.8cqh,1.35rem)]"
+                  : "text-[clamp(1rem,2.4cqh,1.75rem)]"
                 : "text-lg"
             }`}
           >
@@ -400,7 +442,7 @@ function ProfessionRow({
             {isTop && !highlighted && row.count > 0 && (
               <span
                 className={`ml-2 font-sans font-normal uppercase tracking-wider text-primary ${
-                  tv ? "text-[clamp(0.55rem,1.2vh,0.75rem)]" : "text-xs"
+                  tv ? "text-[clamp(0.55rem,1.2cqh,0.75rem)]" : "text-xs"
                 }`}
               >
                 {leadingLabel}
@@ -409,7 +451,7 @@ function ProfessionRow({
           </p>
           <div
             className={`mt-1.5 overflow-hidden rounded-full bg-white/10 ${
-              tv ? "h-[clamp(0.35rem,0.9vh,0.65rem)]" : "h-2.5"
+              tv ? "h-[clamp(0.3rem,0.9cqh,0.65rem)]" : "h-2.5"
             }`}
           >
             <div
@@ -447,16 +489,16 @@ function ThumbnailStack({
   // Slightly smaller when packing 3 so TV rows still fit.
   const sizeClass = tv
     ? n >= 3
-      ? "h-[clamp(1.9rem,4.1vh,3.15rem)] w-[clamp(1.9rem,4.1vh,3.15rem)]"
+      ? "h-[clamp(1.6rem,4.4cqh,3rem)] w-[clamp(1.6rem,4.4cqh,3rem)]"
       : n === 2
-        ? "h-[clamp(2.1rem,4.6vh,3.5rem)] w-[clamp(2.1rem,4.6vh,3.5rem)]"
-        : "h-[clamp(2.4rem,5.2vh,4rem)] w-[clamp(2.4rem,5.2vh,4rem)]"
+        ? "h-[clamp(1.8rem,5cqh,3.3rem)] w-[clamp(1.8rem,5cqh,3.3rem)]"
+        : "h-[clamp(2rem,5.6cqh,3.8rem)] w-[clamp(2rem,5.6cqh,3.8rem)]"
     : n >= 3
       ? "h-10 w-10"
       : "h-12 w-12";
 
   const overlapClass =
-    n >= 2 ? (tv ? "-space-x-[1.1vw]" : "-space-x-3") : "";
+    n >= 2 ? (tv ? "-space-x-[0.9cqw]" : "-space-x-3") : "";
 
   // Left → right: third, second, latest (latest at row edge, on top).
   const ordered = [...thumbs].reverse();

@@ -447,7 +447,7 @@ export const en = {
     "When on, guests type with a tablet keyboard instead of the Android keyboard. Phone uses digits; names use letters; email uses letters, @ . _ - +, and a .com key. Nationality and location search use letters.",
   settingsLbOrientation: "Leaderboard layout",
   settingsLbOrientationHint:
-    "Controls the public /leaderboard TV screen. Vertical stacks careers in one column; horizontal uses a multi-column grid (better for landscape displays).",
+    "Fills the public /leaderboard TV with a full-screen portrait (Vertical) or landscape (Horizontal) layout. If the tablet is mounted the other way, the whole screen rotates to match.",
   settingsLbVertical: "Vertical",
   settingsLbHorizontal: "Horizontal",
   settingsDetectedOnPc: "Detected on this PC",
@@ -966,7 +966,7 @@ export const ar: Record<keyof typeof en, string> = {
     "عند التفعيل، يكتب الضيوف بلوحة المفاتيح على الجهاز بدل لوحة أندرويد. الجوال أرقام فقط؛ الأسماء حروف؛ البريد حروف ورموز مثل @ . _ - + ومفتاح .com. البحث عن الجنسية والموقع يستخدم الحروف.",
   settingsLbOrientation: "تخطيط لوحة المتصدرين",
   settingsLbOrientationHint:
-    "يتحكم بشاشة /leaderboard العامة. العمودي يرتّب المهن في عمود واحد؛ الأفقي يستخدم شبكة متعددة الأعمدة (أنسب للشاشات الأفقية).",
+    "يملأ شاشة /leaderboard العامة بالكامل عمودياً (صورة) أو أفقياً (منظر). إذا كان الجهاز مثبتاً بالاتجاه الآخر، تدور الشاشة كلها لتطابق الإعداد.",
   settingsLbVertical: "عمودي",
   settingsLbHorizontal: "أفقي",
   settingsDetectedOnPc: "المكتشف على هذا الجهاز",
