@@ -21,7 +21,7 @@ export const Route = createFileRoute("/api/admin/printers")({
               selphy_ip: null,
               selphy_ipp_url: null,
               printer_host: (await getSetting("printer_host")).trim() || null,
-              hint: "Printer listing only works when the app server runs on Windows. Open Admin from the booth PC URL — cloud hosts cannot reach the SELPHY.",
+              hint: "Vercel cannot list Windows printers or scan the LAN — that is expected. Photo prints use Printer name + Printer IP via the booth worker (SETUP-BOOTH-PC.cmd). You do not need Add printer in Windows or a Booth print server URL.",
             });
           }
 
@@ -48,7 +48,9 @@ export const Route = createFileRoute("/api/admin/printers")({
             selphy_ipp_url: selphyIppUrl,
             printer_host: printerHost,
             hint: !printers.length
-              ? "No printers detected. Add Canon SELPHY via USB or Wi‑Fi on this PC (same network). Evolis Primacy 2 is only needed for CR80 card printing."
+              ? printerHost
+                ? "No Windows SELPHY queue found — that is OK. Photo prints go via IPP to the Printer IP. Keep SETUP-BOOTH-PC.cmd open."
+                : "No Windows queues listed. For SELPHY you do not need Add printer — set Printer IP and print via IPP from the booth worker."
               : soft.length === printers.length
                 ? "Only network/IPP queues found. Wi‑Fi SELPHY can print via direct IPP when reachable — keep Canon SELPHY CP1500 selected. A Canon USB queue is optional."
                 : native.length && soft.length

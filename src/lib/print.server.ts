@@ -42,6 +42,10 @@ const IPP_CACHE_TTL_MS = 60_000;
 const BOOTH_NETWORK_ERROR =
   "Open this app from the booth computer network.";
 
+/**
+ * Admin Settings printer name (or request override). Queue/Vercel and the
+ * booth worker both use this string as-is — never requires a Windows queue.
+ */
 export async function resolvePrinterName(override?: string) {
   const fromBody = override?.trim();
   if (fromBody) return fromBody;
@@ -112,19 +116,96 @@ function imageExtFromBytes(buf: Buffer): "png" | "jpg" | "webp" {
   return "png";
 }
 
+/** `storage://bucket/path` queued by Admin reprint — skip signed-URL HTTP. */
+const STORAGE_QUEUE_PREFIX = "storage://";
+
+function parseSupabaseStorageObject(
+  url: string,
+): { bucket: string; path: string } | null {
+  const trimmed = url.trim();
+  if (trimmed.toLowerCase().startsWith(STORAGE_QUEUE_PREFIX)) {
+    const rest = trimmed.slice(STORAGE_QUEUE_PREFIX.length);
+    const slash = rest.indexOf("/");
+    if (slash <= 0 || slash === rest.length - 1) return null;
+    return {
+      bucket: decodeURIComponent(rest.slice(0, slash)),
+      path: decodeURIComponent(rest.slice(slash + 1)),
+    };
+  }
+  try {
+    const u = new URL(trimmed);
+    const m = u.pathname.match(
+      /\/storage\/v1\/object\/(?:sign|authenticated|public)\/([^/]+)\/(.+)$/i,
+    );
+    if (!m?.[1] || !m[2]) return null;
+    return {
+      bucket: decodeURIComponent(m[1]),
+      path: decodeURIComponent(m[2]),
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function downloadStorageObject(
+  bucket: string,
+  path: string,
+): Promise<Buffer | null> {
+  const { data, error } = await supabaseAdmin.storage.from(bucket).download(path);
+  if (error || !data) return null;
+  const buf = Buffer.from(await data.arrayBuffer());
+  return buf.length >= 2_048 ? buf : null;
+}
+
 /** Load printable image bytes from a public/signed URL (admin reprint, etc.). */
 export async function fetchPrintableImageBytes(url: string): Promise<Buffer> {
   const trimmed = url?.trim();
   if (!trimmed) {
     throw new Error("Image URL is required");
   }
-  const res = await fetch(trimmed);
-  if (!res.ok) {
-    throw new Error(`Could not download print image (${res.status})`);
+
+  const parsed = parseSupabaseStorageObject(trimmed);
+  if (parsed && trimmed.toLowerCase().startsWith(STORAGE_QUEUE_PREFIX)) {
+    const viaAdmin = await downloadStorageObject(parsed.bucket, parsed.path);
+    if (viaAdmin) return viaAdmin;
+    throw new Error(
+      `Could not download print image from storage (${parsed.bucket}/${parsed.path})`,
+    );
   }
-  const buf = Buffer.from(await res.arrayBuffer());
-  assertPrintableImageBytes(buf, "Downloaded print image");
-  return buf;
+
+  let lastStatus = 0;
+  try {
+    const res = await fetch(trimmed);
+    lastStatus = res.status;
+    if (res.ok) {
+      const buf = Buffer.from(await res.arrayBuffer());
+      assertPrintableImageBytes(buf, "Downloaded print image");
+      return buf;
+    }
+  } catch {
+    /* signed URL fetch can 400 from the booth PC — try service role below */
+  }
+
+  if (parsed) {
+    const viaAdmin = await downloadStorageObject(parsed.bucket, parsed.path);
+    if (viaAdmin) return viaAdmin;
+    const signed = await supabaseAdmin.storage
+      .from(parsed.bucket)
+      .createSignedUrl(parsed.path, 60 * 60);
+    if (signed.data?.signedUrl) {
+      const retry = await fetch(signed.data.signedUrl);
+      if (retry.ok) {
+        const buf = Buffer.from(await retry.arrayBuffer());
+        assertPrintableImageBytes(buf, "Downloaded print image");
+        return buf;
+      }
+      lastStatus = retry.status;
+    }
+  }
+
+  throw new Error(
+    `Could not download print image (${lastStatus || "network"})`,
+  );
 }
 
 /** Best-effort load of Admin → Settings Doha Mall logo (never throws). */
@@ -221,6 +302,10 @@ try {
   if ($x -lt $margin) { $x = $margin }
   $y = $poster.Height - $targetH - $margin
   if ($y -lt $margin) { $y = $margin }
+  if ($x -lt 0) { $x = 0 }
+  if ($y -lt 0) { $y = 0 }
+  if ($x + $targetW -gt $poster.Width) { $targetW = [Math]::Max(1, $poster.Width - $x) }
+  if ($y + $targetH -gt $poster.Height) { $targetH = [Math]::Max(1, $poster.Height - $y) }
 
   # No opaque pad — draw logo with its own alpha so transparent PNG stays clear.
   $g.DrawImage($logo, $x, $y, $targetW, $targetH)
@@ -240,6 +325,8 @@ try {
     const out = await readFile(outPath);
     if (out.length < 2_048) return posterBytes;
     return out;
+  } catch {
+    return posterBytes;
   } finally {
     for (const p of [posterPath, logoPath, outPath]) {
       try {
@@ -569,7 +656,15 @@ function formatStaffPrintError(
   if (/\boffline\b/i.test(raw)) {
     return `Printer “${ctx.resolved}” is offline — ${connectionHint({ softDriver: soft })}.`;
   }
-  if (/not found|not valid/i.test(raw)) {
+  if (/parameter is not valid|logo composite|poster too small/i.test(raw)) {
+    return `Print image composite failed — retry. Check SELPHY power and Wi‑Fi if it continues.`;
+  }
+  if (
+    /printer not found|pick a detected printer|no printers detected/i.test(raw)
+  ) {
+    if (selphy) {
+      return `Could not reach SELPHY on Wi‑Fi — ${selphyWifiStaffHint()}.`;
+    }
     return `Printer “${ctx.resolved}” not found — pick a Detected printer in Admin → Settings.`;
   }
 
@@ -1422,12 +1517,12 @@ export async function resolvePrinterIppEndpoint(
   opts?: { force?: boolean; preferredHost?: string },
 ): Promise<IppEndpoint | null> {
   if (process.platform !== "win32") return null;
-  const preferredHost = preferredHostIfOnLan(
-    normalizePrinterHost(opts?.preferredHost || ""),
-  );
+  // Staff-set Printer IP is always tried first (no Windows queue required).
+  const explicitHost = normalizePrinterHost(opts?.preferredHost || "");
+  const preferredHost = preferredHostIfOnLan(explicitHost) || explicitHost;
   const key = [
     printerName.trim().toLowerCase() || DEFAULT_PRINTER_NAME.toLowerCase(),
-    preferredHost || "-",
+    explicitHost || "-",
   ].join("|");
   const cached = ippEndpointCache.get(key);
   if (
@@ -1451,6 +1546,23 @@ export async function resolvePrinterIppEndpoint(
       if (Date.now() - cached.at < 8_000) return null;
     }
     // Stale cache (printer moved) — rediscover below.
+  }
+
+  // Staff Printer IP (e.g. 192.168.0.103) — IPP even with no Windows SELPHY queue.
+  if (explicitHost) {
+    const reachable = await firstReachableIppHost([explicitHost]);
+    if (reachable) {
+      const url = (await probeTcpPort(reachable, 631, 500))
+        ? `http://${reachable}:631/ipp/print`
+        : `https://${reachable}:443/ipp/print`;
+      const endpoint: IppEndpoint = {
+        url,
+        ip: isLikelyLanIpv4(reachable) ? reachable : undefined,
+        printerUri: url.replace(/^https:/i, "ipp:").replace(/^http:/i, "ipp:"),
+      };
+      ippEndpointCache.set(key, { endpoint, at: Date.now() });
+      return endpoint;
+    }
   }
 
   const script = `
@@ -1568,6 +1680,7 @@ try {
 
     // Prefer Admin override, then live Canon MAC ARP, then PnP/URL hosts.
     const orderedHosts = [
+      explicitHost,
       preferredHost,
       ...macIps,
       ...urlHosts,
@@ -1744,6 +1857,45 @@ try {
   }
 }
 
+function usesDirectIpp(printerName: string, printerHost: string): boolean {
+  return Boolean(printerHost.trim()) || isSelphyName(printerName);
+}
+
+async function printViaIppToHost(
+  bytes: Buffer,
+  ext: "png" | "jpg" | "webp",
+  printerLabel: string,
+  preferredHost: string,
+): Promise<{ printer_name: string; spool: string; method: "ipp" } | null> {
+  const endpoint = await resolvePrinterIppEndpoint(printerLabel, {
+    preferredHost: preferredHost || undefined,
+  });
+  if (!endpoint) return null;
+  const jpeg = await ensureJpegBytes(bytes, ext);
+  console.log(
+    `[print] IPP ${endpoint.url} as “${printerLabel}” (Windows queue not required)`,
+  );
+  try {
+    const spoolInfo = await printJpegViaIpp(jpeg, endpoint);
+    return { printer_name: printerLabel, spool: spoolInfo, method: "ipp" };
+  } catch (ippErr) {
+    if (isIppConnectFailure(ippErr)) {
+      const retry = await resolvePrinterIppEndpoint(printerLabel, {
+        force: true,
+        preferredHost: preferredHost || undefined,
+      });
+      if (retry && retry.url !== endpoint.url) {
+        const spoolInfo = await printJpegViaIpp(jpeg, retry);
+        return { printer_name: printerLabel, spool: spoolInfo, method: "ipp" };
+      }
+      throw new Error(
+        `SELPHY not reachable at ${endpoint.ip || endpoint.url} — ${selphyWifiStaffHint()}.`,
+      );
+    }
+    throw ippErr instanceof Error ? ippErr : new Error(String(ippErr));
+  }
+}
+
 async function printPostcardFileBytes(
   bytes: Buffer,
   ext: "png" | "jpg" | "webp",
@@ -1754,7 +1906,28 @@ async function printPostcardFileBytes(
   }
 
   const preferredHost = await resolvePrinterHost();
-  const { resolved, match, printers } = await resolveInstalledPrinter(printerName);
+  const wanted = printerName.trim() || DEFAULT_PRINTER_NAME;
+
+  // Wi‑Fi SELPHY: IPP to Printer IP even when Windows only has PDF/OneNote.
+  if (usesDirectIpp(wanted, preferredHost)) {
+    try {
+      const ipp = await printViaIppToHost(bytes, ext, wanted, preferredHost);
+      if (ipp) return ipp;
+      throw new Error(
+        `Could not reach SELPHY on Wi‑Fi — ${selphyWifiStaffHint()}.`,
+      );
+    } catch (e) {
+      const ippMsg = e instanceof Error ? e.message : String(e);
+      if (
+        /IPP Print-Job failed|not reachable|Could not reach SELPHY/i.test(ippMsg)
+      ) {
+        throw new Error(ippMsg);
+      }
+      throw e instanceof Error ? e : new Error(ippMsg);
+    }
+  }
+
+  const { resolved, match, printers } = await resolveInstalledPrinter(wanted);
 
   if (match.workOffline) {
     const cleared = await tryClearWorkOffline(resolved);

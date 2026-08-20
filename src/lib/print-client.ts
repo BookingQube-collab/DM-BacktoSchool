@@ -101,11 +101,19 @@ export function guestPrintError(raw: string): string {
   ) {
     return "Print needs the Windows booth PC powered on so it can send photos to the SELPHY.";
   }
-  if (/not reachable|could not reach selphy|selphy not reachable|selphy wi‑?fi|selphy wifi/i.test(m)) {
-    return "Printer not ready — check SELPHY power and Wi‑Fi (same network as the booth PC).";
+  if (
+    /not reachable|could not reach selphy|selphy not reachable|selphy wi‑?fi|selphy wifi/i.test(
+      m,
+    )
+  ) {
+    return "Printer not ready — check SELPHY power and Wi‑Fi (same network as the booth PC). Keep SETUP-BOOTH-PC.cmd open.";
   }
-  if (/printer not found:|pick a detected printer/i.test(m)) {
-    return "Printer name not found — ask staff to set it in Admin → Settings.";
+  if (
+    /printer not found:|pick a detected printer|no printers detected|print to pdf|onenote/i.test(
+      m,
+    )
+  ) {
+    return "Printer not ready — check SELPHY power and Wi‑Fi (same network as the booth PC). Keep SETUP-BOOTH-PC.cmd open.";
   }
   if (/timed out|not ready|offline|work offline|paused/i.test(m)) {
     return "Printer not ready — check power, connection, and paper.";
@@ -118,19 +126,11 @@ export function guestPrintError(raw: string): string {
 }
 
 /**
- * Avoid mixed content: HTTPS tablet must not fetch http://192.168… booth URL.
- * Use same-origin `/api/print` (Vercel queues; booth worker prints).
+ * Same-origin `/api/print` only. Stale LAN booth URLs (e.g. 192.168.18.87)
+ * are ignored — HTTPS Vercel queues; the Windows worker silent-prints.
  */
-export function resolvePrintApiUrl(boothPrintBaseUrl: string): string {
-  const base = boothPrintBaseUrl.trim().replace(/\/+$/, "");
-  const pageIsHttps =
-    typeof window !== "undefined" && window.location.protocol === "https:";
-  const boothIsHttp = /^http:\/\//i.test(base);
-
-  if (pageIsHttps && boothIsHttp) {
-    return "/api/print";
-  }
-  return base ? `${base}/api/print` : "/api/print";
+export function resolvePrintApiUrl(_boothPrintBaseUrl?: string): string {
+  return "/api/print";
 }
 
 type PrintQueueLiveness = {

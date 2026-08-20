@@ -25,9 +25,27 @@ export function shouldEnqueuePrintForBoothWorker(): boolean {
   return process.platform !== "win32";
 }
 
+/** Prefer storage://bucket/path so the booth worker can download with the service role. */
+function toStorageQueueRef(url: string): string {
+  const trimmed = url.trim();
+  if (trimmed.toLowerCase().startsWith("storage://")) return trimmed;
+  try {
+    const u = new URL(trimmed);
+    const m = u.pathname.match(
+      /\/storage\/v1\/object\/(?:sign|authenticated|public)\/([^/]+)\/(.+)$/i,
+    );
+    if (m?.[1] && m[2]) {
+      return `storage://${decodeURIComponent(m[1])}/${decodeURIComponent(m[2])}`;
+    }
+  } catch {
+    /* keep original HTTPS URL */
+  }
+  return trimmed;
+}
+
 /** Enqueue a print job for the Windows booth worker (Vercel / non-Windows path). */
 export async function enqueuePrintJob(imageUrl: string): Promise<PrintJob> {
-  const trimmed = imageUrl.trim();
+  const trimmed = toStorageQueueRef(imageUrl);
   if (!trimmed) {
     throw new Error("imageUrl is required to queue a print job");
   }

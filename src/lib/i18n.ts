@@ -102,7 +102,8 @@ export const en = {
     "Could not reach the booth PC — stay on the Vercel website (HTTPS). Keep the Windows booth PC powered on.",
   printErrNetwork:
     "Print needs the Windows booth PC powered on so it can send photos to the SELPHY.",
-  printErrPrinterName: "Printer name not found — ask staff to set it in Admin → Settings.",
+  printErrPrinterName:
+    "Printer not ready — check SELPHY power and Wi‑Fi (same network as the booth PC). Keep SETUP-BOOTH-PC.cmd open.",
   printErrNotReady:
     "Printer not ready — check SELPHY power and Wi‑Fi (same network as the booth PC).",
   printErrTimedOut: "Printer not ready — check power, connection, and paper.",
@@ -630,7 +631,8 @@ export const ar: Record<keyof typeof en, string> = {
     "تعذر الوصول إلى جهاز الكشك — ابقَ على موقع Vercel (HTTPS). أبقِ جهاز ويندوز للكشك قيد التشغيل.",
   printErrNetwork:
     "الطباعة تحتاج جهاز ويندوز للكشك قيد التشغيل لإرسال الصور إلى SELPHY.",
-  printErrPrinterName: "اسم الطابعة غير موجود — اطلب من الموظفين ضبطه في الإدارة ← الإعدادات.",
+  printErrPrinterName:
+    "الطابعة غير جاهزة — تحقق من طاقة SELPHY والواي فاي (نفس شبكة جهاز الكشك). أبقِ SETUP-BOOTH-PC.cmd مفتوحاً.",
   printErrNotReady:
     "الطابعة غير جاهزة — تحقق من تشغيل SELPHY والواي فاي (نفس شبكة جهاز الكشك).",
   printErrTimedOut: "الطابعة غير جاهزة — تحقق من التشغيل والاتصال والورق.",

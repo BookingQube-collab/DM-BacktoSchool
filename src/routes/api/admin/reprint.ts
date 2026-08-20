@@ -64,10 +64,8 @@ export const Route = createFileRoute("/api/admin/reprint")({
           if (shouldEnqueuePrintForBoothWorker()) {
             let imageUrl = session.image_url?.trim() || "";
             if (session.image_path?.trim()) {
-              const signed = await supabaseAdmin.storage
-                .from("future-photos")
-                .createSignedUrl(session.image_path.trim(), 60 * 60);
-              if (signed.data?.signedUrl) imageUrl = signed.data.signedUrl;
+              // Worker downloads via service role — avoids signed-URL 400s on the booth PC.
+              imageUrl = `storage://future-photos/${session.image_path.trim()}`;
             }
             if (!imageUrl) {
               return json({ error: "Photo session has no image to reprint" }, 400);
