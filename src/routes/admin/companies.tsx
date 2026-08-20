@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Download, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { LogoCoverageBar, NamedCountBarChart } from "@/components/admin/AdminCharts";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { humanizeFilename } from "@/lib/image";
 import { fileToDownscaledDataUrl } from "@/lib/photo";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, type MessageKey } from "@/lib/i18n";
+import {
+  buildStoreSampleCsv,
+  STORE_CSV_MAX_ROWS,
+  type StoreCsvErrorCode,
+  type StoreCsvRowError,
+} from "@/lib/store-csv";
 
 export const Route = createFileRoute("/admin/companies")({
   component: AdminCompaniesPage,
@@ -48,12 +54,116 @@ function AdminCompaniesPage() {
   const [singleLogo, setSingleLogo] = useState<string | null>(null);
   const [bulkDrafts, setBulkDrafts] = useState<BulkDraft[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [csvErrors, setCsvErrors] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [csvUploading, setCsvUploading] = useState(false);
   const [deletingAll, setDeletingAll] = useState(false);
   const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
   const singleFileRef = useRef<HTMLInputElement>(null);
   const bulkFileRef = useRef<HTMLInputElement>(null);
+  const csvFileRef = useRef<HTMLInputElement>(null);
   const replaceFileRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  function csvRowMessage(err: StoreCsvRowError) {
+    const vars = { row: err.row, name: err.name };
+    const keys: Record<StoreCsvErrorCode, MessageKey> = {
+      missing_name: "storesCsvRowMissingName",
+      duplicate_in_file: "storesCsvRowDuplicate",
+      already_exists: "storesCsvRowExists",
+      invalid_logo_url: "storesCsvRowBadLogo",
+      name_too_long: "storesCsvRowNameLong",
+      empty_file: "storesCsvEmpty",
+      no_name_column: "storesCsvNoNameCol",
+      too_many_rows: "storesCsvTooMany",
+    };
+    return t(keys[err.code], { ...vars, max: STORE_CSV_MAX_ROWS });
+  }
+
+  function downloadSampleCsv() {
+    const blob = new Blob([buildStoreSampleCsv()], {
+      type: "text/csv;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "stores-sample.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function onCsvFile(file: File | undefined) {
+    if (!file) return;
+    setError(null);
+    setCsvErrors([]);
+    const isCsv =
+      file.name.toLowerCase().endsWith(".csv") ||
+      file.type === "text/csv" ||
+      file.type === "application/vnd.ms-excel";
+    if (!isCsv) {
+      setCsvErrors([t("storesCsvBadFile")]);
+      return;
+    }
+    setCsvUploading(true);
+    try {
+      const csv = await file.text();
+      const res = await fetch("/api/admin/companies", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ csv }),
+      });
+      const data = (await res.json()) as {
+        error?: string;
+        code?: StoreCsvErrorCode;
+        companies?: unknown[];
+        created_count?: number;
+        errors?: StoreCsvRowError[];
+      };
+      const rowErrors = (data.errors ?? []).map(csvRowMessage);
+      const created =
+        typeof data.created_count === "number"
+          ? data.created_count
+          : (data.companies?.length ?? 0);
+
+      if (!res.ok && !created) {
+        if (data.code === "empty_file") {
+          setCsvErrors([t("storesCsvEmpty")]);
+        } else if (data.code === "no_name_column") {
+          setCsvErrors([t("storesCsvNoNameCol")]);
+        } else if (data.code === "too_many_rows") {
+          setCsvErrors([t("storesCsvTooMany", { max: STORE_CSV_MAX_ROWS })]);
+        } else if (rowErrors.length) {
+          setCsvErrors(rowErrors);
+        } else {
+          setCsvErrors([data.error || t("storesBulkFail")]);
+        }
+        return;
+      }
+
+      if (created) {
+        toast.success(
+          t("storesCsvCreated", {
+            count: created,
+            plural: created === 1 ? "" : "s",
+          }),
+        );
+        await load();
+      }
+      if (rowErrors.length) {
+        setCsvErrors([
+          t("storesCsvSomeFailed", {
+            count: rowErrors.length,
+            plural: rowErrors.length === 1 ? "" : "s",
+          }),
+          ...rowErrors,
+        ]);
+      }
+    } catch {
+      setCsvErrors([t("storesBulkFail")]);
+    } finally {
+      setCsvUploading(false);
+    }
+  }
 
   async function load() {
     const res = await fetch("/api/admin/companies", { credentials: "include" });
@@ -400,10 +510,55 @@ function AdminCompaniesPage() {
       <section className="space-y-4 rounded-3xl border border-border bg-secondary/40 p-5">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="font-display text-xl font-semibold">Bulk upload</h2>
+            <h2 className="font-display text-xl font-semibold">
+              {t("storesBulk")}
+            </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Select multiple images — names default from filenames, then edit and
-              save all.
+              {t("storesBulkHint")}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={downloadSampleCsv}
+            >
+              <Download className="size-4" />
+              {t("storesDownloadSample")}
+            </Button>
+            <Button
+              type="button"
+              onClick={() => csvFileRef.current?.click()}
+              disabled={csvUploading || saving}
+            >
+              {csvUploading ? t("commonSaving") : t("storesUploadCsv")}
+            </Button>
+            <input
+              ref={csvFileRef}
+              type="file"
+              accept=".csv,text/csv"
+              className="hidden"
+              onChange={(e) => {
+                void onCsvFile(e.target.files?.[0]);
+                e.target.value = "";
+              }}
+            />
+          </div>
+        </div>
+
+        {csvErrors.length > 0 ? (
+          <ul className="space-y-1 rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            {csvErrors.map((msg, i) => (
+              <li key={`${i}-${msg}`}>{msg}</li>
+            ))}
+          </ul>
+        ) : null}
+
+        <div className="flex flex-wrap items-end justify-between gap-3 border-t border-border pt-4">
+          <div>
+            <h3 className="font-semibold">{t("storesBulkImages")}</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t("storesBulkImagesHint")}
             </p>
           </div>
           <Button
@@ -411,7 +566,7 @@ function AdminCompaniesPage() {
             variant="secondary"
             onClick={() => bulkFileRef.current?.click()}
           >
-            Choose images
+            {t("storesChooseImages")}
           </Button>
           <input
             ref={bulkFileRef}

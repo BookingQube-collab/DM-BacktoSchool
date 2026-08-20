@@ -3,6 +3,15 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { json, requireAdminSession } from "@/lib/admin-auth.server";
 import { deleteAllCompanies } from "@/lib/admin-delete.server";
 import { parseImageDataUrl, uploadPrivateImage } from "@/lib/image-upload";
+import {
+  parseStoreCsv,
+  STORE_CSV_MAX_ROWS,
+  STORE_LOGO_URL_MAX,
+  STORE_NAME_MAX,
+  isValidHttpUrl,
+  type ParsedStoreRow,
+  type StoreCsvRowError,
+} from "@/lib/store-csv";
 
 function normalizeStoreName(name: string) {
   return name.trim().toLowerCase();
@@ -44,6 +53,91 @@ async function uploadLogo(raw: unknown) {
   } as const;
 }
 
+function csvFileError(code: "empty_file" | "no_name_column" | "too_many_rows") {
+  if (code === "no_name_column") {
+    return "CSV must include a name column (see the sample file)";
+  }
+  if (code === "too_many_rows") {
+    return `Too many rows (max ${STORE_CSV_MAX_ROWS})`;
+  }
+  return "The file has no store rows";
+}
+
+async function createStoresFromRows(
+  rows: ParsedStoreRow[],
+  initialErrors: StoreCsvRowError[],
+) {
+  const errors: StoreCsvRowError[] = [...initialErrors];
+  const created: Record<string, unknown>[] = [];
+
+  const { data: existingRows, error: existingErr } = await supabaseAdmin
+    .from("companies")
+    .select("name");
+  if (existingErr) throw new Error(existingErr.message);
+
+  const existing = new Set(
+    (existingRows ?? []).map((r) => normalizeStoreName(r.name)),
+  );
+
+  for (const item of rows) {
+    if (item.name.length > STORE_NAME_MAX) {
+      errors.push({ row: item.row, name: item.name, code: "name_too_long" });
+      continue;
+    }
+    const key = normalizeStoreName(item.name);
+    if (existing.has(key)) {
+      errors.push({ row: item.row, name: item.name, code: "already_exists" });
+      continue;
+    }
+
+    let logo_path: string | null = null;
+    let logo_url: string | null = null;
+    if (item.logo_url) {
+      if (
+        !isValidHttpUrl(item.logo_url) ||
+        item.logo_url.length > STORE_LOGO_URL_MAX
+      ) {
+        errors.push({
+          row: item.row,
+          name: item.name,
+          code: "invalid_logo_url",
+        });
+        continue;
+      }
+      logo_url = item.logo_url;
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from("companies")
+      .insert({
+        name: item.name,
+        is_active: true,
+        sort_order: 0,
+        logo_path,
+        logo_url,
+      })
+      .select("*")
+      .single();
+
+    if (error) {
+      if (error.code === "23505") {
+        errors.push({ row: item.row, name: item.name, code: "already_exists" });
+        existing.add(key);
+        continue;
+      }
+      throw new Error(error.message);
+    }
+    existing.add(key);
+    created.push(data);
+  }
+
+  return {
+    companies: created,
+    created_count: created.length,
+    errors,
+  };
+}
+
 export const Route = createFileRoute("/api/admin/companies")({
   server: {
     handlers: {
@@ -70,15 +164,35 @@ export const Route = createFileRoute("/api/admin/companies")({
             is_active?: boolean;
             sort_order?: number;
             logo_image?: string;
+            csv?: string;
             stores?: Array<{
               name?: string;
               logo_image?: string;
+              logo_url?: string;
               is_active?: boolean;
               sort_order?: number;
             }>;
           };
 
-          // Bulk create: [{ name, logo_image }, ...]
+          // CSV bulk create (name required, logo_url optional)
+          if (typeof body.csv === "string") {
+            const parsed = parseStoreCsv(body.csv);
+            if (!parsed.ok) {
+              return json(
+                {
+                  error: csvFileError(parsed.code),
+                  code: parsed.code,
+                  max: STORE_CSV_MAX_ROWS,
+                },
+                400,
+              );
+            }
+            const result = await createStoresFromRows(parsed.rows, parsed.errors);
+            const status = result.companies.length > 0 ? 201 : 400;
+            return json(result, status);
+          }
+
+          // Bulk create: [{ name, logo_image?, logo_url? }, ...]
           if (Array.isArray(body.stores)) {
             if (!body.stores.length) {
               return json({ error: "No stores to create" }, 400);
@@ -106,14 +220,24 @@ export const Route = createFileRoute("/api/admin/companies")({
                   409,
                 );
               }
-              if (!item.logo_image) {
-                return json(
-                  { error: `Store image is required for ${name}` },
-                  400,
-                );
+
+              let logo_path: string | null = null;
+              let logo_url: string | null = null;
+              if (item.logo_image) {
+                const logo = await uploadLogo(item.logo_image);
+                if ("error" in logo) return json({ error: logo.error }, 502);
+                logo_path = logo.logo_path;
+                logo_url = logo.logo_url;
+              } else if (item.logo_url?.trim()) {
+                const url = item.logo_url.trim();
+                if (!isValidHttpUrl(url) || url.length > STORE_LOGO_URL_MAX) {
+                  return json(
+                    { error: `Invalid logo URL for ${name}` },
+                    400,
+                  );
+                }
+                logo_url = url;
               }
-              const logo = await uploadLogo(item.logo_image);
-              if ("error" in logo) return json({ error: logo.error }, 502);
 
               const { data, error } = await supabaseAdmin
                 .from("companies")
@@ -121,8 +245,8 @@ export const Route = createFileRoute("/api/admin/companies")({
                   name,
                   is_active: item.is_active ?? true,
                   sort_order: item.sort_order ?? 0,
-                  logo_path: logo.logo_path,
-                  logo_url: logo.logo_url,
+                  logo_path,
+                  logo_url,
                 })
                 .select("*")
                 .single();
