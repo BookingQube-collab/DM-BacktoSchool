@@ -40,8 +40,10 @@ export const Route = createFileRoute("/api/print/status")({
             return json({ error: "Print job not found" }, 404, cors);
           }
 
-          const { isPrintWorkerAlive } = await import("@/lib/settings.server");
-          const worker_alive = await isPrintWorkerAlive();
+          const { getPrintWorkerLiveness } = await import(
+            "@/lib/settings.server"
+          );
+          const liveness = await getPrintWorkerLiveness();
 
           return json(
             {
@@ -51,7 +53,10 @@ export const Route = createFileRoute("/api/print/status")({
               error: job.error,
               created_at: job.created_at,
               updated_at: job.updated_at,
-              worker_alive,
+              worker_alive: liveness.worker_alive,
+              queue_busy: liveness.queue_busy,
+              heartbeat_present: liveness.heartbeat_present,
+              heartbeat_fresh: liveness.heartbeat_fresh,
             },
             200,
             cors,

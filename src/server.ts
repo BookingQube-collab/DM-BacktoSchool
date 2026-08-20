@@ -4,6 +4,9 @@ import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 
 // Windows booth only: poll Supabase print_jobs and silent-print (Vercel tablets enqueue).
+// This module is lazy-loaded on the first HTTP request in `vite dev` — Vite
+// "ready" alone does not run this. The vite listen plugin and SETUP localhost
+// ping also call startPrintWorker so the queue is not idle until someone hits /.
 if (typeof process !== "undefined" && process.platform === "win32") {
   void import("./lib/print-worker.server")
     .then((m) => m.startPrintWorker())

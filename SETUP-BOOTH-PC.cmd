@@ -45,6 +45,15 @@ if not exist ".env" (
   goto :fail
 )
 
+echo Checking .env for Supabase keys ^(values not printed^)...
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$e = Get-Content -LiteralPath '.env' -ErrorAction Stop; $url = $e | Where-Object { $_ -match '^(VITE_|NEXT_PUBLIC_)?SUPABASE_URL=.+\S' -and $_ -notmatch '^\s*#' }; $key = $e | Where-Object { $_ -match '^(SUPABASE_SERVICE_ROLE_KEY|SUPABASE_SECRET_KEY)=.+\S' -and $_ -notmatch '^\s*#' }; if (-not $url) { Write-Host '  MISSING: SUPABASE_URL (or VITE_/NEXT_PUBLIC_ alias)'; exit 1 }; if (-not $key) { Write-Host '  MISSING: SUPABASE_SERVICE_ROLE_KEY'; exit 1 }; Write-Host '  OK - Supabase URL and service role key are set.'"
+if errorlevel 1 (
+  echo ERROR: .env is incomplete. Copy the booth .env from the original PC.
+  echo Wrong project keys mean this worker cannot see print_jobs.
+  goto :fail
+)
+echo.
+
 if not exist "node_modules\" (
   echo Installing npm packages ^(first run, may take a few minutes^)...
   echo.
@@ -108,7 +117,12 @@ echo ============================================
 echo  Starting print worker ^(npm run booth^)
 echo  LEAVE THIS WINDOW OPEN
 echo ============================================
+echo Look for: [print-worker] polling print_jobs
+echo Vite "ready" is not enough until that line appears.
 echo.
+
+rem Vite ready does not load the worker until a request hits. Wake it.
+start "booth-wake" /b cmd /c ""%~dp0scripts\wake-booth-worker.cmd""
 call npm run booth
 echo.
 echo Print worker stopped.

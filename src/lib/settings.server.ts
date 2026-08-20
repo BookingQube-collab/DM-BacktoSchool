@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { hashPassword, verifyPassword } from "@/lib/admin-auth.server";
+import { hasPrintingPrintJob } from "@/lib/print-jobs.server";
 import {
   canonicalUsernameForRole,
   navKeysForRole,
@@ -69,68 +70,129 @@ export async function getSetting(key: SettingKey): Promise<string> {
 }
 
 export async function setSetting(key: SettingKey, value: string) {
-  const { error } = await supabaseAdmin.from("app_settings").upsert({
-    key,
-    value,
-    updated_at: new Date().toISOString(),
-  });
+  const { error } = await supabaseAdmin.from("app_settings").upsert(
+    {
+      key,
+      value,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "key" },
+  );
   if (error) throw new Error(error.message);
 }
 
 /** Booth worker writes this every ~8s, including during IPP. */
 const PRINT_WORKER_HEARTBEAT_MAX_AGE_MS = 90_000;
+const PRINT_WORKER_HEARTBEAT_MAX_FUTURE_MS = 180_000;
 
-function heartbeatAgeMs(raw: string, updatedAt?: string | null): number | null {
-  const epoch = Number(raw.trim());
-  if (Number.isFinite(epoch) && epoch > 1_000_000_000_000) {
-    return Date.now() - epoch;
-  }
-  const fromValue = raw.trim() ? Date.parse(raw.trim()) : Number.NaN;
+function isFreshHeartbeatTimestamp(beatMs: number, now: number): boolean {
+  const age = now - beatMs;
+  return age < PRINT_WORKER_HEARTBEAT_MAX_AGE_MS && age > -PRINT_WORKER_HEARTBEAT_MAX_FUTURE_MS;
+}
+
+function heartbeatTimestamps(raw: string, updatedAt?: string | null): number[] {
+  const times: number[] = [];
   const fromUpdated = updatedAt ? Date.parse(updatedAt) : Number.NaN;
-  const beatMs = Number.isFinite(fromUpdated)
-    ? fromUpdated
-    : Number.isFinite(fromValue)
-      ? fromValue
-      : Number.NaN;
-  if (!Number.isFinite(beatMs)) return null;
-  return Date.now() - beatMs;
+  if (Number.isFinite(fromUpdated)) times.push(fromUpdated);
+  const epoch = Number(raw.trim());
+  if (Number.isFinite(epoch) && epoch > 1_000_000_000_000) times.push(epoch);
+  const fromValue = raw.trim() ? Date.parse(raw.trim()) : Number.NaN;
+  if (Number.isFinite(fromValue)) times.push(fromValue);
+  return times;
 }
 
-/** Heartbeat ping — value is epoch ms so clock-skew ISO parsing is not required. */
+/** True if any heartbeat clock (DB updated_at or booth epoch value) is fresh. */
+function heartbeatIsFresh(raw: string, updatedAt?: string | null): boolean {
+  const now = Date.now();
+  return heartbeatTimestamps(raw, updatedAt).some((t) =>
+    isFreshHeartbeatTimestamp(t, now),
+  );
+}
+
+/**
+ * Heartbeat ping. Prefer UPDATE of the seeded key so a failed upsert cannot
+ * leave worker_alive stuck false. Fall back to upsert if the row is missing.
+ */
 export async function touchPrintWorkerHeartbeat() {
-  await setSetting("print_worker_heartbeat", String(Date.now()));
+  const value = String(Date.now());
+  const updated_at = new Date().toISOString();
+  const { data, error: updateError } = await supabaseAdmin
+    .from("app_settings")
+    .update({ value, updated_at })
+    .eq("key", "print_worker_heartbeat")
+    .select("key");
+
+  if (!updateError && data && data.length > 0) return;
+
+  const { error: upsertError } = await supabaseAdmin.from("app_settings").upsert(
+    { key: "print_worker_heartbeat", value, updated_at },
+    { onConflict: "key" },
+  );
+  if (upsertError) {
+    throw new Error(
+      upsertError.message || updateError?.message || "print_worker_heartbeat write failed",
+    );
+  }
 }
 
-export async function isPrintWorkerAlive(): Promise<boolean> {
+export type PrintWorkerHeartbeatState = {
+  present: boolean;
+  fresh: boolean;
+};
+
+export async function getPrintWorkerHeartbeatState(): Promise<PrintWorkerHeartbeatState> {
   try {
-    const { data } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from("app_settings")
       .select("value, updated_at")
       .eq("key", "print_worker_heartbeat")
       .maybeSingle();
-    const age = heartbeatAgeMs(data?.value ?? "", data?.updated_at ?? null);
-    if (age != null && age < PRINT_WORKER_HEARTBEAT_MAX_AGE_MS && age > -180_000) {
-      return true;
+    if (error) {
+      console.error("[print-worker] heartbeat read failed:", error.message);
+      return { present: false, fresh: false };
     }
-  } catch {
-    /* fall through to print_jobs activity */
+    const raw = data?.value ?? "";
+    const updatedAt = data?.updated_at ?? null;
+    const present = heartbeatTimestamps(raw, updatedAt).length > 0;
+    return {
+      present,
+      fresh: present && heartbeatIsFresh(raw, updatedAt),
+    };
+  } catch (err) {
+    console.error("[print-worker] heartbeat read failed:", err);
+    return { present: false, fresh: false };
   }
+}
 
-  // Worker may be mid-IPP with a delayed heartbeat; a live/recent job still counts.
-  try {
-    const cutoff = new Date(Date.now() - PRINT_WORKER_HEARTBEAT_MAX_AGE_MS).toISOString();
-    const { data } = await supabaseAdmin
-      .from("print_jobs")
-      .select("id")
-      .in("status", ["printing", "done"])
-      .gte("updated_at", cutoff)
-      .limit(1);
-    if (data && data.length > 0) return true;
-  } catch {
-    /* ignore */
-  }
+export async function isPrintWorkerHeartbeatFresh(): Promise<boolean> {
+  const { fresh } = await getPrintWorkerHeartbeatState();
+  return fresh;
+}
 
-  return false;
+export type PrintWorkerLiveness = {
+  heartbeat_present: boolean;
+  heartbeat_fresh: boolean;
+  queue_busy: boolean;
+  worker_alive: boolean;
+};
+
+/** Alive if heartbeat is fresh OR any job is currently `printing`. */
+export async function getPrintWorkerLiveness(): Promise<PrintWorkerLiveness> {
+  const [heartbeat, queue_busy] = await Promise.all([
+    getPrintWorkerHeartbeatState(),
+    hasPrintingPrintJob(),
+  ]);
+  return {
+    heartbeat_present: heartbeat.present,
+    heartbeat_fresh: heartbeat.fresh,
+    queue_busy,
+    worker_alive: heartbeat.fresh || queue_busy,
+  };
+}
+
+export async function isPrintWorkerAlive(): Promise<boolean> {
+  const { worker_alive } = await getPrintWorkerLiveness();
+  return worker_alive;
 }
 
 export async function getAdminUsername() {

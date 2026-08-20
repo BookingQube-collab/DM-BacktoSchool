@@ -16,7 +16,7 @@ function corsHeaders(request: Request): Record<string, string> {
   const origin = request.headers.get("Origin")?.trim();
   return {
     "Access-Control-Allow-Origin": origin || "*",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Max-Age": "86400",
     Vary: "Origin",
@@ -31,6 +31,25 @@ export const Route = createFileRoute("/api/print")({
           status: 204,
           headers: corsHeaders(request),
         });
+      },
+      GET: async ({ request }) => {
+        const cors = corsHeaders(request);
+        const onBoothPc = !shouldEnqueuePrintForBoothWorker();
+        if (onBoothPc) {
+          const { startPrintWorker } = await import(
+            "@/lib/print-worker.server"
+          );
+          startPrintWorker();
+        }
+        return json(
+          {
+            ok: true,
+            worker: onBoothPc,
+            platform: typeof process !== "undefined" ? process.platform : "",
+          },
+          200,
+          cors,
+        );
       },
       POST: async ({ request }) => {
         const cors = corsHeaders(request);
@@ -77,15 +96,20 @@ export const Route = createFileRoute("/api/print")({
               );
             }
             const job = await enqueuePrintJob(imageUrl);
-            const { isPrintWorkerAlive } = await import("@/lib/settings.server");
-            const worker_alive = await isPrintWorkerAlive();
+            const { getPrintWorkerLiveness } = await import(
+              "@/lib/settings.server"
+            );
+            const liveness = await getPrintWorkerLiveness();
             return json(
               {
                 ok: true,
                 queued: true,
                 jobId: job.id,
                 method: "queue",
-                worker_alive,
+                worker_alive: liveness.worker_alive,
+                queue_busy: liveness.queue_busy,
+                heartbeat_present: liveness.heartbeat_present,
+                heartbeat_fresh: liveness.heartbeat_fresh,
               },
               200,
               cors,

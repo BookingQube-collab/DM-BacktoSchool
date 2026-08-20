@@ -13,7 +13,10 @@ import {
   printPostcardImageBytes,
   resolvePrinterName,
 } from "@/lib/print.server";
-import { touchPrintWorkerHeartbeat } from "@/lib/settings.server";
+import {
+  isPrintWorkerHeartbeatFresh,
+  touchPrintWorkerHeartbeat,
+} from "@/lib/settings.server";
 
 const POLL_MS = 2_500;
 /** Independent of job processing so heartbeat stays fresh during IPP. */
@@ -25,11 +28,17 @@ const QUEUE_OP_TIMEOUT_MS = 15_000;
 
 let started = false;
 let ticking = false;
+let heartbeatOkLogged = false;
 
 async function writeWorkerHeartbeat() {
   try {
     await touchPrintWorkerHeartbeat();
+    if (!heartbeatOkLogged) {
+      heartbeatOkLogged = true;
+      console.log("[print-worker] heartbeat ok (print_worker_heartbeat)");
+    }
   } catch (err) {
+    heartbeatOkLogged = false;
     console.error("[print-worker] heartbeat failed:", err);
   }
 }
@@ -58,12 +67,25 @@ function withTimeout<T>(promise: Promise<T>, ms: number, message: string) {
   });
 }
 
+async function claimNextOrRetry() {
+  try {
+    return await withTimeout(
+      claimNextPrintJob(),
+      QUEUE_OP_TIMEOUT_MS,
+      "claimNextPrintJob timed out talking to the print queue",
+    );
+  } catch (err) {
+    console.error("[print-worker] claim failed, retrying:", err);
+    return await withTimeout(
+      claimNextPrintJob(),
+      QUEUE_OP_TIMEOUT_MS,
+      "claimNextPrintJob timed out talking to the print queue",
+    );
+  }
+}
+
 async function processOneJob() {
-  const job = await withTimeout(
-    claimNextPrintJob(),
-    QUEUE_OP_TIMEOUT_MS,
-    "claimNextPrintJob timed out talking to the print queue",
-  );
+  const job = await claimNextOrRetry();
   if (!job) return;
 
   console.log(`[print-worker] printing job ${job.id}`);
@@ -102,11 +124,15 @@ async function tick() {
   if (ticking) return;
   ticking = true;
   try {
-    const reclaimed = await withTimeout(
-      reclaimStalePrintJobs(),
-      QUEUE_OP_TIMEOUT_MS,
-      "reclaimStalePrintJobs timed out talking to the print queue",
-    );
+    // Live heartbeat means the worker is mid-IPP — do not steal that job.
+    const heartbeatFresh = await isPrintWorkerHeartbeatFresh();
+    const reclaimed = heartbeatFresh
+      ? 0
+      : await withTimeout(
+          reclaimStalePrintJobs(),
+          QUEUE_OP_TIMEOUT_MS,
+          "reclaimStalePrintJobs timed out talking to the print queue",
+        );
     if (reclaimed > 0) {
       console.warn(
         `[print-worker] reclaimed ${reclaimed} stalled printing job(s)`,

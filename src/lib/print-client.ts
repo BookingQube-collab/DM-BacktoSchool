@@ -6,8 +6,10 @@ export const SILENT_PRINT_POST_TIMEOUT_MS = 120_000;
 export const PRINT_QUEUE_POST_TIMEOUT_MS = 25_000;
 /** Queue poll after POST returns. Covers worker pickup + slow SELPHY IPP ACK. */
 export const PRINT_POLL_TIMEOUT_MS = 120_000;
-/** Job still `pending` with no worker → booth window is closed, not mid-IPP. */
+/** Job still `pending` after a stale heartbeat and nothing `printing`. */
 export const PRINT_PENDING_NO_WORKER_MS = 18_000;
+/** Missing heartbeat (old booth copy) is not proof the window is closed. */
+const PRINT_PENDING_UNKNOWN_WORKER_MS = 60_000;
 /** Per-request timeout so a hung `/api/print/status` cannot freeze the overlay. */
 const PRINT_STATUS_FETCH_TIMEOUT_MS = 8_000;
 /** @deprecated Use PRINT_POLL_TIMEOUT_MS / SILENT_PRINT_POST_TIMEOUT_MS */
@@ -18,10 +20,13 @@ const PRINT_ERR_STILL_PRINTING =
   "Print is taking longer than expected. Check the SELPHY — it may still be printing. If not, retry.";
 
 export const PRINT_ERR_BOOTH_OFFLINE =
-  "Booth print window is closed. On the e3vid laptop, keep SETUP-BOOTH-PC.cmd open, then retry.";
+  "Booth print window is closed. Keep the Windows booth print window open (SETUP-BOOTH-PC.cmd), then retry.";
+
+const PRINT_ERR_QUEUE_WAITING =
+  "Print did not start. Keep the Windows booth print window open (SETUP-BOOTH-PC.cmd), then retry.";
 
 const PRINT_ERR_POST_HANG =
-  "Print request did not finish. Keep SETUP-BOOTH-PC.cmd open on the e3vid laptop, then retry.";
+  "Print request did not finish. Keep the Windows booth print window open (SETUP-BOOTH-PC.cmd), then retry.";
 
 export function isPrintStillInProgressError(raw: unknown): boolean {
   const m = raw instanceof Error ? raw.message : String(raw ?? "");
@@ -69,11 +74,13 @@ async function fetchWithTimeout(
 export function guestPrintError(raw: string): string {
   const m = raw.toLowerCase();
   if (
-    /setup-booth-pc|booth print window is closed|print request did not finish|print status did not respond/i.test(
+    /setup-booth-pc|booth print window is closed|print request did not finish|print status did not respond|print did not start/i.test(
       m,
     )
   ) {
-    return PRINT_ERR_BOOTH_OFFLINE;
+    return /print did not start/i.test(m)
+      ? PRINT_ERR_QUEUE_WAITING
+      : PRINT_ERR_BOOTH_OFFLINE;
   }
   if (
     /taking longer than expected|may still be printing/i.test(m)
@@ -126,16 +133,27 @@ export function resolvePrintApiUrl(boothPrintBaseUrl: string): string {
   return base ? `${base}/api/print` : "/api/print";
 }
 
+type PrintQueueLiveness = {
+  worker_alive?: boolean;
+  queue_busy?: boolean;
+  heartbeat_present?: boolean;
+  heartbeat_fresh?: boolean;
+};
+
 export async function pollQueuedPrintJob(
   jobId: string,
   progress?: PrintProgress,
+  initial?: PrintQueueLiveness,
 ): Promise<void> {
   const started = Date.now();
   const deadline = started + PRINT_POLL_TIMEOUT_MS;
-  const pendingDeadline = started + PRINT_PENDING_NO_WORKER_MS;
   let accepted = false;
   let lastStatus: string | undefined;
-  let workerAlive: boolean | undefined;
+  let workerAlive = initial?.worker_alive;
+  let queueBusy = initial?.queue_busy;
+  let heartbeatPresent = initial?.heartbeat_present;
+  let heartbeatFresh = initial?.heartbeat_fresh;
+  let workerGoneSince: number | null = null;
   const markAccepted = () => {
     if (accepted) return;
     accepted = true;
@@ -146,11 +164,28 @@ export async function pollQueuedPrintJob(
     if (accepted) return;
     const stillPending =
       lastStatus === "pending" || lastStatus == null || lastStatus === "";
-    if (!stillPending || Date.now() < pendingDeadline) return;
-    // Mid-IPP jobs are `printing` (heartbeat can look stale then). A job that
-    // is still `pending` was never claimed — booth window is closed / worker off.
-    if (workerAlive === true) return;
-    throw new Error(PRINT_ERR_BOOTH_OFFLINE);
+    // Fresh heartbeat OR another job is `printing` → wait for the queue.
+    if (
+      !stillPending ||
+      workerAlive === true ||
+      queueBusy === true ||
+      heartbeatFresh === true
+    ) {
+      workerGoneSince = null;
+      return;
+    }
+    // Missing heartbeat is not "window closed" (old booth copy / worker not
+    // loaded yet). Only fail fast when a heartbeat existed and went stale.
+    const confirmedStale =
+      heartbeatPresent === true && heartbeatFresh === false && queueBusy !== true;
+    const waitMs = confirmedStale
+      ? PRINT_PENDING_NO_WORKER_MS
+      : PRINT_PENDING_UNKNOWN_WORKER_MS;
+    if (workerGoneSince == null) workerGoneSince = Date.now();
+    if (Date.now() - workerGoneSince < waitMs) return;
+    throw new Error(
+      confirmedStale ? PRINT_ERR_BOOTH_OFFLINE : PRINT_ERR_QUEUE_WAITING,
+    );
   };
 
   while (true) {
@@ -179,6 +214,9 @@ export async function pollQueuedPrintJob(
       status?: string;
       error?: string;
       worker_alive?: boolean;
+      queue_busy?: boolean;
+      heartbeat_present?: boolean;
+      heartbeat_fresh?: boolean;
     } = {};
     try {
       payload = (await res.json()) as typeof payload;
@@ -193,6 +231,15 @@ export async function pollQueuedPrintJob(
     lastStatus = payload.status;
     if (typeof payload.worker_alive === "boolean") {
       workerAlive = payload.worker_alive;
+    }
+    if (typeof payload.queue_busy === "boolean") {
+      queueBusy = payload.queue_busy;
+    }
+    if (typeof payload.heartbeat_present === "boolean") {
+      heartbeatPresent = payload.heartbeat_present;
+    }
+    if (typeof payload.heartbeat_fresh === "boolean") {
+      heartbeatFresh = payload.heartbeat_fresh;
     }
 
     if (payload.status === "done") {
@@ -213,7 +260,15 @@ export async function pollQueuedPrintJob(
       // Do not fail the UI (countdown overlay must not be aborted).
       if (accepted) return;
       if (lastStatus === "pending" || lastStatus == null) {
-        throw new Error(PRINT_ERR_BOOTH_OFFLINE);
+        // Queue is moving (heartbeat or another job printing) — not a closed window.
+        if (workerAlive === true || queueBusy === true || heartbeatFresh === true) {
+          throw new Error(PRINT_ERR_STILL_PRINTING);
+        }
+        throw new Error(
+          heartbeatPresent === true
+            ? PRINT_ERR_BOOTH_OFFLINE
+            : PRINT_ERR_QUEUE_WAITING,
+        );
       }
       break;
     }
@@ -230,6 +285,9 @@ type PrintPayload = {
   jobId?: string;
   printer_name?: string;
   worker_alive?: boolean;
+  queue_busy?: boolean;
+  heartbeat_present?: boolean;
+  heartbeat_fresh?: boolean;
 };
 
 export async function followPrintPayload(
@@ -241,7 +299,12 @@ export async function followPrintPayload(
     if (!jobId) {
       throw new Error("Print was queued but no job id was returned.");
     }
-    await pollQueuedPrintJob(jobId, progress);
+    await pollQueuedPrintJob(jobId, progress, {
+      worker_alive: payload.worker_alive,
+      queue_busy: payload.queue_busy,
+      heartbeat_present: payload.heartbeat_present,
+      heartbeat_fresh: payload.heartbeat_fresh,
+    });
     return;
   }
   progress?.onAccepted?.();

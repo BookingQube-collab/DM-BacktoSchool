@@ -73,8 +73,10 @@ export const Route = createFileRoute("/api/admin/reprint")({
               return json({ error: "Photo session has no image to reprint" }, 400);
             }
             const job = await enqueuePrintJob(imageUrl);
-            const { isPrintWorkerAlive } = await import("@/lib/settings.server");
-            const worker_alive = await isPrintWorkerAlive();
+            const { getPrintWorkerLiveness } = await import(
+              "@/lib/settings.server"
+            );
+            const liveness = await getPrintWorkerLiveness();
             // Always queue on Vercel: { ok, queued: true, jobId } — never IPP here.
             return json({
               ok: true,
@@ -83,7 +85,10 @@ export const Route = createFileRoute("/api/admin/reprint")({
               session_id: session.id,
               profession_title: session.profession_title,
               method: "queue",
-              worker_alive,
+              worker_alive: liveness.worker_alive,
+              queue_busy: liveness.queue_busy,
+              heartbeat_present: liveness.heartbeat_present,
+              heartbeat_fresh: liveness.heartbeat_fresh,
             });
           }
 

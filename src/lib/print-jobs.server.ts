@@ -80,6 +80,25 @@ export async function reclaimStalePrintJobs(): Promise<number> {
   return data?.length ?? 0;
 }
 
+/** True while the booth worker is mid-IPP on any job (queue is busy, not offline). */
+export async function hasPrintingPrintJob(): Promise<boolean> {
+  const { data, error } = await supabaseAdmin
+    .from("print_jobs")
+    .select("id")
+    .eq("status", "printing")
+    .limit(1);
+  if (error) {
+    console.error("[print-jobs] hasPrintingPrintJob:", error.message);
+    return false;
+  }
+  return Boolean(data && data.length > 0);
+}
+
+function isNoRowsError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  return error.code === "PGRST116" || /0 rows|cannot coerce/i.test(error.message ?? "");
+}
+
 /** Claim the oldest pending job (optimistic lock via status=pending filter). */
 export async function claimNextPrintJob(): Promise<PrintJob | null> {
   const { data: pending, error: listError } = await supabaseAdmin
@@ -101,7 +120,10 @@ export async function claimNextPrintJob(): Promise<PrintJob | null> {
     .select("id, image_url, status, error, created_at, updated_at")
     .maybeSingle();
 
-  if (claimError) throw new Error(claimError.message);
+  // Lost the race (another worker claimed it) — not a hard failure.
+  if (claimError && !isNoRowsError(claimError)) {
+    throw new Error(claimError.message);
+  }
   return (claimed as PrintJob | null) ?? null;
 }
 

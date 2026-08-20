@@ -17,6 +17,8 @@ if not exist "logs\" mkdir logs
 
 :loop
 echo [%date% %time%] Starting booth print worker on port 8080...
+echo Look for: [print-worker] polling print_jobs
+start "booth-wake" /b cmd /c ""%~dp0wake-booth-worker.cmd""
 call npm run booth
 echo [%date% %time%] Worker stopped. Restarting in 5 seconds...
 timeout /t 5 /nobreak >nul
