@@ -1,5 +1,5 @@
 @echo off
-rem SETUP-BOOTH-PC.cmd — copy this WHOLE project folder PLUS .env to the other Windows PC.
+rem SETUP-BOOTH-PC.cmd - copy this WHOLE project folder PLUS .env to the other Windows PC.
 rem Guests stay on the Vercel website. This PC only runs the silent print worker.
 rem Same Wi-Fi as the Canon SELPHY (and the Android tablets). Do not email or commit .env.
 rem On the new PC: unzip/copy the folder, put .env in this same folder, double-click this file.
@@ -10,12 +10,12 @@ rem Debug output below: Windows, this PC IPv4, Node, port 8080, SELPHY ARP / IPP
 rem If print fails: SELPHY powered on, same Wi-Fi, paper/ribbon loaded, this window still running.
 
 setlocal EnableExtensions
-title Smart Start — booth print PC
+title Smart Start - booth print PC
 cd /d "%~dp0"
 
 echo.
 echo ============================================
-echo  Smart Start — booth print PC setup
+echo  Smart Start - booth print PC setup
 echo ============================================
 echo  Folder: %CD%
 echo.
@@ -72,9 +72,9 @@ echo.
 echo Port 8080:
 netstat -ano | findstr /R /C:":8080 .*LISTENING" >nul 2>&1
 if errorlevel 1 (
-  echo   FREE — print worker can bind here.
+  echo   FREE - print worker can bind here.
 ) else (
-  echo   IN USE — another process is already listening.
+  echo   IN USE - another process is already listening.
   netstat -ano | findstr /R /C:":8080 .*LISTENING"
   echo   If that is an old booth window, close it or continue anyway.
 )
@@ -97,7 +97,7 @@ if /i "%AUTOSTART%"=="Y" (
   echo Registering logon auto-start...
   powershell -NoProfile -ExecutionPolicy Bypass -File "%CD%\scripts\install-booth-autostart.ps1" -SkipStart
   if errorlevel 1 (
-    echo Auto-start install failed — you can still print from this window.
+    echo Auto-start install failed - you can still print from this window.
   ) else (
     echo Auto-start OK. After a reboot, this PC will start the worker by itself.
   )

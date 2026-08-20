@@ -1,5 +1,6 @@
 # Run once on the Windows PC that STAYS at the booth (not your laptop).
 # After this, powering on that PC starts the print worker automatically.
+# ASCII only: Windows PowerShell 5.1 misreads UTF-8 dashes/quotes without a BOM.
 param(
   [switch]$SkipStart
 )
@@ -15,7 +16,7 @@ if (-not (Test-Path $starter)) {
 
 $envFile = Join-Path $root ".env"
 if (-not (Test-Path $envFile)) {
-  Write-Warning "No .env in $root — copy the booth .env onto this PC before event day."
+  Write-Warning "No .env in $root - copy the booth .env onto this PC before event day."
 }
 
 $action = New-ScheduledTaskAction -Execute $starter -WorkingDirectory $root
@@ -37,7 +38,7 @@ Register-ScheduledTask `
   -Trigger $trigger `
   -Settings $settings `
   -Principal $principal `
-  -Description "Smart Start Future Me — polls the print queue and sends photos to the SELPHY." `
+  -Description "Smart Start Future Me - polls the print queue and sends photos to the SELPHY." `
   -Force | Out-Null
 
 if ($SkipStart) {
@@ -45,7 +46,7 @@ if ($SkipStart) {
 } else {
   $running = Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue
   if ($running) {
-    Write-Host "Port 8080 is already in use — leaving the current worker running."
+    Write-Host "Port 8080 is already in use - leaving the current worker running."
   } else {
     Start-ScheduledTask -TaskName $taskName
     Write-Host "Started the booth print worker now."
