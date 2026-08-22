@@ -8,10 +8,18 @@ import {
 } from "@/lib/admin-delete.server";
 import { aggregateNamedCounts, type NamedCount, type StoreValueBucket } from "@/lib/admin-charts";
 import {
+  guestSelect,
+  guestStoreFilterMode,
+  noteGuestCompanyIdsResult,
+  updateGuestById,
+  usesGuestCompanyIds,
+} from "@/lib/guest-company-ids.server";
+import {
   applyGuestStoreFilter,
   formatStoreNames,
   mapStoreRefs,
   resolveGuestStoreIds,
+  type GuestStoreFilterMode,
   type StoreRef,
 } from "@/lib/guest-stores";
 import {
@@ -72,11 +80,14 @@ function applyGuestFilters(
     zone: string | null;
     minValue: number | null;
     maxValue: number | null;
+    storeMode?: GuestStoreFilterMode;
   },
 ) {
   let q = query.gte("transaction_date", opts.from).lte("transaction_date", opts.to);
 
-  if (opts.storeId) q = applyGuestStoreFilter(q, opts.storeId);
+  if (opts.storeId) {
+    q = applyGuestStoreFilter(q, opts.storeId, opts.storeMode ?? "company_ids");
+  }
   if (opts.nationality) q = q.eq("nationality", opts.nationality);
   if (opts.zone) q = q.eq("address_zone", opts.zone);
   if (opts.minValue != null) q = q.gte("transaction_value", opts.minValue);
@@ -196,26 +207,43 @@ export const Route = createFileRoute("/api/admin/registrations")({
             maxValue,
           };
 
-          let listQuery = applyGuestFilters(
-            supabaseAdmin.from("guests").select(GUEST_SELECT),
-            filterOpts,
-          )
-            .order("transaction_date", { ascending: false })
-            .order("created_at", { ascending: false });
+          const loadRegistrationQueries = (storeMode: GuestStoreFilterMode) => {
+            const listQuery = applyGuestFilters(
+              supabaseAdmin.from("guests").select(guestSelect(GUEST_SELECT)),
+              { ...filterOpts, storeMode },
+            )
+              .order("transaction_date", { ascending: false })
+              .order("created_at", { ascending: false });
 
-          // Facets from date (+ store) only so dropdowns stay populated while refining.
-          let facetsQuery = supabaseAdmin
-            .from("guests")
-            .select("nationality, address_zone")
-            .gte("transaction_date", from)
-            .lte("transaction_date", to);
-          if (storeId) facetsQuery = applyGuestStoreFilter(facetsQuery, storeId);
+            // Facets from date (+ store) only so dropdowns stay populated while refining.
+            let facetsQuery = supabaseAdmin
+              .from("guests")
+              .select("nationality, address_zone")
+              .gte("transaction_date", from)
+              .lte("transaction_date", to);
+            if (storeId) {
+              facetsQuery = applyGuestStoreFilter(facetsQuery, storeId, storeMode);
+            }
 
-          const [listResult, totalResult, facetsResult] = await Promise.all([
-            listQuery,
-            supabaseAdmin.from("guests").select("id", { count: "exact", head: true }),
-            facetsQuery,
-          ]);
+            return Promise.all([
+              listQuery,
+              supabaseAdmin.from("guests").select("id", { count: "exact", head: true }),
+              facetsQuery,
+            ]);
+          };
+
+          let [listResult, totalResult, facetsResult] = await loadRegistrationQueries(
+            guestStoreFilterMode(),
+          );
+          const attemptedCompanyIds = usesGuestCompanyIds();
+          if (
+            noteGuestCompanyIdsResult(listResult.error, attemptedCompanyIds) ||
+            noteGuestCompanyIdsResult(facetsResult.error, attemptedCompanyIds && Boolean(storeId))
+          ) {
+            [listResult, totalResult, facetsResult] = await loadRegistrationQueries(
+              guestStoreFilterMode(),
+            );
+          }
 
           if (listResult.error) return json({ error: listResult.error.message }, 500);
           if (totalResult.error) {
@@ -340,9 +368,9 @@ export const Route = createFileRoute("/api/admin/registrations")({
             return json({ error: "One or more selected stores were not found" }, 400);
           }
 
-          const { data: updated, error } = await supabaseAdmin
-            .from("guests")
-            .update({
+          const { data: updated, error } = await updateGuestById<GuestListRow>(
+            id,
+            {
               first_name: data.first_name,
               last_name: data.last_name,
               email: data.email,
@@ -353,19 +381,17 @@ export const Route = createFileRoute("/api/admin/registrations")({
               company_id: data.company_id,
               company_ids: data.company_ids,
               transaction_value: data.transaction_value,
-            })
-            .eq("id", id)
-            .select(GUEST_SELECT)
-            .maybeSingle();
+            },
+            GUEST_SELECT,
+          );
 
           if (error) return json({ error: error.message }, 500);
           if (!updated) return json({ error: "Registration not found" }, 404);
 
-          const mapped = updated as GuestListRow;
-          const nameById = await loadStoreNameMap(resolveGuestStoreIds(mapped));
+          const nameById = await loadStoreNameMap(resolveGuestStoreIds(updated));
           return json({
             ok: true,
-            registration: mapRegistration(mapped, nameById),
+            registration: mapRegistration(updated, nameById),
           });
         } catch (e) {
           const message = e instanceof Error ? e.message : String(e);

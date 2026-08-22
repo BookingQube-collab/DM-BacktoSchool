@@ -60,13 +60,43 @@ export function mapStoreRefs(ids: string[], nameById: Map<string, string>, fallb
   }));
 }
 
+export type GuestStoreFilterMode = "company_ids" | "company_id";
+
 /**
  * Filter guests that include this store.
  * Uses `company_ids` (GIN contains) so it can AND with a later search `.or()`.
- * Legacy rows are backfilled to `company_ids = ARRAY[company_id]`.
+ * When that column is not migrated yet, fall back to legacy `company_id`.
  */
-export function applyGuestStoreFilter<T>(query: T, storeId: string): T {
+export function applyGuestStoreFilter<T>(
+  query: T,
+  storeId: string,
+  mode: GuestStoreFilterMode = "company_ids",
+): T {
   if (!isStoreId(storeId)) return query;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (query as any).contains("company_ids", [storeId]) as T;
+  const q = query as any;
+  if (mode === "company_id") return q.eq("company_id", storeId) as T;
+  return q.contains("company_ids", [storeId]) as T;
+}
+
+export function isMissingCompanyIdsColumn(
+  error: { message?: string; code?: string; details?: string } | null | undefined,
+) {
+  if (!error) return false;
+  const text = [error.message, error.details, error.code].filter(Boolean).join(" ");
+  if (!/company_ids/i.test(text)) return false;
+  return (
+    /does not exist/i.test(text) ||
+    /could not find/i.test(text) ||
+    /PGRST204/i.test(text)
+  );
+}
+
+/** Drop `company_ids` from a PostgREST select list. */
+export function omitCompanyIdsSelect(select: string) {
+  return select
+    .replace(/\s*,\s*company_ids\b/g, "")
+    .replace(/\bcompany_ids\s*,\s*/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }

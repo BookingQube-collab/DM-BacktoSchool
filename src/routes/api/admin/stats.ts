@@ -11,11 +11,26 @@ import {
   type StoreValueBucket,
 } from "@/lib/admin-charts";
 import { getFreepikApiKey } from "@/lib/settings.server";
+import { selectGuests } from "@/lib/guest-company-ids.server";
 import { resolveGuestStoreIds } from "@/lib/guest-stores";
 import {
   defaultRegistrationsFromDate,
   todayISODate,
 } from "@/lib/registration";
+
+const STATS_GUEST_SELECT =
+  "id, transaction_value, transaction_date, nationality, address_zone, company_id, company_ids, companies(name)";
+
+type StatsGuestRow = {
+  id: string;
+  transaction_value: number | null;
+  transaction_date: string;
+  nationality: string | null;
+  address_zone: string | null;
+  company_id: string | null;
+  company_ids?: string[] | null;
+  companies: { name?: string } | null;
+};
 
 type StoreAgg = StoreValueBucket;
 
@@ -61,13 +76,15 @@ export const Route = createFileRoute("/api/admin/stats")({
                 .from("photo_sessions")
                 .select("id", { count: "exact", head: true }),
               getFreepikApiKey(),
-              supabaseAdmin
-                .from("guests")
-                .select(
-                  "id, transaction_value, transaction_date, nationality, address_zone, company_id, company_ids, companies(name)",
-                )
-                .gte("transaction_date", from)
-                .lte("transaction_date", to),
+              selectGuests<StatsGuestRow[]>(
+                (select) =>
+                  supabaseAdmin
+                    .from("guests")
+                    .select(select)
+                    .gte("transaction_date", from)
+                    .lte("transaction_date", to),
+                STATS_GUEST_SELECT,
+              ),
               supabaseAdmin
                 .from("photo_sessions")
                 .select("profession_title, created_at")

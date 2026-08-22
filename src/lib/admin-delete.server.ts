@@ -1,5 +1,10 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { applyGuestStoreFilter } from "@/lib/guest-stores";
+import {
+  guestStoreFilterMode,
+  noteGuestCompanyIdsResult,
+  usesGuestCompanyIds,
+} from "@/lib/guest-company-ids.server";
+import { applyGuestStoreFilter, type GuestStoreFilterMode } from "@/lib/guest-stores";
 import {
   getAdminUsername,
   verifyAdminCredentials,
@@ -148,27 +153,32 @@ export async function deleteGuestsFiltered(opts: {
   maxValue?: number | null;
   all?: boolean;
 }) {
-  let query = supabaseAdmin
-    .from("guests")
-    .select("id, receipt_image_path");
+  const loadFilteredGuests = (storeMode: GuestStoreFilterMode) => {
+    let query = supabaseAdmin.from("guests").select("id, receipt_image_path");
 
-  if (!opts.all) {
-    if (opts.from) query = query.gte("transaction_date", opts.from);
-    if (opts.to) query = query.lte("transaction_date", opts.to);
-    if (opts.storeId) query = applyGuestStoreFilter(query, opts.storeId);
-    if (opts.nationality) query = query.eq("nationality", opts.nationality);
-    if (opts.zone) query = query.eq("address_zone", opts.zone);
-    if (opts.minValue != null && Number.isFinite(opts.minValue)) {
-      query = query.gte("transaction_value", opts.minValue);
+    if (!opts.all) {
+      if (opts.from) query = query.gte("transaction_date", opts.from);
+      if (opts.to) query = query.lte("transaction_date", opts.to);
+      if (opts.storeId) query = applyGuestStoreFilter(query, opts.storeId, storeMode);
+      if (opts.nationality) query = query.eq("nationality", opts.nationality);
+      if (opts.zone) query = query.eq("address_zone", opts.zone);
+      if (opts.minValue != null && Number.isFinite(opts.minValue)) {
+        query = query.gte("transaction_value", opts.minValue);
+      }
+      if (opts.maxValue != null && Number.isFinite(opts.maxValue)) {
+        query = query.lte("transaction_value", opts.maxValue);
+      }
+      const searchOr = opts.q ? guestSearchOrFilter(opts.q) : null;
+      if (searchOr) query = query.or(searchOr);
     }
-    if (opts.maxValue != null && Number.isFinite(opts.maxValue)) {
-      query = query.lte("transaction_value", opts.maxValue);
-    }
-    const searchOr = opts.q ? guestSearchOrFilter(opts.q) : null;
-    if (searchOr) query = query.or(searchOr);
+
+    return query;
+  };
+
+  let { data, error } = await loadFilteredGuests(guestStoreFilterMode());
+  if (noteGuestCompanyIdsResult(error, usesGuestCompanyIds() && Boolean(opts.storeId))) {
+    ({ data, error } = await loadFilteredGuests(guestStoreFilterMode()));
   }
-
-  const { data, error } = await query;
   if (error) throw new Error(error.message);
   return deleteGuestRows(data ?? []);
 }

@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { json } from "@/lib/admin-auth.server";
+import { insertGuest, selectGuests } from "@/lib/guest-company-ids.server";
 import { formatStoreNames } from "@/lib/guest-stores";
 import { uploadPrivateImage } from "@/lib/image-upload";
 import { validateRegistration, parseReceiptImage } from "@/lib/registration";
@@ -10,6 +11,7 @@ import {
   pickFeaturedBySales,
   pickTopBrandFallback,
   searchStores,
+  type GuestAggRow,
   type StoreSummary,
 } from "@/lib/stores.server";
 
@@ -39,19 +41,13 @@ export const Route = createFileRoute("/api/register")({
             return json({ stores: searchStores(stores, q) });
           }
 
-          const { data: guests, error: guestErr } = await supabaseAdmin
-            .from("guests")
-            .select("company_id, company_ids, transaction_value");
+          const { data: guests, error: guestErr } = await selectGuests<GuestAggRow[]>(
+            (select) => supabaseAdmin.from("guests").select(select),
+            "company_id, company_ids, transaction_value",
+          );
 
-          let guestRows = guests ?? [];
-          if (guestErr) {
-            const legacy = await supabaseAdmin
-              .from("guests")
-              .select("company_id, transaction_value")
-              .not("company_id", "is", null);
-            if (legacy.error) return json({ error: guestErr.message }, 500);
-            guestRows = legacy.data ?? [];
-          }
+          if (guestErr) return json({ error: guestErr.message }, 500);
+          const guestRows = guests ?? [];
 
           const counts = aggregateGuestCounts(guestRows);
           const bySales = pickFeaturedBySales(stores, counts);
@@ -129,24 +125,20 @@ export const Route = createFileRoute("/api/register")({
             return json({ error: `Receipt upload failed: ${uploaded.error}` }, 502);
           }
 
-          const { data: guest, error } = await supabaseAdmin
-            .from("guests")
-            .insert({
-              first_name: data.first_name,
-              last_name: data.last_name,
-              email: data.email,
-              mobile: data.mobile,
-              nationality: data.nationality,
-              address_zone: data.address_zone,
-              transaction_date: data.transaction_date,
-              company_id: data.company_id,
-              company_ids: data.company_ids,
-              transaction_value: data.transaction_value,
-              receipt_image_path: uploaded.path,
-              receipt_image_url: uploaded.url,
-            })
-            .select("id")
-            .single();
+          const { data: guest, error } = await insertGuest({
+            first_name: data.first_name,
+            last_name: data.last_name,
+            email: data.email,
+            mobile: data.mobile,
+            nationality: data.nationality,
+            address_zone: data.address_zone,
+            transaction_date: data.transaction_date,
+            company_id: data.company_id,
+            company_ids: data.company_ids,
+            transaction_value: data.transaction_value,
+            receipt_image_path: uploaded.path,
+            receipt_image_url: uploaded.url,
+          });
 
           if (error) return json({ error: error.message }, 500);
 
