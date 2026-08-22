@@ -11,6 +11,7 @@ import {
   type StoreValueBucket,
 } from "@/lib/admin-charts";
 import { getFreepikApiKey } from "@/lib/settings.server";
+import { resolveGuestStoreIds } from "@/lib/guest-stores";
 import {
   defaultRegistrationsFromDate,
   todayISODate,
@@ -63,7 +64,7 @@ export const Route = createFileRoute("/api/admin/stats")({
               supabaseAdmin
                 .from("guests")
                 .select(
-                  "id, transaction_value, transaction_date, nationality, address_zone, company_id, companies(name)",
+                  "id, transaction_value, transaction_date, nationality, address_zone, company_id, company_ids, companies(name)",
                 )
                 .gte("transaction_date", from)
                 .lte("transaction_date", to),
@@ -98,17 +99,21 @@ export const Route = createFileRoute("/api/admin/stats")({
           }
 
           for (const row of rows) {
-            const storeId = row.company_id ?? "unknown";
             const companyRel = row.companies as { name?: string } | null;
-            const existing = byStoreMap.get(storeId) ?? {
-              store_id: row.company_id,
-              store_name: companyRel?.name || "Unassigned",
-              receipts: 0,
-              transaction_value: 0,
-            };
-            existing.receipts += 1;
-            existing.transaction_value += Number(row.transaction_value || 0);
-            byStoreMap.set(storeId, existing);
+            const storeIds = resolveGuestStoreIds(row);
+            const ids = storeIds.length ? storeIds : ["unknown"];
+            const value = Number(row.transaction_value || 0);
+            for (const storeId of ids) {
+              const existing = byStoreMap.get(storeId) ?? {
+                store_id: storeId === "unknown" ? null : storeId,
+                store_name: companyRel?.name || "Unassigned",
+                receipts: 0,
+                transaction_value: 0,
+              };
+              existing.receipts += 1;
+              existing.transaction_value += value;
+              byStoreMap.set(storeId, existing);
+            }
           }
 
           const byStore = [...byStoreMap.values()].sort(

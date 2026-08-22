@@ -8,13 +8,20 @@ import {
 } from "@/lib/admin-delete.server";
 import { aggregateNamedCounts, type NamedCount, type StoreValueBucket } from "@/lib/admin-charts";
 import {
+  applyGuestStoreFilter,
+  formatStoreNames,
+  mapStoreRefs,
+  resolveGuestStoreIds,
+  type StoreRef,
+} from "@/lib/guest-stores";
+import {
   defaultRegistrationsFromDate,
   todayISODate,
   validateRegistration,
 } from "@/lib/registration";
 
 const GUEST_SELECT =
-  "id, first_name, last_name, email, mobile, nationality, address_zone, transaction_date, transaction_value, receipt_image_path, receipt_image_url, created_at, company_id, companies(id, name)";
+  "id, first_name, last_name, email, mobile, nationality, address_zone, transaction_date, transaction_value, receipt_image_path, receipt_image_url, created_at, company_id, company_ids, companies(id, name)";
 
 function csvEscape(value: unknown) {
   const str = String(value ?? "");
@@ -49,6 +56,7 @@ type GuestListRow = {
   receipt_image_url: string | null;
   created_at: string;
   company_id: string | null;
+  company_ids?: string[] | null;
   companies: { id?: string; name?: string } | null;
 };
 
@@ -68,7 +76,7 @@ function applyGuestFilters(
 ) {
   let q = query.gte("transaction_date", opts.from).lte("transaction_date", opts.to);
 
-  if (opts.storeId) q = q.eq("company_id", opts.storeId);
+  if (opts.storeId) q = applyGuestStoreFilter(q, opts.storeId);
   if (opts.nationality) q = q.eq("nationality", opts.nationality);
   if (opts.zone) q = q.eq("address_zone", opts.zone);
   if (opts.minValue != null) q = q.gte("transaction_value", opts.minValue);
@@ -80,8 +88,12 @@ function applyGuestFilters(
   return q;
 }
 
-function mapRegistration(row: GuestListRow) {
-  const store = row.companies;
+function mapRegistration(row: GuestListRow, nameById: Map<string, string>) {
+  const storeIds = resolveGuestStoreIds(row);
+  if (row.companies?.id && row.companies.name) {
+    nameById.set(row.companies.id, row.companies.name);
+  }
+  const stores = mapStoreRefs(storeIds, nameById);
   return {
     id: row.id,
     first_name: row.first_name,
@@ -94,10 +106,23 @@ function mapRegistration(row: GuestListRow) {
     transaction_value: Number(row.transaction_value || 0),
     receipt_image_path: row.receipt_image_path,
     receipt_image_url: row.receipt_image_url,
-    store_id: row.company_id,
-    store_name: store?.name ?? "Unassigned",
+    store_id: storeIds[0] ?? row.company_id,
+    store_name: formatStoreNames(stores.map((s) => s.name)),
+    store_ids: storeIds,
+    stores,
     created_at: row.created_at,
   };
+}
+
+async function loadStoreNameMap(ids: string[]) {
+  const unique = [...new Set(ids.filter(Boolean))];
+  if (!unique.length) return new Map<string, string>();
+  const { data, error } = await supabaseAdmin
+    .from("companies")
+    .select("id, name")
+    .in("id", unique);
+  if (error) throw new Error(error.message);
+  return new Map((data ?? []).map((row) => [row.id, row.name]));
 }
 
 function buildAggregates(registrations: ReturnType<typeof mapRegistration>[]): {
@@ -108,16 +133,21 @@ function buildAggregates(registrations: ReturnType<typeof mapRegistration>[]): {
 } {
   const storeMap = new Map<string, StoreValueBucket>();
   for (const row of registrations) {
-    const key = row.store_id ?? row.store_name;
-    const existing = storeMap.get(key) ?? {
-      store_id: row.store_id,
-      store_name: row.store_name,
-      receipts: 0,
-      transaction_value: 0,
-    };
-    existing.receipts += 1;
-    existing.transaction_value += row.transaction_value;
-    storeMap.set(key, existing);
+    const stores: StoreRef[] = row.stores.length
+      ? row.stores
+      : [{ id: row.store_id ?? "", name: row.store_name }];
+    for (const store of stores) {
+      const key = store.id || store.name;
+      const existing = storeMap.get(key) ?? {
+        store_id: store.id || null,
+        store_name: store.name,
+        receipts: 0,
+        transaction_value: 0,
+      };
+      existing.receipts += 1;
+      existing.transaction_value += row.transaction_value;
+      storeMap.set(key, existing);
+    }
   }
 
   const by_store = [...storeMap.values()].sort(
@@ -179,7 +209,7 @@ export const Route = createFileRoute("/api/admin/registrations")({
             .select("nationality, address_zone")
             .gte("transaction_date", from)
             .lte("transaction_date", to);
-          if (storeId) facetsQuery = facetsQuery.eq("company_id", storeId);
+          if (storeId) facetsQuery = applyGuestStoreFilter(facetsQuery, storeId);
 
           const [listResult, totalResult, facetsResult] = await Promise.all([
             listQuery,
@@ -196,7 +226,9 @@ export const Route = createFileRoute("/api/admin/registrations")({
           }
 
           const totalGuests = totalResult.count ?? 0;
-          const registrations = ((listResult.data ?? []) as GuestListRow[]).map(mapRegistration);
+          const guestRows = (listResult.data ?? []) as GuestListRow[];
+          const nameById = await loadStoreNameMap(guestRows.flatMap(resolveGuestStoreIds));
+          const registrations = guestRows.map((row) => mapRegistration(row, nameById));
           const aggregates = buildAggregates(registrations);
 
           const nationalities = [
@@ -219,7 +251,7 @@ export const Route = createFileRoute("/api/admin/registrations")({
               "Mobile",
               "Nationality",
               "Location",
-              "Store Name",
+              "Store Names",
               "Transaction Value",
               "Receipt URL",
               "Registered At",
@@ -285,6 +317,7 @@ export const Route = createFileRoute("/api/admin/registrations")({
             address_zone: string;
             transaction_date: string;
             company_id: string;
+            company_ids?: unknown;
             transaction_value: number | string;
           }>;
 
@@ -298,13 +331,14 @@ export const Route = createFileRoute("/api/admin/registrations")({
           });
           if (errors.length) return json({ error: errors[0], errors }, 400);
 
-          const { data: store, error: storeErr } = await supabaseAdmin
+          const { data: storeRows, error: storeErr } = await supabaseAdmin
             .from("companies")
             .select("id")
-            .eq("id", data.company_id)
-            .maybeSingle();
+            .in("id", data.company_ids);
           if (storeErr) return json({ error: storeErr.message }, 500);
-          if (!store) return json({ error: "Store not found" }, 400);
+          if ((storeRows ?? []).length !== data.company_ids.length) {
+            return json({ error: "One or more selected stores were not found" }, 400);
+          }
 
           const { data: updated, error } = await supabaseAdmin
             .from("guests")
@@ -317,6 +351,7 @@ export const Route = createFileRoute("/api/admin/registrations")({
               address_zone: data.address_zone,
               transaction_date: data.transaction_date,
               company_id: data.company_id,
+              company_ids: data.company_ids,
               transaction_value: data.transaction_value,
             })
             .eq("id", id)
@@ -326,9 +361,11 @@ export const Route = createFileRoute("/api/admin/registrations")({
           if (error) return json({ error: error.message }, 500);
           if (!updated) return json({ error: "Registration not found" }, 404);
 
+          const mapped = updated as GuestListRow;
+          const nameById = await loadStoreNameMap(resolveGuestStoreIds(mapped));
           return json({
             ok: true,
-            registration: mapRegistration(updated as GuestListRow),
+            registration: mapRegistration(mapped, nameById),
           });
         } catch (e) {
           const message = e instanceof Error ? e.message : String(e);

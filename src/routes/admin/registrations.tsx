@@ -7,6 +7,7 @@ import {
   NamedCountDonutChart,
   StoreValueBarChart,
 } from "@/components/admin/AdminCharts";
+import { SearchableMultiSelect } from "@/components/SearchableMultiSelect";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { Button } from "@/components/ui/button";
 import {
@@ -57,6 +58,8 @@ type Registration = {
   receipt_image_url: string | null;
   store_id: string | null;
   store_name: string;
+  store_ids?: string[];
+  stores?: { id: string; name: string }[];
   created_at: string;
 };
 
@@ -68,9 +71,24 @@ type EditForm = {
   nationality: string;
   address_zone: string;
   transaction_date: string;
-  company_id: string;
+  company_ids: string[];
   transaction_value: string;
 };
+
+function rowStoreIds(row: Registration): string[] {
+  if (row.store_ids?.length) return row.store_ids;
+  if (row.stores?.length) return row.stores.map((s) => s.id);
+  return row.store_id ? [row.store_id] : [];
+}
+
+function rowStores(row: Registration): { id: string; name: string }[] {
+  if (row.stores?.length) return row.stores;
+  const ids = rowStoreIds(row);
+  if (ids.length <= 1) {
+    return ids.map((id) => ({ id, name: row.store_name }));
+  }
+  return ids.map((id) => ({ id, name: id }));
+}
 
 function formFromRow(row: Registration): EditForm {
   return {
@@ -81,7 +99,7 @@ function formFromRow(row: Registration): EditForm {
     nationality: row.nationality,
     address_zone: row.address_zone,
     transaction_date: row.transaction_date,
-    company_id: row.store_id ?? "",
+    company_ids: rowStoreIds(row),
     transaction_value: String(row.transaction_value ?? ""),
   };
 }
@@ -281,7 +299,7 @@ function AdminRegistrationsPage() {
   }
 
   function validateEdit(form: EditForm): string | null {
-    if (!form.company_id) return t("registerErrSelectStore");
+    if (!form.company_ids.length) return t("registerErrSelectStores");
     const value = Number(form.transaction_value);
     if (!form.transaction_value.trim() || !Number.isFinite(value) || value < 0) {
       return t("registerErrTxnValue");
@@ -321,6 +339,8 @@ function AdminRegistrationsPage() {
         body: JSON.stringify({
           id: editRow.id,
           ...editForm,
+          company_id: editForm.company_ids[0] ?? "",
+          company_ids: editForm.company_ids,
           transaction_value: Number(editForm.transaction_value),
         }),
       });
@@ -352,16 +372,10 @@ function AdminRegistrationsPage() {
   })();
 
   const editStoreOptions = (() => {
-    if (editForm?.company_id && !stores.some((s) => s.id === editForm.company_id)) {
-      return [
-        {
-          id: editForm.company_id,
-          name: editRow?.store_name || t("regUnassigned"),
-        },
-        ...stores,
-      ];
-    }
-    return stores;
+    const extras = (editRow ? rowStores(editRow) : []).filter(
+      (store) => store.id && !stores.some((s) => s.id === store.id),
+    );
+    return extras.length ? [...extras, ...stores] : stores;
   })();
 
   const hasExtraFilters = Boolean(
@@ -642,7 +656,21 @@ function AdminRegistrationsPage() {
                   </td>
                   <td className="px-3 py-3 whitespace-nowrap">{row.mobile}</td>
                   <td className="px-3 py-3">{row.address_zone}</td>
-                  <td className="px-3 py-3">{row.store_name}</td>
+                  <td className="px-3 py-3">
+                    <div className="flex flex-wrap gap-1">
+                      {(rowStores(row).length
+                        ? rowStores(row)
+                        : [{ id: row.store_id ?? "", name: row.store_name }]
+                      ).map((store) => (
+                        <span
+                          key={store.id || store.name}
+                          className="inline-flex max-w-[14rem] items-center rounded-full bg-secondary px-2 py-0.5 text-xs font-medium"
+                        >
+                          <span className="truncate">{store.name}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </td>
                   <td className="px-3 py-3 whitespace-nowrap">
                     {formatQar(row.transaction_value)}
                   </td>
@@ -775,14 +803,14 @@ function AdminRegistrationsPage() {
                   modal
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit_store">{t("commonStore")}</Label>
-                <SearchableSelect
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="edit_store">{t("commonStores")}</Label>
+                <SearchableMultiSelect
                   id="edit_store"
-                  value={editForm.company_id}
-                  onChange={(id) => updateEdit("company_id", id)}
+                  value={editForm.company_ids}
+                  onChange={(ids) => updateEdit("company_ids", ids)}
                   options={editStoreSelectOptions}
-                  placeholder={t("registerErrSelectStore")}
+                  placeholder={t("registerErrSelectStores")}
                   searchPlaceholder={t("regSearchStore")}
                   emptyText={t("commonNoResults")}
                   className={editPickerClass}

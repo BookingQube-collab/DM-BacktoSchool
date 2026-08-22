@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { applyGuestStoreFilter } from "@/lib/guest-stores";
 import {
   getAdminUsername,
   verifyAdminCredentials,
@@ -154,7 +155,7 @@ export async function deleteGuestsFiltered(opts: {
   if (!opts.all) {
     if (opts.from) query = query.gte("transaction_date", opts.from);
     if (opts.to) query = query.lte("transaction_date", opts.to);
-    if (opts.storeId) query = query.eq("company_id", opts.storeId);
+    if (opts.storeId) query = applyGuestStoreFilter(query, opts.storeId);
     if (opts.nationality) query = query.eq("nationality", opts.nationality);
     if (opts.zone) query = query.eq("address_zone", opts.zone);
     if (opts.minValue != null && Number.isFinite(opts.minValue)) {

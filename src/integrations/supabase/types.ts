@@ -74,6 +74,7 @@ export type Database = {
           address_zone: string
           transaction_date: string
           company_id: string | null
+          company_ids: string[]
           transaction_value: number
           receipt_image_path: string | null
           receipt_image_url: string | null
@@ -89,6 +90,7 @@ export type Database = {
           address_zone?: string
           transaction_date?: string
           company_id?: string | null
+          company_ids?: string[]
           transaction_value?: number
           receipt_image_path?: string | null
           receipt_image_url?: string | null
@@ -104,6 +106,7 @@ export type Database = {
           address_zone?: string
           transaction_date?: string
           company_id?: string | null
+          company_ids?: string[]
           transaction_value?: number
           receipt_image_path?: string | null
           receipt_image_url?: string | null

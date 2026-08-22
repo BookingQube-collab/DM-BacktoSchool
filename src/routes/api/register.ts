@@ -1,14 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-
 import { json } from "@/lib/admin-auth.server";
-
+import { formatStoreNames } from "@/lib/guest-stores";
 import { uploadPrivateImage } from "@/lib/image-upload";
-
 import { validateRegistration, parseReceiptImage } from "@/lib/registration";
 import { isVirtualKeyboardEnabled } from "@/lib/settings.server";
-
 import {
   aggregateGuestCounts,
   pickFeaturedBySales,
@@ -19,15 +15,10 @@ import {
 
 async function loadActiveStores() {
   const { data, error } = await supabaseAdmin
-
     .from("companies")
-
     .select("id, name, logo_url")
-
     .eq("is_active", true)
-
     .order("sort_order", { ascending: true })
-
     .order("name", { ascending: true });
 
   if (error) throw new Error(error.message);
@@ -41,9 +32,7 @@ export const Route = createFileRoute("/api/register")({
       GET: async ({ request }) => {
         try {
           const url = new URL(request.url);
-
           const q = url.searchParams.get("q")?.trim() ?? "";
-
           const stores = await loadActiveStores();
 
           if (q) {
@@ -51,40 +40,34 @@ export const Route = createFileRoute("/api/register")({
           }
 
           const { data: guests, error: guestErr } = await supabaseAdmin
-
             .from("guests")
+            .select("company_id, company_ids, transaction_value");
 
-            .select("company_id, transaction_value")
+          let guestRows = guests ?? [];
+          if (guestErr) {
+            const legacy = await supabaseAdmin
+              .from("guests")
+              .select("company_id, transaction_value")
+              .not("company_id", "is", null);
+            if (legacy.error) return json({ error: guestErr.message }, 500);
+            guestRows = legacy.data ?? [];
+          }
 
-            .not("company_id", "is", null);
-
-          if (guestErr) return json({ error: guestErr.message }, 500);
-
-          const counts = aggregateGuestCounts(guests ?? []);
-
+          const counts = aggregateGuestCounts(guestRows);
           const bySales = pickFeaturedBySales(stores, counts);
-
           const featured = bySales.length > 0 ? bySales : pickTopBrandFallback(stores);
           const featuredIds = new Set(featured.map((s) => s.id));
-          const orderedStores = [
-            ...featured,
-            ...stores.filter((s) => !featuredIds.has(s.id)),
-          ];
+          const orderedStores = [...featured, ...stores.filter((s) => !featuredIds.has(s.id))];
 
           return json({
             stores: orderedStores,
-
             featured,
-
             featured_source: bySales.length > 0 ? "sales" : "top_brands",
-
             total_stores: stores.length,
-
             virtual_keyboard_enabled: await isVirtualKeyboardEnabled(),
           });
         } catch (e) {
           const message = e instanceof Error ? e.message : String(e);
-
           return json({ error: message }, 500);
         }
       },
@@ -95,25 +78,37 @@ export const Route = createFileRoute("/api/register")({
 
           const { errors, data } = validateRegistration({
             first_name: String(body.first_name ?? ""),
-
             last_name: String(body.last_name ?? ""),
-
             email: String(body.email ?? ""),
-
             mobile: String(body.mobile ?? ""),
-
             nationality: String(body.nationality ?? ""),
-
             address_zone: String(body.address_zone ?? ""),
-
             transaction_date: String(body.transaction_date ?? ""),
-
             company_id: String(body.company_id ?? ""),
-
+            company_ids: body.company_ids,
             transaction_value: Number(body.transaction_value),
           });
 
           if (errors.length) return json({ error: errors[0], errors }, 400);
+
+          const { data: storeRows, error: storeErr } = await supabaseAdmin
+            .from("companies")
+            .select("id, name, is_active")
+            .in("id", data.company_ids);
+
+          if (storeErr) return json({ error: storeErr.message }, 500);
+
+          const byId = new Map((storeRows ?? []).map((row) => [row.id, row]));
+          const selectedStores = data.company_ids
+            .map((id) => byId.get(id))
+            .filter((row): row is NonNullable<typeof row> => Boolean(row));
+
+          if (selectedStores.length !== data.company_ids.length) {
+            return json({ error: "One or more selected stores are not available" }, 400);
+          }
+          if (selectedStores.some((store) => !store.is_active)) {
+            return json({ error: "Selected store is not available" }, 400);
+          }
 
           const receipt = parseReceiptImage(
             body.receipt_image ?? body.receipt_image_base64 ?? body.bill_image,
@@ -123,90 +118,52 @@ export const Route = createFileRoute("/api/register")({
             return json({ error: receipt.error || "Bill photo is required" }, 400);
           }
 
-          const { data: store, error: storeErr } = await supabaseAdmin
-
-            .from("companies")
-
-            .select("id, name, is_active")
-
-            .eq("id", data.company_id)
-
-            .maybeSingle();
-
-          if (storeErr) return json({ error: storeErr.message }, 500);
-
-          if (!store || !store.is_active) {
-            return json({ error: "Selected store is not available" }, 400);
-          }
-
           const uploaded = await uploadPrivateImage(
             "receipts",
-
             "receipt",
-
             receipt.bytes,
-
             receipt.contentType,
           );
 
           if ("error" in uploaded) {
-            return json(
-              { error: `Receipt upload failed: ${uploaded.error}` },
-
-              502,
-            );
+            return json({ error: `Receipt upload failed: ${uploaded.error}` }, 502);
           }
 
           const { data: guest, error } = await supabaseAdmin
-
             .from("guests")
-
             .insert({
               first_name: data.first_name,
-
               last_name: data.last_name,
-
               email: data.email,
-
               mobile: data.mobile,
-
               nationality: data.nationality,
-
               address_zone: data.address_zone,
-
               transaction_date: data.transaction_date,
-
               company_id: data.company_id,
-
+              company_ids: data.company_ids,
               transaction_value: data.transaction_value,
-
               receipt_image_path: uploaded.path,
-
               receipt_image_url: uploaded.url,
             })
-
             .select("id")
-
             .single();
 
           if (error) return json({ error: error.message }, 500);
 
+          const storeNames = selectedStores.map((store) => store.name);
+
           return json(
             {
               ok: true,
-
               id: guest.id,
-
-              store: store.name,
-
+              store: formatStoreNames(storeNames),
+              stores: storeNames,
               receipt_image_url: uploaded.url,
             },
-
             201,
           );
         } catch (e) {
           const message = e instanceof Error ? e.message : String(e);
-
           return json({ error: message }, 500);
         }
       },

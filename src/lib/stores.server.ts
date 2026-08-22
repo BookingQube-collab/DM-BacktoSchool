@@ -1,3 +1,5 @@
+import { resolveGuestStoreIds } from "@/lib/guest-stores";
+
 export type StoreSummary = {
   id: string;
   name: string;
@@ -24,6 +26,7 @@ export const TOP_BRAND_NAMES = [
 
 export type GuestAggRow = {
   company_id: string | null;
+  company_ids?: string[] | null;
   transaction_value: number | null;
 };
 
@@ -31,14 +34,18 @@ export function aggregateGuestCounts(guests: GuestAggRow[]) {
   const counts = new Map<string, { receipts: number; transaction_value: number }>();
 
   for (const row of guests) {
-    if (!row.company_id) continue;
-    const existing = counts.get(row.company_id) ?? {
-      receipts: 0,
-      transaction_value: 0,
-    };
-    existing.receipts += 1;
-    existing.transaction_value += Number(row.transaction_value || 0);
-    counts.set(row.company_id, existing);
+    const storeIds = resolveGuestStoreIds(row);
+    if (!storeIds.length) continue;
+    const value = Number(row.transaction_value || 0);
+    for (const storeId of storeIds) {
+      const existing = counts.get(storeId) ?? {
+        receipts: 0,
+        transaction_value: 0,
+      };
+      existing.receipts += 1;
+      existing.transaction_value += value;
+      counts.set(storeId, existing);
+    }
   }
 
   return counts;

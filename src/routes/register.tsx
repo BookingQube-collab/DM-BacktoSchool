@@ -38,7 +38,7 @@ const emptyForm = {
   nationality: "",
   address_zone: "",
   transaction_date: todayISODate(),
-  company_id: "",
+  company_ids: [] as string[],
   transaction_value: "",
 };
 
@@ -60,6 +60,7 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
   const [storesReady, setStoresReady] = useState(false);
   const [hasStores, setHasStores] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  const [storeMode, setStoreMode] = useState<"single" | "multiple">("single");
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [step, setStep] = useState<Step>(1);
   const [loading, setLoading] = useState(false);
@@ -124,15 +125,29 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
 
   function resetForNextGuest() {
     setForm({ ...emptyForm, transaction_date: todayISODate() });
+    setStoreMode("single");
     setReceiptImage(null);
     setStep(1);
     setPhoneKey((k) => k + 1);
     vk.dismiss();
   }
 
+  function setStoreIds(ids: string[]) {
+    update("company_ids", storeMode === "single" ? ids.slice(0, 1) : ids);
+  }
+
+  function changeStoreMode(next: "single" | "multiple") {
+    setStoreMode(next);
+    if (next === "single" && form.company_ids.length > 1) {
+      update("company_ids", form.company_ids.slice(0, 1));
+    }
+  }
+
   function validateStep(current: Step): string | null {
     if (current === 1) {
-      if (!form.company_id) return t("registerErrSelectStore");
+      if (!form.company_ids.length) {
+        return storeMode === "multiple" ? t("registerErrSelectStores") : t("registerErrSelectStore");
+      }
       const value = Number(form.transaction_value);
       if (!form.transaction_value.trim() || !Number.isFinite(value) || value < 0) {
         return t("registerErrTxnValue");
@@ -199,6 +214,8 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
+          company_id: form.company_ids[0] ?? "",
+          company_ids: form.company_ids,
           transaction_value: Number(form.transaction_value),
           receipt_image: receiptImage,
         }),
@@ -208,7 +225,18 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
         setError(data.error || t("registerErrFailed"));
         return;
       }
-      setSuccess(t("registerSuccess", { store: data.store }));
+      const storeLabel =
+        typeof data.store === "string" && data.store
+          ? data.store
+          : Array.isArray(data.stores)
+            ? (data.stores as string[]).join(", ")
+            : "";
+      const storeCount = Array.isArray(data.stores) ? data.stores.length : form.company_ids.length;
+      setSuccess(
+        storeCount > 1
+          ? t("registerSuccessStores", { store: storeLabel, count: storeCount })
+          : t("registerSuccess", { store: storeLabel }),
+      );
       resetForNextGuest();
     } catch {
       setError(t("commonCouldNotReachServer"));
@@ -295,11 +323,44 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
         <div className="min-w-0 space-y-5 rounded-3xl border border-border bg-secondary/45 p-5 shadow-xl backdrop-blur md:p-8 landscape:flex landscape:min-h-0 landscape:flex-1 landscape:flex-col landscape:gap-3 landscape:space-y-0 landscape:rounded-2xl landscape:p-4 md:landscape:p-5">
           {step === 1 ? (
             <div className="flex min-h-0 w-full min-w-0 flex-col landscape:flex-1">
+              <div className="mb-4 shrink-0 space-y-2 landscape:mb-2">
+                <Label className={labelClass}>{t("registerStoreMode")}</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => changeStoreMode("single")}
+                    className={cn(
+                      "h-11 rounded-xl border text-sm font-semibold transition landscape:h-12",
+                      storeMode === "single"
+                        ? "border-accent bg-accent/20 text-foreground"
+                        : "border-border bg-secondary/50 text-muted-foreground hover:border-accent/50",
+                    )}
+                  >
+                    {t("registerStoreModeSingle")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => changeStoreMode("multiple")}
+                    className={cn(
+                      "h-11 rounded-xl border text-sm font-semibold transition landscape:h-12",
+                      storeMode === "multiple"
+                        ? "border-accent bg-accent/20 text-foreground"
+                        : "border-border bg-secondary/50 text-muted-foreground hover:border-accent/50",
+                    )}
+                  >
+                    {t("registerStoreModeMultiple")}
+                  </button>
+                </div>
+                {storeMode === "multiple" ? (
+                  <p className="text-xs text-muted-foreground">{t("pickerTapToAdd")}</p>
+                ) : null}
+              </div>
               <StorePicker
                 stores={stores}
                 featuredSource={featuredSource}
-                selectedId={form.company_id}
-                onSelect={(id) => update("company_id", id)}
+                selectedIds={form.company_ids}
+                onChange={setStoreIds}
+                multiple={storeMode === "multiple"}
                 loading={!storesReady}
                 toolbarExtra={
                   <div className={cn(fieldWrapClass, "min-w-0")}>
@@ -336,6 +397,26 @@ function RegisterForm({ onVkEnabled }: { onVkEnabled: (enabled: boolean) => void
 
           {step === 3 ? (
             <div className="grid gap-4 sm:grid-cols-2 landscape:min-h-min landscape:flex-1 landscape:grid-cols-3 landscape:auto-rows-fr landscape:items-stretch landscape:gap-x-5 landscape:gap-y-4">
+              <div className={cn(step3WrapClass, "sm:col-span-2 landscape:col-span-3")}>
+                <Label className={labelClass}>{t("registerSelectedStores")}</Label>
+                <div className="flex flex-wrap gap-2 rounded-xl border border-border bg-secondary/40 px-3 py-2.5">
+                  {form.company_ids.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">{t("registerErrSelectStore")}</p>
+                  ) : (
+                    form.company_ids.map((id) => {
+                      const store = stores.find((s) => s.id === id);
+                      return (
+                        <span
+                          key={id}
+                          className="inline-flex max-w-full items-center rounded-full border border-accent/40 bg-accent/15 px-3 py-1 text-sm font-semibold"
+                        >
+                          <span className="truncate">{store?.name || id}</span>
+                        </span>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
               <div className={step3WrapClass}>
                 <Label htmlFor="first_name" className={labelClass}>
                   {t("registerFirstName")}

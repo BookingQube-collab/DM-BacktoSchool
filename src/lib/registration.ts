@@ -1,5 +1,6 @@
 import { parseImageDataUrl } from "@/lib/image";
 import { NATIONALITIES } from "@/lib/countries";
+import { isStoreId, normalizeStoreIds } from "@/lib/guest-stores";
 
 export {
   NATIONALITIES,
@@ -26,6 +27,7 @@ export type RegistrationInput = {
   address_zone: string;
   transaction_date: string;
   company_id: string;
+  company_ids: string[];
   transaction_value: number;
 };
 
@@ -34,7 +36,13 @@ export function parseReceiptImage(raw: unknown) {
   return parseImageDataUrl(raw, "Bill photo");
 }
 
-export function validateRegistration(body: Partial<RegistrationInput>) {
+export function validateRegistration(
+  body: Partial<Omit<RegistrationInput, "company_id" | "company_ids" | "transaction_value">> & {
+    company_id?: unknown;
+    company_ids?: unknown;
+    transaction_value?: unknown;
+  },
+) {
   const errors: string[] = [];
   const first_name = body.first_name?.trim() ?? "";
   const last_name = body.last_name?.trim() ?? "";
@@ -43,7 +51,8 @@ export function validateRegistration(body: Partial<RegistrationInput>) {
   const nationality = body.nationality?.trim() ?? "";
   const address_zone = body.address_zone?.trim() ?? "";
   const transaction_date = body.transaction_date?.trim() ?? "";
-  const company_id = body.company_id?.trim() ?? "";
+  const company_ids = normalizeStoreIds(body.company_ids, body.company_id);
+  const company_id = company_ids[0] ?? "";
   const transaction_value = Number(body.transaction_value);
 
   if (!first_name) errors.push("First name is required");
@@ -60,7 +69,10 @@ export function validateRegistration(body: Partial<RegistrationInput>) {
   if (!transaction_date || Number.isNaN(Date.parse(transaction_date))) {
     errors.push("Transaction date is required");
   }
-  if (!company_id) errors.push("Store name is required");
+  if (!company_ids.length) errors.push("Store name is required");
+  else if (company_ids.some((id) => !isStoreId(id))) {
+    errors.push("One or more selected stores are invalid");
+  }
   if (!Number.isFinite(transaction_value) || transaction_value < 0) {
     errors.push("Transaction value must be a valid amount");
   } else if (transaction_value < MIN_TRANSACTION_VALUE) {
@@ -78,6 +90,7 @@ export function validateRegistration(body: Partial<RegistrationInput>) {
       address_zone,
       transaction_date,
       company_id,
+      company_ids,
       transaction_value,
     } satisfies RegistrationInput,
   };

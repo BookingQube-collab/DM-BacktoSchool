@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -11,8 +11,9 @@ export type Store = { id: string; name: string; logo_url: string | null };
 type StorePickerProps = {
   stores: Store[];
   featuredSource: "sales" | "top_brands";
-  selectedId: string;
-  onSelect: (id: string) => void;
+  selectedIds: string[];
+  onChange: (ids: string[]) => void;
+  multiple?: boolean;
   loading?: boolean;
   toolbarExtra?: ReactNode;
 };
@@ -47,6 +48,7 @@ function StoreCard({
     <button
       type="button"
       onClick={onSelect}
+      aria-pressed={selected}
       className={cn(
         "group flex w-full min-w-0 flex-col overflow-hidden rounded-3xl border text-left transition landscape:rounded-2xl",
         selected ? "border-accent ring-2 ring-accent/60" : "border-border hover:border-accent/50",
@@ -70,8 +72,9 @@ function StoreCard({
 export function StorePicker({
   stores,
   featuredSource,
-  selectedId,
-  onSelect,
+  selectedIds,
+  onChange,
+  multiple = false,
   loading,
   toolbarExtra,
 }: StorePickerProps) {
@@ -88,14 +91,30 @@ export function StorePicker({
   const q = query.trim().toLowerCase();
   const visible = q ? stores.filter((s) => s.name.toLowerCase().includes(q)) : stores;
   const featuredHeading = featuredSource === "sales" ? t("pickerPopular") : t("pickerFeatured");
+  const selectedSet = new Set(selectedIds);
+  const selectedStores = selectedIds
+    .map((id) => stores.find((s) => s.id === id))
+    .filter((s): s is Store => Boolean(s));
 
   function selectStore(store: Store) {
     vk.dismiss();
     (document.activeElement instanceof HTMLElement ? document.activeElement : null)?.blur();
-    const page = document.querySelector("[data-register-page]");
-    if (page instanceof HTMLElement) page.scrollLeft = 0;
-    onSelect(store.id);
-    setQuery("");
+    if (!multiple) {
+      const page = document.querySelector("[data-register-page]");
+      if (page instanceof HTMLElement) page.scrollLeft = 0;
+      onChange([store.id]);
+      setQuery("");
+      return;
+    }
+    if (selectedSet.has(store.id)) {
+      onChange(selectedIds.filter((id) => id !== store.id));
+    } else {
+      onChange([...selectedIds, store.id]);
+    }
+  }
+
+  function removeStore(id: string) {
+    onChange(selectedIds.filter((storeId) => storeId !== id));
   }
 
   return (
@@ -122,6 +141,29 @@ export function StorePicker({
         {toolbarExtra}
       </div>
 
+      {selectedStores.length > 0 ? (
+        <div className="shrink-0 space-y-2">
+          <Label className="text-base">
+            {multiple ? t("pickerSelectedStores") : t("pickerSelectedStore")}
+            {multiple ? ` (${selectedStores.length})` : ""}
+          </Label>
+          <div className="flex flex-wrap gap-2">
+            {selectedStores.map((store) => (
+              <button
+                key={store.id}
+                type="button"
+                onClick={() => removeStore(store.id)}
+                className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-accent/50 bg-accent/15 px-3 py-1.5 text-sm font-semibold"
+              >
+                <span className="truncate">{store.name}</span>
+                <X className="size-3.5 shrink-0" aria-hidden />
+                <span className="sr-only">{t("commonRemove")}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 landscape:gap-1">
         <Label className="shrink-0 text-base">{q ? t("pickerSearchStore") : featuredHeading}</Label>
         <div className="scrollbar-none min-h-[12rem] min-w-0 flex-1 overflow-y-auto overscroll-contain pb-1 max-h-[min(52dvh,28rem)] landscape:min-h-0 landscape:max-h-none">
@@ -141,7 +183,7 @@ export function StorePicker({
                 <StoreCard
                   key={store.id}
                   store={store}
-                  selected={selectedId === store.id}
+                  selected={selectedSet.has(store.id)}
                   onSelect={() => selectStore(store)}
                 />
               ))}
